@@ -11,13 +11,15 @@ private const val SIX_STATUS_CLASS =
 @Suppress("unused")
 val unlockExtensionsPatch = bytecodePatch(
     name = "Unlock Chrome Web Store & Extensions",
-    description = "Unlocks the built-in extensions WebUI, toolbar container, pinning, and Chrome Web Store support.",
+    description = "Force-enables SIX extensions engine and unlocks the built-in extensions WebUI, toolbar container, pinning, and Chrome Web Store support.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)
 
     execute {
         listOf(
+            "isEnabled",
+            "isDefaultExtEnabled",
             "isSupportedExtContainer",
             "isSupportedExtContainerPin",
             "isSupportedExtWebUI",

@@ -17,6 +17,8 @@ import org.w3c.dom.Element
 
 private val PACKAGE_NAME_REGEX = Regex("^[a-zA-Z][a-zA-Z0-9_]*(\\.[a-zA-Z][a-zA-Z0-9_]*)+$")
 private const val LEGACY_BROWSER_PREFIX = "com.sec.android.app.browser"
+private const val SBROWSER_PROVIDER_CLASS =
+    "Lcom/sec/android/app/sbrowser/sites/provider/SBrowserProvider;"
 
 private val EXACT_AUTHORITY_SUFFIXES = setOf(
     "aiSummary",
@@ -29,6 +31,7 @@ private val EXACT_AUTHORITY_SUFFIXES = setOf(
     "searchindexables",
     "ManageAppDataProvider",
     "browser",
+    "migration",
     "operatorbookmarks",
     "ChromeBrowserProvider",
     "BrowserProviderProxy",
@@ -68,7 +71,7 @@ internal object SBrowserPackageRenameTarget {
 }
 
 internal val changePackageAndAppNameResourcePatch = resourcePatch(
-    description = "Rewrites AndroidManifest.xml package, permissions, provider authorities, and app label for SBrowserX.",
+    description = "Rewrites AndroidManifest.xml package, permissions, provider authorities, and app/launcher labels for SBrowserX.",
 ) {
     finalize {
         val newPackage = SBrowserPackageRenameTarget.packageName
@@ -87,6 +90,7 @@ internal val changePackageAndAppNameResourcePatch = resourcePatch(
             }
 
             application.setAttributeNS(ANDROID_NS, "android:label", newAppName)
+            rewriteAppLabels(application, newAppName)
         }
     }
 }
@@ -94,7 +98,7 @@ internal val changePackageAndAppNameResourcePatch = resourcePatch(
 @Suppress("unused")
 val changePackageAndAppNamePatch = bytecodePatch(
     name = "Change package and app name",
-    description = "Changes the package name, custom permissions, provider authorities, internal content:// URIs, and app display name so SBrowserX runs cleanly alongside stock Samsung Internet.",
+    description = "Changes the package name, custom permissions, provider authorities, internal content:// URIs, UriMatcher rules, and app display name so SBrowserX runs cleanly alongside stock Samsung Internet.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)
@@ -144,14 +148,14 @@ val changePackageAndAppNamePatch = bytecodePatch(
 
         if (newPackage == SBROWSER_PACKAGE_NAME) return@execute
 
-        // Rewrite hardcoded content:// URIs, provider authorities, data dirs, and custom permissions in smali
         val classesToPatch = mutableListOf<String>()
         classDefForEach { classDef ->
+            val isProviderClass = classDef.type == SBROWSER_PROVIDER_CLASS
             val hasCandidate = classDef.methods.any { method ->
                 method.implementation?.instructions?.any { insn ->
                     if (insn.opcode == Opcode.CONST_STRING || insn.opcode == Opcode.CONST_STRING_JUMBO) {
                         val str = ((insn as? ReferenceInstruction)?.reference as? StringReference)?.string
-                        str != null && rewriteCloneString(str, newPackage) != str
+                        str != null && rewriteCloneString(str, newPackage, isProviderClass) != str
                     } else {
                         false
                     }
@@ -163,6 +167,7 @@ val changePackageAndAppNamePatch = bytecodePatch(
         }
 
         for (classType in classesToPatch) {
+            val isProviderClass = classType == SBROWSER_PROVIDER_CLASS
             val mutableClass = mutableClassDefBy(classType)
             for (method in mutableClass.methods) {
                 val impl = method.implementation ?: continue
@@ -172,7 +177,7 @@ val changePackageAndAppNamePatch = bytecodePatch(
                     if (insn.opcode != Opcode.CONST_STRING && insn.opcode != Opcode.CONST_STRING_JUMBO) continue
                     val ref = (insn as? ReferenceInstruction)?.reference as? StringReference ?: continue
                     val original = ref.string
-                    val updated = rewriteCloneString(original, newPackage)
+                    val updated = rewriteCloneString(original, newPackage, isProviderClass)
                     if (updated != original) {
                         val reg = (insn as OneRegisterInstruction).registerA
                         method.replaceInstruction(index, "const-string v$reg, \"${escapeSmali(updated)}\"")
@@ -183,9 +188,15 @@ val changePackageAndAppNamePatch = bytecodePatch(
     }
 }
 
-private fun rewriteCloneString(value: String, newPkg: String): String {
+private fun rewriteCloneString(
+    value: String,
+    newPkg: String,
+    isProviderClass: Boolean,
+): String {
     val oldPkg = SBROWSER_PACKAGE_NAME
     return when {
+        isProviderClass && value == oldPkg -> newPkg
+
         value.startsWith("content://$oldPkg/") ||
             value.startsWith("content://$oldPkg.") ||
             value == "content://$oldPkg" ->
@@ -215,13 +226,25 @@ private fun rewriteCloneString(value: String, newPkg: String): String {
 private fun escapeSmali(input: String): String =
     input.replace("\\", "\\\\").replace("\"", "\\\"")
 
+private fun rewriteAppLabels(application: Element, newAppName: String) {
+    val allElements = application.getElementsByTagName("*")
+    for (i in 0 until allElements.length) {
+        val el = allElements.item(i) as? Element ?: continue
+        if (el.tagName == "activity" || el.tagName == "activity-alias" || el.tagName == "intent-filter") {
+            val label = el.getAttributeNS(ANDROID_NS, "label")
+            if (label == "@string/app_name" || label == "@string/app_name_internet") {
+                el.setAttributeNS(ANDROID_NS, "android:label", newAppName)
+            }
+        }
+    }
+}
+
 private fun rewriteManifestForClone(
     root: Element,
     application: Element,
     oldPkg: String,
     newPkg: String,
 ) {
-    // 1. Rename EVERY declared <permission> (including com.sec.android.app.browser.permission.*)
     val declaredPermRemap = mutableMapOf<String, String>()
     val permissionNodes = root.getElementsByTagName("permission")
     for (i in 0 until permissionNodes.length) {
@@ -238,7 +261,6 @@ private fun rewriteManifestForClone(
         el.setAttributeNS(ANDROID_NS, "android:name", renamed)
     }
 
-    // 2. Rewrite permission references across <uses-permission>, <activity>, <service>, <receiver>, <provider>
     val allElements = root.getElementsByTagName("*")
     for (i in 0 until allElements.length) {
         val el = allElements.item(i) as? Element ?: continue
@@ -254,7 +276,6 @@ private fun rewriteManifestForClone(
         }
     }
 
-    // 3. Rewrite EVERY <provider> authority inside <application> (never touching <queries>)
     val appProviders = application.getElementsByTagName("provider")
     for (i in 0 until appProviders.length) {
         val el = appProviders.item(i) as? Element ?: continue
