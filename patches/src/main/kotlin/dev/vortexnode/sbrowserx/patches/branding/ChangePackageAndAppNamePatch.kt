@@ -15,29 +15,41 @@ private val PACKAGE_NAME_REGEX = Regex("^[a-zA-Z][a-zA-Z0-9_]*(\\.[a-zA-Z][a-zA-
 val changePackageAndAppNamePatch = resourcePatch(
     name = "Change package and app name",
     description = "Changes the package name and app display name so SBrowserX can be installed alongside stock Samsung Internet.",
-    use = true,
+    default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)
 
-    val targetPackageName by stringOption(
-        key = "packageName",
+    val targetPackageName = stringOption(
+        key = "package_name",
         default = SBROWSER_DEFAULT_PATCHED_PACKAGE_NAME,
+        values = linkedMapOf(
+            SBROWSER_DEFAULT_PATCHED_PACKAGE_NAME to SBROWSER_DEFAULT_PATCHED_PACKAGE_NAME,
+            SBROWSER_PACKAGE_NAME to SBROWSER_PACKAGE_NAME,
+        ),
         title = "Package name",
         description = "Custom Android package name for the patched browser.",
         required = true,
-    )
+    ) { value ->
+        value != null && PACKAGE_NAME_REGEX.matches(value.trim())
+    }
 
-    val targetAppName by stringOption(
-        key = "appName",
+    val targetAppName = stringOption(
+        key = "app_name",
         default = SBROWSER_DEFAULT_APP_NAME,
+        values = linkedMapOf(
+            SBROWSER_DEFAULT_APP_NAME to SBROWSER_DEFAULT_APP_NAME,
+            "Samsung Internet" to "Samsung Internet",
+        ),
         title = "App name",
         description = "Custom launcher display name for the patched browser.",
         required = true,
-    )
+    ) { value ->
+        !value.isNullOrBlank()
+    }
 
-    execute {
-        val newPackage = targetPackageName!!.trim()
-        val newAppName = targetAppName!!.trim()
+    finalize {
+        val newPackage = checkNotNull(targetPackageName.value).trim()
+        val newAppName = checkNotNull(targetAppName.value).trim()
         require(PACKAGE_NAME_REGEX.matches(newPackage)) {
             "Invalid package name: '$newPackage'"
         }

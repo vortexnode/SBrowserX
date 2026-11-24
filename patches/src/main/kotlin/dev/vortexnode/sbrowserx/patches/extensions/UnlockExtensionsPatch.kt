@@ -12,7 +12,7 @@ private const val SIX_STATUS_CLASS =
 val unlockExtensionsPatch = bytecodePatch(
     name = "Unlock Chrome Web Store & Extensions",
     description = "Unlocks the built-in extensions WebUI, toolbar container, pinning, and Chrome Web Store support.",
-    use = true,
+    default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)
 

@@ -24,7 +24,7 @@ private const val UPDATE_MANAGER_CLASS =
 val removeTelemetryAndPromotionsPatch = bytecodePatch(
     name = "Remove telemetry, promotions & updates",
     description = "Disables Samsung Analytics, SILog, SMP marketing push, Promotion Engine, Kindred shopping/coupons, and Galaxy Store update checks while preserving site Web Push notifications.",
-    use = true,
+    default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)
 
