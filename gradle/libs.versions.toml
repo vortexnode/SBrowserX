@@ -1,0 +1,8 @@
+[versions]
+morphe-patcher = "2.1.0"
+gson = "2.14.0"
+
+[libraries]
+gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+#noinspection UnusedVersionCatalogEntry
+morphe-patcher = { module = "app.morphe:morphe-patcher", version.ref = "morphe-patcher" }
