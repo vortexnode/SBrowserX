@@ -1,7 +1,13 @@
 package dev.vortexnode.sbrowserx.patches.branding
 
+import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
+import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.patch.resourcePatch
 import app.morphe.patcher.patch.stringOption
+import com.android.tools.smali.dexlib2.Opcode
+import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
+import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
+import com.android.tools.smali.dexlib2.iface.reference.StringReference
 import dev.vortexnode.sbrowserx.shared.Constants.ANDROID_NS
 import dev.vortexnode.sbrowserx.shared.Constants.COMPATIBILITY_SBROWSER
 import dev.vortexnode.sbrowserx.shared.Constants.SBROWSER_DEFAULT_APP_NAME
@@ -12,13 +18,88 @@ import org.w3c.dom.Element
 private val PACKAGE_NAME_REGEX = Regex("^[a-zA-Z][a-zA-Z0-9_]*(\\.[a-zA-Z][a-zA-Z0-9_]*)+$")
 private const val LEGACY_BROWSER_PREFIX = "com.sec.android.app.browser"
 
+private val EXACT_AUTHORITY_SUFFIXES = setOf(
+    "aiSummary",
+    "aiOnDeviceOptionsProvider",
+    "androidx-startup",
+    "recentDownloadSearch",
+    "recentWebsiteSearch",
+    "webPushNotification",
+    "notificationsearchkeywords",
+    "searchindexables",
+    "ManageAppDataProvider",
+    "browser",
+    "operatorbookmarks",
+    "ChromeBrowserProvider",
+    "BrowserProviderProxy",
+    "card",
+    "sfinder.searchprovider",
+    "bnrDocuments",
+    "sbrowser2",
+    "FileProvider",
+    "DownloadFileProvider",
+    "mediahistory",
+    "quickaccesspinned",
+    "searchengine",
+    "mostvisited",
+    "sitessearchkeywords",
+    "settingsearchkeywords",
+    "scloud.quickaccess.sync",
+    "scloud.quickaccess.sync2",
+    "backup",
+    "backup2",
+    "scloud.sync",
+    "provider.DumpProvider",
+    "account",
+    "handoffData",
+    "sync.setting.provider",
+    "PageContentProvider",
+    "CapsuleProvider",
+    "provider.routines.v3",
+    "mlkitinitprovider",
+)
+
+internal object SBrowserPackageRenameTarget {
+    @Volatile
+    var packageName: String = SBROWSER_DEFAULT_PATCHED_PACKAGE_NAME
+
+    @Volatile
+    var appName: String = SBROWSER_DEFAULT_APP_NAME
+}
+
+internal val changePackageAndAppNameResourcePatch = resourcePatch(
+    description = "Rewrites AndroidManifest.xml package, permissions, provider authorities, and app label for SBrowserX.",
+) {
+    finalize {
+        val newPackage = SBrowserPackageRenameTarget.packageName
+        val newAppName = SBrowserPackageRenameTarget.appName
+
+        document("AndroidManifest.xml").use { manifest ->
+            val root = manifest.documentElement
+                ?: error("AndroidManifest.xml is missing root <manifest> element")
+
+            val application = root.getElementsByTagName("application").item(0) as? Element
+                ?: error("AndroidManifest.xml is missing <application> element")
+
+            if (newPackage != SBROWSER_PACKAGE_NAME) {
+                root.setAttribute("package", newPackage)
+                rewriteManifestForClone(root, application, SBROWSER_PACKAGE_NAME, newPackage)
+            }
+
+            application.setAttributeNS(ANDROID_NS, "android:label", newAppName)
+        }
+    }
+}
+
 @Suppress("unused")
-val changePackageAndAppNamePatch = resourcePatch(
+val changePackageAndAppNamePatch = bytecodePatch(
     name = "Change package and app name",
-    description = "Changes the package name, custom permissions, provider authorities, and app display name so SBrowserX can be installed cleanly alongside stock Samsung Internet.",
+    description = "Changes the package name, custom permissions, provider authorities, internal content:// URIs, and app display name so SBrowserX runs cleanly alongside stock Samsung Internet.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)
+
+    dependsOn(changePackageAndAppNameResourcePatch)
 
     val targetPackageName = stringOption(
         key = "package_name",
@@ -48,7 +129,7 @@ val changePackageAndAppNamePatch = resourcePatch(
         !value.isNullOrBlank()
     }
 
-    finalize {
+    execute {
         val newPackage = checkNotNull(targetPackageName.value).trim()
         val newAppName = checkNotNull(targetAppName.value).trim()
         require(PACKAGE_NAME_REGEX.matches(newPackage)) {
@@ -58,22 +139,81 @@ val changePackageAndAppNamePatch = resourcePatch(
             "App name cannot be blank"
         }
 
-        document("AndroidManifest.xml").use { manifest ->
-            val root = manifest.documentElement
-                ?: error("AndroidManifest.xml is missing root <manifest> element")
+        SBrowserPackageRenameTarget.packageName = newPackage
+        SBrowserPackageRenameTarget.appName = newAppName
 
-            val application = root.getElementsByTagName("application").item(0) as? Element
-                ?: error("AndroidManifest.xml is missing <application> element")
+        if (newPackage == SBROWSER_PACKAGE_NAME) return@execute
 
-            if (newPackage != SBROWSER_PACKAGE_NAME) {
-                root.setAttribute("package", newPackage)
-                rewriteManifestForClone(root, application, SBROWSER_PACKAGE_NAME, newPackage)
+        // Rewrite hardcoded content:// URIs, provider authorities, data dirs, and custom permissions in smali
+        val classesToPatch = mutableListOf<String>()
+        classDefForEach { classDef ->
+            val hasCandidate = classDef.methods.any { method ->
+                method.implementation?.instructions?.any { insn ->
+                    if (insn.opcode == Opcode.CONST_STRING || insn.opcode == Opcode.CONST_STRING_JUMBO) {
+                        val str = ((insn as? ReferenceInstruction)?.reference as? StringReference)?.string
+                        str != null && rewriteCloneString(str, newPackage) != str
+                    } else {
+                        false
+                    }
+                } == true
             }
+            if (hasCandidate) {
+                classesToPatch.add(classDef.type)
+            }
+        }
 
-            application.setAttributeNS(ANDROID_NS, "android:label", newAppName)
+        for (classType in classesToPatch) {
+            val mutableClass = mutableClassDefBy(classType)
+            for (method in mutableClass.methods) {
+                val impl = method.implementation ?: continue
+                val instructions = impl.instructions
+                for (index in instructions.indices) {
+                    val insn = instructions[index]
+                    if (insn.opcode != Opcode.CONST_STRING && insn.opcode != Opcode.CONST_STRING_JUMBO) continue
+                    val ref = (insn as? ReferenceInstruction)?.reference as? StringReference ?: continue
+                    val original = ref.string
+                    val updated = rewriteCloneString(original, newPackage)
+                    if (updated != original) {
+                        val reg = (insn as OneRegisterInstruction).registerA
+                        method.replaceInstruction(index, "const-string v$reg, \"${escapeSmali(updated)}\"")
+                    }
+                }
+            }
         }
     }
 }
+
+private fun rewriteCloneString(value: String, newPkg: String): String {
+    val oldPkg = SBROWSER_PACKAGE_NAME
+    return when {
+        value.startsWith("content://$oldPkg/") ||
+            value.startsWith("content://$oldPkg.") ||
+            value == "content://$oldPkg" ->
+            "content://$newPkg" + value.removePrefix("content://$oldPkg")
+
+        value.startsWith("/data/data/$oldPkg") ->
+            "/data/data/$newPkg" + value.removePrefix("/data/data/$oldPkg")
+
+        value == "${oldPkg}_preferences.xml" ->
+            "${newPkg}_preferences.xml"
+
+        value.startsWith("$oldPkg.permission.") ||
+            value.startsWith("$oldPkg.operatorbookmarks.permission.") ||
+            value == "$oldPkg.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" ->
+            newPkg + value.removePrefix(oldPkg)
+
+        value.startsWith("$LEGACY_BROWSER_PREFIX.permission.") ->
+            "$newPkg.legacy" + value.removePrefix(LEGACY_BROWSER_PREFIX)
+
+        value.startsWith("$oldPkg.") && EXACT_AUTHORITY_SUFFIXES.contains(value.removePrefix("$oldPkg.")) ->
+            newPkg + value.removePrefix(oldPkg)
+
+        else -> value
+    }
+}
+
+private fun escapeSmali(input: String): String =
+    input.replace("\\", "\\\\").replace("\"", "\\\"")
 
 private fun rewriteManifestForClone(
     root: Element,
