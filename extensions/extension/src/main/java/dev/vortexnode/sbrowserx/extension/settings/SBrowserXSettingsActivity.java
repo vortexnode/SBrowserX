@@ -83,19 +83,13 @@ public final class SBrowserXSettingsActivity extends Activity {
         // One UI 8 Top Bar with circular '<' back button
         root.addView(buildOneUiHeader(this, SBrowserXStrings.get(SBrowserXStrings.TITLE_HUB), night, textPrimary, v -> finish()));
 
-        // --- Extensions ---
+        // --- Extensions (user-requested order: 1. Pack, 2. Manage, 3. CWS, 4. Install from file) ---
         root.addView(sectionHeader(SBrowserXStrings.get(SBrowserXStrings.CAT_EXTENSIONS), textSecondary));
         LinearLayout extCard = card(cardColor);
-        extInstallDot = createTealDot();
-        addActionRow(extCard, SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALL_FILE),
-                SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALL_FILE_SUMMARY),
-                textPrimary, textSecondary, extInstallDot, v -> launchFilePicker());
-        extCard.addView(divider(night));
         extPackDot = createTealDot();
         addActionRow(extCard, SBrowserXStrings.get(SBrowserXStrings.EXT_PACK_TITLE),
                 SBrowserXStrings.get(SBrowserXStrings.EXT_PACK_SUMMARY),
                 textPrimary, textSecondary, extPackDot, v -> showRecommendedPackDialog(dialogTheme));
-
         extCard.addView(divider(night));
         addActionRow(extCard, SBrowserXStrings.get(SBrowserXStrings.EXT_MANAGE_TITLE),
                 SBrowserXStrings.get(SBrowserXStrings.EXT_MANAGE_SUMMARY),
@@ -104,6 +98,11 @@ public final class SBrowserXSettingsActivity extends Activity {
         addActionRow(extCard, SBrowserXStrings.get(SBrowserXStrings.EXT_OPEN_CWS),
                 SBrowserXStrings.get(SBrowserXStrings.EXT_OPEN_CWS_SUMMARY),
                 textPrimary, textSecondary, null, v -> openWebUrlInSelf("https://chromewebstore.google.com/category/extensions"));
+        extCard.addView(divider(night));
+        extInstallDot = createTealDot();
+        addActionRow(extCard, SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALL_FILE),
+                SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALL_FILE_SUMMARY),
+                textPrimary, textSecondary, extInstallDot, v -> launchFilePicker());
         root.addView(extCard);
 
         // --- Privacy & Security ---
@@ -135,44 +134,52 @@ public final class SBrowserXSettingsActivity extends Activity {
                 });
         root.addView(privacyCard);
 
-        // --- Features & Downloads ---
-        root.addView(sectionHeader(SBrowserXStrings.get(SBrowserXStrings.CAT_FEATURES), textSecondary));
-        LinearLayout featCard = card(cardColor);
+        // --- Card A: Assistant & Translate ---
+        root.addView(sectionHeader(SBrowserXStrings.get(SBrowserXStrings.CAT_ASSIST_TRANSLATE), textSecondary));
+        LinearLayout assistCard = card(cardColor);
+        addActionRow(assistCard, SBrowserXStrings.get(SBrowserXStrings.ASSIST_TITLE),
+                SBrowserXStrings.get(SBrowserXStrings.ASSIST_SUMMARY),
+                textPrimary, textSecondary, null,
+                v -> startActivity(new Intent(this, SBrowserXBrowsingAssistActivity.class)));
+        assistCard.addView(divider(night));
         gtransDot = createTealDot();
-        gtransSummaryView = addActionRow(featCard, SBrowserXStrings.get(SBrowserXStrings.GTRANS_SETTINGS_TITLE),
+        gtransSummaryView = addActionRow(assistCard, SBrowserXStrings.get(SBrowserXStrings.GTRANS_SETTINGS_TITLE),
                 buildTranslateSummary(),
                 textPrimary, textSecondary, gtransDot,
                 v -> startActivity(new Intent(this, SBrowserXTranslateSettingsActivity.class)));
-        featCard.addView(divider(night));
+        root.addView(assistCard);
+
+        // --- Card B: Downloads & Tabs ---
+        root.addView(sectionHeader(SBrowserXStrings.get(SBrowserXStrings.CAT_DOWNLOADS_TABS), textSecondary));
+        LinearLayout dlTabsCard = card(cardColor);
         extDlDot = createTealDot();
-        extDlSummaryView = addActionRow(featCard, SBrowserXStrings.get(SBrowserXStrings.EXT_DL_TITLE),
+        extDlSummaryView = addActionRow(dlTabsCard, SBrowserXStrings.get(SBrowserXStrings.EXT_DL_TITLE),
                 SBrowserXHooks.getExternalDownloaderSummary(this),
                 textPrimary, textSecondary, extDlDot,
                 v -> startActivity(new Intent(this, SBrowserXExternalDownloaderDialogActivity.class)));
-        featCard.addView(divider(night));
-        extDlImagesSwitch = addSwitchRow(featCard, SBrowserXStrings.get(SBrowserXStrings.EXT_DL_IMAGES_TITLE),
+        dlTabsCard.addView(divider(night));
+        extDlImagesSwitch = addSwitchRow(dlTabsCard, SBrowserXStrings.get(SBrowserXStrings.EXT_DL_IMAGES_TITLE),
                 SBrowserXStrings.get(SBrowserXStrings.EXT_DL_IMAGES_SUMMARY),
                 SBrowserXPrefs.isExternalDownloaderImagesEnabled(this), night, textPrimary, textSecondary, null,
                 (btn, checked) -> {
                     SBrowserXPrefs.setExternalDownloaderImagesEnabled(this, checked);
                     refreshDynamicViews();
                 });
-        featCard.addView(divider(night));
-        addSwitchRow(featCard, SBrowserXStrings.get(SBrowserXStrings.UNLIMITED_TABS_TITLE),
+        dlTabsCard.addView(divider(night));
+        addSwitchRow(dlTabsCard, SBrowserXStrings.get(SBrowserXStrings.UNLIMITED_TABS_TITLE),
                 SBrowserXStrings.get(SBrowserXStrings.UNLIMITED_TABS_SUMMARY),
                 SBrowserXPrefs.isUnlimitedTabsEnabled(this), night, textPrimary, textSecondary, null,
                 (btn, checked) -> SBrowserXPrefs.setUnlimitedTabsEnabled(this, checked));
-        featCard.addView(divider(night));
-        addActionRow(featCard, SBrowserXStrings.get(SBrowserXStrings.ASSIST_TITLE),
-                SBrowserXStrings.get(SBrowserXStrings.ASSIST_SUMMARY),
-                textPrimary, textSecondary, null,
-                v -> startActivity(new Intent(this, SBrowserXBrowsingAssistActivity.class)));
-        featCard.addView(divider(night));
-        addActionRow(featCard, SBrowserXStrings.get(SBrowserXStrings.SYNC_BACKUP_TITLE),
+        root.addView(dlTabsCard);
+
+        // --- Card C: Backup & Sync ---
+        root.addView(sectionHeader(SBrowserXStrings.get(SBrowserXStrings.CAT_BACKUP_SECTION), textSecondary));
+        LinearLayout backupCard = card(cardColor);
+        addActionRow(backupCard, SBrowserXStrings.get(SBrowserXStrings.SYNC_BACKUP_TITLE),
                 SBrowserXStrings.get(SBrowserXStrings.SYNC_BACKUP_SUMMARY),
                 textPrimary, textSecondary, null,
                 v -> startActivity(new Intent(this, SBrowserXBackupActivity.class)));
-        root.addView(featCard);
+        root.addView(backupCard);
 
         // --- Appearance & UI ---
         root.addView(sectionHeader(SBrowserXStrings.get(SBrowserXStrings.CAT_APPEARANCE), textSecondary));
@@ -316,7 +323,8 @@ public final class SBrowserXSettingsActivity extends Activity {
     private String buildTranslateSummary() {
         boolean on = SBrowserXPrefs.isGoogleTranslateEnabled(this);
         String lang = SBrowserXGoogleTranslator.getLanguageDisplayName(SBrowserXPrefs.getTranslateTargetLang(this));
-        return (on ? "ON • " : "OFF • ") + lang;
+        String state = on ? SBrowserXStrings.get(SBrowserXStrings.BTN_ENABLE) : SBrowserXStrings.get(SBrowserXStrings.BTN_DISABLE);
+        return state + " • " + lang;
     }
 
     private void launchFilePicker() {
@@ -399,6 +407,13 @@ public final class SBrowserXSettingsActivity extends Activity {
         }
         if (extDlSummaryView != null) {
             extDlSummaryView.setText(SBrowserXHooks.getExternalDownloaderSummary(this));
+        }
+        if (extDlImagesSwitch != null) {
+            boolean dlOn = SBrowserXPrefs.isExternalDownloaderEnabled(this);
+            extDlImagesSwitch.setEnabled(dlOn);
+            if (extDlImagesSwitch.getParent() instanceof View) {
+                ((View) extDlImagesSwitch.getParent()).setAlpha(dlOn ? 1.0f : 0.42f);
+            }
         }
         if (compactBtnSummaryView != null) {
             boolean isC = SBrowserXHooks.isCompactLayoutActivePublic();
@@ -604,6 +619,36 @@ public final class SBrowserXSettingsActivity extends Activity {
         target.requestApplyInsets();
     }
 
+    static android.graphics.drawable.Drawable createOneUiBackChevron(float density, int color) {
+        return new android.graphics.drawable.Drawable() {
+            private final android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            private final android.graphics.Path path = new android.graphics.Path();
+            {
+                paint.setStyle(android.graphics.Paint.Style.STROKE);
+                paint.setStrokeWidth(1.9f * density);
+                paint.setStrokeCap(android.graphics.Paint.Cap.ROUND);
+                paint.setStrokeJoin(android.graphics.Paint.Join.ROUND);
+                paint.setColor(color);
+            }
+            @Override
+            public void draw(android.graphics.Canvas canvas) {
+                android.graphics.Rect b = getBounds();
+                float cx = b.exactCenterX();
+                float cy = b.exactCenterY();
+                float halfH = 7.2f * density;
+                float halfW = 3.6f * density;
+                path.reset();
+                path.moveTo(cx + halfW, cy - halfH);
+                path.lineTo(cx - halfW, cy);
+                path.lineTo(cx + halfW, cy + halfH);
+                canvas.drawPath(path, paint);
+            }
+            @Override public void setAlpha(int alpha) { paint.setAlpha(alpha); }
+            @Override public void setColorFilter(android.graphics.ColorFilter cf) { paint.setColorFilter(cf); }
+            @Override public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
+        };
+    }
+
     static LinearLayout buildOneUiHeader(
             Activity act, String titleText, boolean night, int textPrimary, View.OnClickListener onBack
     ) {
@@ -611,14 +656,11 @@ public final class SBrowserXSettingsActivity extends Activity {
         LinearLayout header = new LinearLayout(act);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(Math.round(2 * d), Math.round(8 * d), Math.round(4 * d), Math.round(18 * d));
+        header.setPadding(0, Math.round(6 * d), Math.round(4 * d), Math.round(18 * d));
 
-        TextView backBtn = new TextView(act);
-        backBtn.setText("\u2039");
-        backBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 28);
-        backBtn.setGravity(Gravity.CENTER);
-        backBtn.setTextColor(textPrimary);
-        backBtn.setIncludeFontPadding(false);
+        android.widget.ImageView backBtn = new android.widget.ImageView(act);
+        backBtn.setImageDrawable(createOneUiBackChevron(d, textPrimary));
+        backBtn.setScaleType(android.widget.ImageView.ScaleType.FIT_XY);
         TypedValue ripple = new TypedValue();
         act.getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, ripple, true);
         if (ripple.resourceId != 0) backBtn.setBackgroundResource(ripple.resourceId);
@@ -634,6 +676,7 @@ public final class SBrowserXSettingsActivity extends Activity {
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 21);
         title.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
         title.setTextColor(textPrimary);
+        title.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         header.addView(title);
         return header;
     }

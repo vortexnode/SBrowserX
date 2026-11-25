@@ -134,6 +134,9 @@ public final class SBrowserXStrings {
     public static final String AI_SUM_COPY = "ai_sum_copy";
     public static final String AI_SUM_COPIED = "ai_sum_copied";
     public static final String AI_SUM_ERR = "ai_sum_err";
+    public static final String CAT_ASSIST_TRANSLATE = "cat_assist_translate";
+    public static final String CAT_DOWNLOADS_TABS = "cat_downloads_tabs";
+    public static final String CAT_BACKUP_SECTION = "cat_backup_section";
 
     private static final Map<String, Map<String, String>> CATALOG = new HashMap<>();
 
@@ -520,6 +523,9 @@ public final class SBrowserXStrings {
         putOne("en", AI_SUM_COPY, "Copy");
         putOne("en", AI_SUM_COPIED, "Summary copied");
         putOne("en", AI_SUM_ERR, "Gemini API error");
+        putOne("en", CAT_ASSIST_TRANSLATE, "Assistant & Translate");
+        putOne("en", CAT_DOWNLOADS_TABS, "Downloads & Tabs");
+        putOne("en", CAT_BACKUP_SECTION, "Backup & Sync");
 
         putOne("ru", UNLIMITED_TABS_TITLE, "Снять лимит 99 вкладок");
         putOne("ru", UNLIMITED_TABS_SUMMARY, "Разрешает открывать до 9999 вкладок вместо ограничения Samsung в 99");
@@ -573,6 +579,9 @@ public final class SBrowserXStrings {
         putOne("ru", AI_SUM_COPY, "Копировать");
         putOne("ru", AI_SUM_COPIED, "Сводка скопирована");
         putOne("ru", AI_SUM_ERR, "Ошибка Gemini API");
+        putOne("ru", CAT_ASSIST_TRANSLATE, "Ассистент и перевод");
+        putOne("ru", CAT_DOWNLOADS_TABS, "Загрузки и вкладки");
+        putOne("ru", CAT_BACKUP_SECTION, "Резервное копирование");
         for (String lang : new String[] {"es", "pt", "de", "fr", "it", "pl", "tr", "ar", "hi", "zh", "ja", "ko"}) {
             putOne(lang, LAYOUT_TRANSPARENCY_TITLE, "Panel & address bar translucency");
             putOne(lang, COMPACT_AI_BTN_TITLE, "Compact bar button (replaces Samsung AI)");

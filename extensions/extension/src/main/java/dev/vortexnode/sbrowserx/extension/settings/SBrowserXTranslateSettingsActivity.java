@@ -62,28 +62,9 @@ public final class SBrowserXTranslateSettingsActivity extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(16), dp(20), dp(16), dp(36));
-
-        LinearLayout header = new LinearLayout(this);
-        header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(dp(4), dp(8), dp(4), dp(18));
-
-        TextView backBtn = new TextView(this);
-        backBtn.setText("\u2190");
-        backBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 24);
-        backBtn.setTextColor(textPrimary);
-        backBtn.setPadding(dp(4), dp(4), dp(16), dp(4));
-        backBtn.setOnClickListener(v -> finish());
-        header.addView(backBtn);
-
-        TextView title = new TextView(this);
-        title.setText(SBrowserXStrings.get(SBrowserXStrings.GTRANS_SETTINGS_TITLE));
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 21);
-        title.setTypeface(Typeface.DEFAULT_BOLD);
-        title.setTextColor(textPrimary);
-        header.addView(title);
-        root.addView(header);
+        SBrowserXSettingsActivity.applyOneUiEdgeToEdgePadding(root, dp(16), dp(14), dp(16), dp(36));
+        root.addView(SBrowserXSettingsActivity.buildOneUiHeader(
+                this, SBrowserXStrings.get(SBrowserXStrings.GTRANS_SETTINGS_TITLE), night, textPrimary, v -> finish()));
 
         LinearLayout mainCard = card(cardColor);
         masterSwitch = addSwitchRow(mainCard,

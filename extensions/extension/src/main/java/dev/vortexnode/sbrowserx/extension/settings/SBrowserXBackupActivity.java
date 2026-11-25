@@ -79,11 +79,11 @@ public final class SBrowserXBackupActivity extends Activity {
         localCard.addView(divider(night));
         addRow(localCard, SBrowserXStrings.get(SBrowserXStrings.BACKUP_IMPORT_LOCAL),
                 SBrowserXStrings.get(SBrowserXStrings.BACKUP_IMPORT_LOCAL_SUM),
-                textPrimary, textSecondary, v -> launchImport(REQ_LOCAL_IMPORT));
+                textPrimary, textSecondary, v -> launchImport(REQ_LOCAL_IMPORT, false));
         localCard.addView(divider(night));
         localFolderSummary = addRow(localCard, SBrowserXStrings.get(SBrowserXStrings.BACKUP_FOLDER_TITLE),
                 folderLabel(SBrowserXPrefs.getLocalBackupTreeUri(this)),
-                textPrimary, textSecondary, v -> launchFolderPicker(REQ_LOCAL_TREE));
+                textPrimary, textSecondary, v -> launchFolderPicker(REQ_LOCAL_TREE, false));
         localCard.addView(divider(night));
         addSwitchRow(localCard, SBrowserXStrings.get(SBrowserXStrings.BACKUP_AUTO_TITLE),
                 SBrowserXStrings.get(SBrowserXStrings.BACKUP_AUTO_LOCAL_SUM),
@@ -91,7 +91,7 @@ public final class SBrowserXBackupActivity extends Activity {
                 (btn, checked) -> {
                     SBrowserXPrefs.setLocalAutoBackupEnabled(this, checked);
                     if (checked && SBrowserXPrefs.getLocalBackupTreeUri(this).isEmpty()) {
-                        launchFolderPicker(REQ_LOCAL_TREE);
+                        launchFolderPicker(REQ_LOCAL_TREE, false);
                     }
                     refreshState();
                 });
@@ -114,15 +114,15 @@ public final class SBrowserXBackupActivity extends Activity {
         LinearLayout driveCard = card(cardColor);
         addRow(driveCard, SBrowserXStrings.get(SBrowserXStrings.BACKUP_EXPORT_DRIVE),
                 SBrowserXStrings.get(SBrowserXStrings.BACKUP_EXPORT_DRIVE_SUM),
-                textPrimary, textSecondary, v -> launchExport(REQ_DRIVE_EXPORT));
+                textPrimary, textSecondary, v -> launchGoogleDriveExport());
         driveCard.addView(divider(night));
         addRow(driveCard, SBrowserXStrings.get(SBrowserXStrings.BACKUP_IMPORT_DRIVE),
                 SBrowserXStrings.get(SBrowserXStrings.BACKUP_IMPORT_DRIVE_SUM),
-                textPrimary, textSecondary, v -> launchImport(REQ_DRIVE_IMPORT));
+                textPrimary, textSecondary, v -> launchImport(REQ_DRIVE_IMPORT, true));
         driveCard.addView(divider(night));
         driveFolderSummary = addRow(driveCard, SBrowserXStrings.get(SBrowserXStrings.BACKUP_DRIVE_FOLDER_TITLE),
                 folderLabel(SBrowserXPrefs.getDriveBackupTreeUri(this)),
-                textPrimary, textSecondary, v -> launchFolderPicker(REQ_DRIVE_TREE));
+                textPrimary, textSecondary, v -> launchFolderPicker(REQ_DRIVE_TREE, true));
         driveCard.addView(divider(night));
         addSwitchRow(driveCard, SBrowserXStrings.get(SBrowserXStrings.BACKUP_AUTO_DRIVE_TITLE),
                 SBrowserXStrings.get(SBrowserXStrings.BACKUP_AUTO_DRIVE_SUM),
@@ -130,7 +130,7 @@ public final class SBrowserXBackupActivity extends Activity {
                 (btn, checked) -> {
                     SBrowserXPrefs.setDriveAutoBackupEnabled(this, checked);
                     if (checked && SBrowserXPrefs.getDriveBackupTreeUri(this).isEmpty()) {
-                        launchFolderPicker(REQ_DRIVE_TREE);
+                        launchFolderPicker(REQ_DRIVE_TREE, true);
                     }
                     refreshState();
                 });
@@ -186,11 +186,52 @@ public final class SBrowserXBackupActivity extends Activity {
         }
     }
 
+    private static final Uri GOOGLE_DRIVE_INITIAL_URI =
+            Uri.parse("content://com.google.android.apps.docs.storage/document/acc%3D1%3Bdoc%3D1");
+
+    private void launchGoogleDriveExport() {
+        // 1. Try native Google Drive "Save to Drive" upload sheet directly (with account & Drive folder picker)
+        try {
+            String json = SBrowserXBackupManager.exportToJson(this);
+            java.io.File dir = new java.io.File(getCacheDir(), "sbrowserx_backup");
+            if (!dir.exists()) dir.mkdirs();
+            java.io.File outFile = new java.io.File(dir, SBrowserXBackupManager.suggestedFileName());
+            try (java.io.FileOutputStream fos = new java.io.FileOutputStream(outFile)) {
+                fos.write(json.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                fos.flush();
+            }
+            Class<?> fpCls = Class.forName("androidx.core.content.FileProvider");
+            Uri contentUri = (Uri) fpCls.getMethod("getUriForFile", android.content.Context.class, String.class, java.io.File.class)
+                    .invoke(null, this, getPackageName() + ".FileProvider", outFile);
+            Intent send = new Intent(Intent.ACTION_SEND);
+            send.setType("application/json");
+            send.putExtra(Intent.EXTRA_STREAM, contentUri);
+            send.putExtra(Intent.EXTRA_SUBJECT, outFile.getName());
+            send.setPackage("com.google.android.apps.docs");
+            send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            if (send.resolveActivity(getPackageManager()) != null) {
+                SBrowserXPrefs.setDriveBackupLastTs(this, System.currentTimeMillis());
+                refreshState();
+                startActivity(send);
+                return;
+            }
+        } catch (Throwable ignored) {}
+        // 2. Fallback: SAF pointing directly to Google Drive provider
+        launchExport(REQ_DRIVE_EXPORT, true);
+    }
+
     private void launchExport(int reqCode) {
+        launchExport(reqCode, false);
+    }
+
+    private void launchExport(int reqCode, boolean preferGoogleDrive) {
         Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         i.addCategory(Intent.CATEGORY_OPENABLE);
         i.setType("application/json");
         i.putExtra(Intent.EXTRA_TITLE, SBrowserXBackupManager.suggestedFileName());
+        if (preferGoogleDrive && android.os.Build.VERSION.SDK_INT >= 26) {
+            i.putExtra(android.provider.DocumentsContract.EXTRA_INITIAL_URI, GOOGLE_DRIVE_INITIAL_URI);
+        }
         try {
             startActivityForResult(i, reqCode);
         } catch (Throwable t) {
@@ -198,10 +239,13 @@ public final class SBrowserXBackupActivity extends Activity {
         }
     }
 
-    private void launchImport(int reqCode) {
+    private void launchImport(int reqCode, boolean preferGoogleDrive) {
         Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         i.addCategory(Intent.CATEGORY_OPENABLE);
         i.setType("*/*");
+        if (preferGoogleDrive && android.os.Build.VERSION.SDK_INT >= 26) {
+            i.putExtra(android.provider.DocumentsContract.EXTRA_INITIAL_URI, GOOGLE_DRIVE_INITIAL_URI);
+        }
         try {
             startActivityForResult(i, reqCode);
         } catch (Throwable t) {
@@ -209,11 +253,14 @@ public final class SBrowserXBackupActivity extends Activity {
         }
     }
 
-    private void launchFolderPicker(int reqCode) {
+    private void launchFolderPicker(int reqCode, boolean preferGoogleDrive) {
         Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
         i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
                 | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                 | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        if (preferGoogleDrive && android.os.Build.VERSION.SDK_INT >= 26) {
+            i.putExtra(android.provider.DocumentsContract.EXTRA_INITIAL_URI, GOOGLE_DRIVE_INITIAL_URI);
+        }
         try {
             startActivityForResult(i, reqCode);
         } catch (Throwable t) {

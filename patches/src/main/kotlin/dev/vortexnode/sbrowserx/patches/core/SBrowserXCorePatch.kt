@@ -365,6 +365,16 @@ val sbrowserXCorePatch = bytecodePatch(
 
         findMethodOrThrow(
             classType = PREF_FRAGMENT_CUSTOM_CLASS,
+            methodName = "onViewCreated",
+            parameterTypes = listOf("Landroid/view/View;", "Landroid/os/Bundle;"),
+            returnType = "V",
+        ).addInstruction(
+            0,
+            "invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->localizeCustomPreferences(Ljava/lang/Object;)V",
+        )
+
+        findMethodOrThrow(
+            classType = PREF_FRAGMENT_CUSTOM_CLASS,
             methodName = "onResume",
             parameterTypes = emptyList(),
             returnType = "V",
