@@ -299,4 +299,38 @@ public final class SBrowserXHooks {
             return false;
         }
     }
+
+    public static void localizeCustomPreferences(Object fragment) {
+        if (fragment == null) return;
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            if (ctx == null) return;
+            Method findPref = fragment.getClass().getMethod("findPreference", CharSequence.class);
+
+            Object extDl = findPref.invoke(fragment, "sbrowserx_external_downloader");
+            if (extDl != null) {
+                extDl.getClass().getMethod("setTitle", CharSequence.class)
+                        .invoke(extDl, SBrowserXStrings.get(SBrowserXStrings.EXT_DL_TITLE));
+                boolean on = SBrowserXPrefs.isExternalDownloaderEnabled(ctx);
+                String state = SBrowserXStrings.get(on ? SBrowserXStrings.BTN_ENABLE : SBrowserXStrings.BTN_DISABLE);
+                extDl.getClass().getMethod("setSummary", CharSequence.class)
+                        .invoke(extDl, state + " • " + SBrowserXStrings.get(SBrowserXStrings.EXT_DL_SUMMARY));
+            }
+
+            Object webrtc = findPref.invoke(fragment, "sbrowserx_privacy_webrtc");
+            if (webrtc != null) {
+                webrtc.getClass().getMethod("setTitle", CharSequence.class)
+                        .invoke(webrtc, SBrowserXStrings.get(SBrowserXStrings.WEBRTC_TITLE));
+                webrtc.getClass().getMethod("setSummary", CharSequence.class)
+                        .invoke(webrtc, SBrowserXStrings.webrtcLabel(SBrowserXPrefs.getWebRtcPolicy(ctx)));
+            }
+
+            Object hub = findPref.invoke(fragment, "sbrowserx_settings_hub");
+            if (hub != null) {
+                String summary = SBrowserXStrings.get(SBrowserXStrings.CAT_EXTENSIONS) + ", WebRTC, "
+                        + SBrowserXStrings.get(SBrowserXStrings.CAT_APPEARANCE);
+                hub.getClass().getMethod("setSummary", CharSequence.class).invoke(hub, summary);
+            }
+        } catch (Throwable ignored) {}
+    }
 }

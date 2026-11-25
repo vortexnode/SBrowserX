@@ -22,6 +22,7 @@ public final class SBrowserXWebRtcManager {
         try {
             String policy = SBrowserXPrefs.getWebRtcPolicy(context);
             boolean antiFingerprint = SBrowserXPrefs.isFingerprintProtectionEnabled(context);
+            boolean allowNonProxiedUdp = !SBrowserXPrefs.WEBRTC_DISABLE_NON_PROXIED_UDP.equals(policy);
 
             File sbrowserDir = context.getDir("sbrowser", Context.MODE_PRIVATE);
             File defaultDir = new File(sbrowserDir, "Default");
@@ -30,9 +31,30 @@ public final class SBrowserXWebRtcManager {
             }
             File prefsFile = new File(defaultDir, "Preferences");
             JSONObject root;
-            if (prefsFile.isFile() && prefsFile.length() > 0) {
+            if (prefsFile.isFile()) {
+                long len = prefsFile.length();
+                if (len == 0) {
+                    // Never clobber an in-flight/empty Preferences file during a fast restart
+                    Log.w(TAG, "Preferences file is 0 bytes; skipping write to avoid wiping extensions");
+                    return;
+                }
                 String text = readUtf8(prefsFile);
-                root = text.trim().startsWith("{") ? new JSONObject(text) : new JSONObject();
+                if (!text.trim().startsWith("{")) {
+                    Log.w(TAG, "Preferences file does not look like JSON; skipping write");
+                    return;
+                }
+                root = new JSONObject(text);
+
+                // Dirty-check: if Preferences already has our exact values, DO NOT rewrite the file!
+                JSONObject existingWebrtc = root.optJSONObject("webrtc");
+                if (existingWebrtc != null
+                        && policy.equals(existingWebrtc.optString("ip_handling_policy", ""))
+                        && existingWebrtc.has("nonproxied_udp_enabled")
+                        && existingWebrtc.optBoolean("nonproxied_udp_enabled") == allowNonProxiedUdp
+                        && root.has("enable_block_fingerprinting")
+                        && root.optBoolean("enable_block_fingerprinting") == antiFingerprint) {
+                    return;
+                }
             } else {
                 root = new JSONObject();
             }
@@ -43,10 +65,7 @@ public final class SBrowserXWebRtcManager {
                 root.put("webrtc", webrtc);
             }
             webrtc.put("ip_handling_policy", policy);
-            boolean allowNonProxiedUdp = !SBrowserXPrefs.WEBRTC_DISABLE_NON_PROXIED_UDP.equals(policy);
             webrtc.put("nonproxied_udp_enabled", allowNonProxiedUdp);
-
-            // Sync native Chromium/Terrace fingerprinting protection preference
             root.put("enable_block_fingerprinting", antiFingerprint);
 
             File tmpFile = new File(defaultDir, "Preferences.sbrowserx.tmp");
@@ -59,6 +78,20 @@ public final class SBrowserXWebRtcManager {
         } catch (Throwable t) {
             Log.e(TAG, "Failed to apply profile prefs", t);
         }
+    }
+
+    public static void restartBrowser(Context context) {
+        if (context == null) return;
+        try {
+            Intent launch = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
+            if (launch != null) {
+                launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                context.startActivity(launch);
+            }
+        } catch (Throwable t) {
+            Log.e(TAG, "restartBrowser failed", t);
+        }
+        android.os.Process.killProcess(android.os.Process.myPid());
     }
 
     private static String readUtf8(File file) throws Exception {
@@ -78,19 +111,5 @@ public final class SBrowserXWebRtcManager {
             fos.write(content.getBytes(StandardCharsets.UTF_8));
             fos.getFD().sync();
         }
-    }
-
-    public static void restartBrowser(Context context) {
-        if (context == null) return;
-        try {
-            Intent launch = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
-            if (launch != null) {
-                launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                context.startActivity(launch);
-            }
-        } catch (Throwable t) {
-            Log.e(TAG, "restartBrowser failed", t);
-        }
-        android.os.Process.killProcess(android.os.Process.myPid());
     }
 }

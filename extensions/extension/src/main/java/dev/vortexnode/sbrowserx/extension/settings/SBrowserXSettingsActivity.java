@@ -7,6 +7,7 @@ import android.content.res.ColorStateList;
 import android.content.res.Configuration;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.StateListDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.TypedValue;
@@ -458,20 +459,39 @@ public final class SBrowserXSettingsActivity extends Activity {
     }
 
     static void styleOneUiBlueSwitch(Switch sw, boolean night) {
-        int[][] states = new int[][] {
-                new int[] { android.R.attr.state_checked },
-                new int[] {}
-        };
-        int[] thumbColors = new int[] {
-                0xFFFFFFFF,
-                night ? 0xFFD8D8E0 : 0xFFFFFFFF
-        };
-        int[] trackColors = new int[] {
-                ONEUI_BLUE,
-                night ? 0xFF4E4E5A : 0xFFB8B8C4
-        };
-        sw.setThumbTintList(new ColorStateList(states, thumbColors));
-        sw.setTrackTintList(new ColorStateList(states, trackColors));
+        float d = sw.getResources().getDisplayMetrics().density;
+        int trackW = Math.round(46 * d);
+        int trackH = Math.round(26 * d);
+        int trackR = Math.round(13 * d);
+        int thumbSize = Math.round(24 * d);
+        int strokeW = Math.round(2 * d);
+
+        GradientDrawable trackOn = new GradientDrawable();
+        trackOn.setShape(GradientDrawable.RECTANGLE);
+        trackOn.setSize(trackW, trackH);
+        trackOn.setCornerRadius(trackR);
+        trackOn.setColor(ONEUI_BLUE);
+
+        GradientDrawable trackOff = new GradientDrawable();
+        trackOff.setShape(GradientDrawable.RECTANGLE);
+        trackOff.setSize(trackW, trackH);
+        trackOff.setCornerRadius(trackR);
+        trackOff.setColor(night ? 0xFF555562 : 0xFFB8B8C4);
+
+        StateListDrawable trackStates = new StateListDrawable();
+        trackStates.addState(new int[] { android.R.attr.state_checked }, trackOn);
+        trackStates.addState(new int[] {}, trackOff);
+
+        GradientDrawable thumb = new GradientDrawable();
+        thumb.setShape(GradientDrawable.OVAL);
+        thumb.setSize(thumbSize, thumbSize);
+        thumb.setColor(0xFFFFFFFF);
+        thumb.setStroke(strokeW, 0x00000000);
+
+        sw.setTrackTintList(null);
+        sw.setThumbTintList(null);
+        sw.setTrackDrawable(trackStates);
+        sw.setThumbDrawable(thumb);
     }
 
     private void addDaysSliderRow(LinearLayout parent, int titleColor, int summaryColor) {

@@ -1,7 +1,7 @@
 {
   "created_at": "2026-11-25T01:45:00",
-  "description": "SBrowserX v0.5.0 — нативный пункт «Через 1 день» в автозакрытии вкладок, дублирование стороннего загрузчика в «Веб-сайты и загрузки», обратимое скрытие блокировщиков рекламы Samsung, синие тумблеры One UI (#387AFF), исправленный запуск internet://extensions/ и скачивание Bitwarden/расширений (Chrome 145), кнопка «Перевести» в боковом меню и настройки Google Переводчика как в Chrome.",
-  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v0.5.0/patches-0.5.0.mpp",
+  "description": "SBrowserX v0.5.1 — обход экрана Galaxy AI при тапе на «Перевести» (сразу открывается родная панель перевода с Google Translate), яркие непрозрачные синие тумблеры One UI (#387AFF), полная локализация пунктов SBrowserX в родных разделах настроек и защита Default/Preferences от перезаписи и сброса расширений при перезапуске.",
+  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v0.5.1/patches-0.5.1.mpp",
   "signature_download_url": "",
-  "version": "0.5.0"
+  "version": "0.5.1"
 }

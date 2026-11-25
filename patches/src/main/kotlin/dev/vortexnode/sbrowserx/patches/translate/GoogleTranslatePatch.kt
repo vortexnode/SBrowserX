@@ -12,6 +12,8 @@ private const val SETTING_PREFERENCE_CLASS =
     "Lcom/sec/android/app/sbrowser/common/device/setting_preference/SettingPreference;"
 private const val SIX_TRANS_SERVICE_CLASS =
     "Lcom/sec/android/app/sbrowser/extensions/trans/SixTransService;"
+private const val WEB_ASSIST_UTIL_CLASS =
+    "Lcom/sec/android/app/sbrowser/artificial_intelligence/utils/WebAssistUtil;"
 
 @Suppress("unused")
 val googleTranslatePatch = bytecodePatch(
@@ -57,6 +59,34 @@ val googleTranslatePatch = bytecodePatch(
                 const/4 v0, 0x0
                 return v0
                 :sbrowserx_ftu_stock
+                nop
+            """.trimIndent(),
+        )
+
+
+        // 2b. Bypass Galaxy AI / Samsung Account consent screen when tapping Translate in side menu
+        findMethodOrThrow(
+            classType = WEB_ASSIST_UTIL_CLASS,
+            methodName = "promptUserConsentAndSamsungAccountLogin",
+            parameterTypes = listOf(
+                "Landroid/app/Activity;",
+                "Z",
+                "Lcom/sec/android/app/sbrowser/artificial_intelligence/utils/WebAssistUtil\$PromptScreenCallback;",
+            ),
+            returnType = "Z",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->isGoogleTranslateEnabled()Z
+                move-result v0
+                if-eqz v0, :sbrowserx_consent_stock
+                if-eqz p2, :sbrowserx_consent_ret
+                const/4 v0, 0x1
+                invoke-interface {p2, v0}, Lcom/sec/android/app/sbrowser/artificial_intelligence/utils/WebAssistUtil${'$'}PromptScreenCallback;->onResult(Z)V
+                :sbrowserx_consent_ret
+                const/4 v0, 0x1
+                return v0
+                :sbrowserx_consent_stock
                 nop
             """.trimIndent(),
         )

@@ -16,6 +16,7 @@ private const val SBROWSER_MAIN_ACTIVITY_CLASS = "Lcom/sec/android/app/sbrowser/
 private const val SBROWSER_CMDLINE_CLASS = "Lcom/sec/android/app/sbrowser/init/SBrowserCommandLine;"
 private const val BADGE_MANAGER_CLASS = "Lcom/sec/android/app/sbrowser/toolbar/BadgeManager;"
 private const val DEBUG_SETTINGS_CLASS = "Lcom/sec/android/app/sbrowser/common/device/DebugSettings;"
+private const val PREF_FRAGMENT_CUSTOM_CLASS = "Lcom/sec/android/app/sbrowser/common/settings/PreferenceFragmentCustom;"
 
 private const val SETTINGS_ACTIVITY_CLASS =
     "dev.vortexnode.sbrowserx.extension.settings.SBrowserXSettingsActivity"
@@ -197,6 +198,17 @@ val sbrowserXCorePatch = bytecodePatch(
             parameterTypes = emptyList(),
             returnType = "I",
         ).returnConstantBoolean(false)
+
+
+        findMethodOrThrow(
+            classType = PREF_FRAGMENT_CUSTOM_CLASS,
+            methodName = "onResume",
+            parameterTypes = emptyList(),
+            returnType = "V",
+        ).addInstruction(
+            0,
+            "invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->localizeCustomPreferences(Ljava/lang/Object;)V",
+        )
 
         findMethodOrThrow(
             classType = DEBUG_SETTINGS_CLASS,
