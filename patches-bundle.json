@@ -1,7 +1,7 @@
 {
   "created_at": "2026-11-25T01:45:00",
-  "description": "SBrowserX v0.4.0 — встроенный переводчик Google Translate в TransBar, сторонний загрузчик файлов (1DM/ADM/FDM/Seal), автозакрытие вкладок через 1 день, Bitwarden в наборе расширений, пункт Дополнения в главных Настройках, отдельная карточка WebRTC в Конфиденциальности, удаление залипшей оранжевой точки на Дополнениях, контрастные тумблеры в AMOLED и усиленная блокировка сторонних cookie.",
-  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v0.4.0/patches-0.4.0.mpp",
+  "description": "SBrowserX v0.4.1 — встроенный переводчик Google Translate в TransBar, сторонний загрузчик файлов (1DM/ADM/FDM/Seal), автозакрытие вкладок через 1 день, Bitwarden в наборе расширений, пункт Дополнения в главных Настройках, отдельная карточка WebRTC в Конфиденциальности, удаление залипшей оранжевой точки на Дополнениях, контрастные тумблеры в AMOLED и усиленная блокировка сторонних cookie.",
+  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v0.4.1/patches-0.4.1.mpp",
   "signature_download_url": "",
-  "version": "0.4.0"
+  "version": "0.4.1"
 }
