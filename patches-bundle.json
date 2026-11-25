@@ -1,7 +1,7 @@
 {
   "created_at": "2026-11-25T01:45:00",
-  "description": "SBrowserX v0.5.5 — исправлено отображение названий всех 40 языков Google Translate в выпадающем списке родной панели перевода Samsung (TransBar): getLangLocaleInfo теперь возвращает BCP-47 код локали вместо предпереведённого имени.",
-  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v0.5.5/patches-0.5.5.mpp",
+  "description": "SBrowserX v0.5.6 — прямой DOM-переводчик Google Translate (SBrowserXDomTranslator), вшитый напрямую в события родной панели перевода Samsung (TransBar): переводит любые страницы без CSP/CORS и без Samsung SCS, корректно переключает выбранный язык в панели и возвращает оригинал при закрытии.",
+  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v0.5.6/patches-0.5.6.mpp",
   "signature_download_url": "",
-  "version": "0.5.5"
+  "version": "0.5.6"
 }

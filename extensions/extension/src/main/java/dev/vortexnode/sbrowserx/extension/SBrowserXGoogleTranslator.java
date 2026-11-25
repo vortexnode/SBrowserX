@@ -282,6 +282,10 @@ public final class SBrowserXGoogleTranslator {
         return dash > 0 ? c.substring(0, dash).toLowerCase() : c.toLowerCase();
     }
 
+    public static String translateTextSync(String sl, String tl, String text) throws Exception {
+        return translateSingle(sl, tl, text);
+    }
+
     private static String translateSingle(String sl, String tl, String text) throws Exception {
         if (text == null || text.trim().isEmpty()) return text != null ? text : "";
         String urlStr = "https://translate.googleapis.com/translate_a/single?client=gtx"

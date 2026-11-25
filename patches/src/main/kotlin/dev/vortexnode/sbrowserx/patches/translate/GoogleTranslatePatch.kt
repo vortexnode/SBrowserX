@@ -20,6 +20,12 @@ private const val LANG_PACK_MANAGER_CLASS =
     "Lcom/sec/android/app/sbrowser/artificial_intelligence/translate/LangPackManager;"
 private const val TEXT_TRANSLATE_MANAGER_CLASS =
     "Lcom/sec/android/app/sbrowser/artificial_intelligence/translate/TextTranslateManager;"
+private const val TRANS_BAR_CONTAINER_CLASS =
+    "Lcom/sec/android/app/sbrowser/trans_bar/TransBarContainerV2;"
+private const val TRANS_BAR_LANG_HANDLER_CLASS =
+    "Lcom/sec/android/app/sbrowser/trans_bar/TransBarLangServiceHandler;"
+private const val TRANS_BAR_INFO_CLASS =
+    "Lcom/sec/android/app/sbrowser/trans_bar/TransBarInfo;"
 
 @Suppress("unused")
 val googleTranslatePatch = bytecodePatch(
@@ -387,6 +393,50 @@ val googleTranslatePatch = bytecodePatch(
                 :sbrowserx_ttm_stock
                 nop
             """.trimIndent(),
+        )
+
+        // 16. TransBarContainerV2.onTranslatePage(Z)V -> run direct Google Translate DOM engine (or revert)
+        findMethodOrThrow(
+            classType = TRANS_BAR_CONTAINER_CLASS,
+            methodName = "onTranslatePage",
+            parameterTypes = listOf("Z"),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            "invoke-static {p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onTransBarTranslatePage(Z)V",
+        )
+
+        // 17. TransBarLangServiceHandler.onTargetItemSelected(TransBarInfo)V -> save chosen target lang BEFORE updateTargetLang() & translate
+        findMethodOrThrow(
+            classType = TRANS_BAR_LANG_HANDLER_CLASS,
+            methodName = "onTargetItemSelected",
+            parameterTypes = listOf(TRANS_BAR_INFO_CLASS),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            "invoke-static {p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onTransBarTargetItemSelected(Ljava/lang/Object;)V",
+        )
+
+        // 18. TransBarLangServiceHandler.onSourceItemSelected(TransBarInfo)V -> re-translate with chosen source lang
+        findMethodOrThrow(
+            classType = TRANS_BAR_LANG_HANDLER_CLASS,
+            methodName = "onSourceItemSelected",
+            parameterTypes = listOf(TRANS_BAR_INFO_CLASS),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            "invoke-static {p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onTransBarSourceItemSelected(Ljava/lang/Object;)V",
+        )
+
+        // 19. TransBarLangServiceHandler.onCloseFab()V -> revert page back to original when closing TransBar
+        findMethodOrThrow(
+            classType = TRANS_BAR_LANG_HANDLER_CLASS,
+            methodName = "onCloseFab",
+            parameterTypes = emptyList(),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            "invoke-static {}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onTransBarClose()V",
         )
     }
 }

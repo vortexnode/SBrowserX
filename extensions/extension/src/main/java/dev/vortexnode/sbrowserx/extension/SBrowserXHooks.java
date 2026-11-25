@@ -454,4 +454,51 @@ public final class SBrowserXHooks {
         }
         return code;
     }
+
+    public static Activity getMainActivity() {
+        return sMainActivityRef.get();
+    }
+
+    public static void onTransBarTranslatePage(boolean translate) {
+        if (!isGoogleTranslateEnabled()) return;
+        if (translate) {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            String tl = ctx != null ? SBrowserXPrefs.getTranslateTargetLang(ctx) : "ru";
+            SBrowserXDomTranslator.translateCurrentTab("auto", tl);
+        } else {
+            SBrowserXDomTranslator.revertCurrentTab();
+        }
+    }
+
+    public static void onTransBarTargetItemSelected(Object transBarInfo) {
+        if (transBarInfo == null || !isGoogleTranslateEnabled()) return;
+        try {
+            String code = (String) transBarInfo.getClass().getMethod("getCode").invoke(transBarInfo);
+            if (code == null || code.isEmpty() || "add_lang".equals(code)) return;
+            Context ctx = SBrowserXPrefs.getAppContext();
+            if (ctx != null) {
+                SBrowserXPrefs.setTranslateTargetLang(ctx, code);
+            }
+            SBrowserXDomTranslator.translateCurrentTab("auto", code);
+        } catch (Throwable t) {
+            Log.e(TAG, "onTransBarTargetItemSelected failed", t);
+        }
+    }
+
+    public static void onTransBarSourceItemSelected(Object transBarInfo) {
+        if (transBarInfo == null || !isGoogleTranslateEnabled()) return;
+        try {
+            String code = (String) transBarInfo.getClass().getMethod("getCode").invoke(transBarInfo);
+            Context ctx = SBrowserXPrefs.getAppContext();
+            String tl = ctx != null ? SBrowserXPrefs.getTranslateTargetLang(ctx) : "ru";
+            SBrowserXDomTranslator.translateCurrentTab(code != null ? code : "auto", tl);
+        } catch (Throwable t) {
+            Log.e(TAG, "onTransBarSourceItemSelected failed", t);
+        }
+    }
+
+    public static void onTransBarClose() {
+        if (!isGoogleTranslateEnabled()) return;
+        SBrowserXDomTranslator.revertCurrentTab();
+    }
 }
