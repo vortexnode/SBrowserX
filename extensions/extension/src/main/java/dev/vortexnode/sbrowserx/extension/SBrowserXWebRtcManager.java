@@ -12,7 +12,7 @@ import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
 
 public final class SBrowserXWebRtcManager {
-    private static final String TAG = "SBrowserXWebRtc";
+    private static final String TAG = "SBrowserXProfilePrefs";
 
     private SBrowserXWebRtcManager() {}
 
@@ -20,6 +20,8 @@ public final class SBrowserXWebRtcManager {
         if (context == null) return;
         try {
             String policy = SBrowserXPrefs.getWebRtcPolicy(context);
+            boolean antiFingerprint = SBrowserXPrefs.isFingerprintProtectionEnabled(context);
+
             File sbrowserDir = context.getDir("sbrowser", Context.MODE_PRIVATE);
             File defaultDir = new File(sbrowserDir, "Default");
             if (!defaultDir.exists()) {
@@ -43,15 +45,18 @@ public final class SBrowserXWebRtcManager {
             boolean allowNonProxiedUdp = !SBrowserXPrefs.WEBRTC_DISABLE_NON_PROXIED_UDP.equals(policy);
             webrtc.put("nonproxied_udp_enabled", allowNonProxiedUdp);
 
+            // Sync native Chromium/Terrace fingerprinting protection preference
+            root.put("enable_block_fingerprinting", antiFingerprint);
+
             File tmpFile = new File(defaultDir, "Preferences.sbrowserx.tmp");
             writeUtf8(tmpFile, root.toString());
             if (!tmpFile.renameTo(prefsFile)) {
                 writeUtf8(prefsFile, root.toString());
                 tmpFile.delete();
             }
-            Log.i(TAG, "Applied WebRTC policy to profile: " + policy);
+            Log.i(TAG, "Applied WebRTC=" + policy + ", antiFingerprint=" + antiFingerprint);
         } catch (Throwable t) {
-            Log.e(TAG, "Failed to apply WebRTC policy", t);
+            Log.e(TAG, "Failed to apply profile prefs", t);
         }
     }
 

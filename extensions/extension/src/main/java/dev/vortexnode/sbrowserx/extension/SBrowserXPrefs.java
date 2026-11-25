@@ -7,6 +7,7 @@ public final class SBrowserXPrefs {
     public static final String PREFS_NAME = "sbrowserx_prefs";
 
     public static final String KEY_WEBRTC_POLICY = "webrtc_ip_policy";
+    public static final String KEY_FINGERPRINT_PROTECTION = "fingerprint_protection_enabled";
     public static final String KEY_BOTTOM_BAR_BLUR = "bottom_bar_blur_enabled";
     public static final String KEY_AMOLED_BLACK = "amoled_black_enabled";
     public static final String KEY_HIGHLIGHT_DAYS = "new_feature_highlight_days";
@@ -19,13 +20,17 @@ public final class SBrowserXPrefs {
     public static final String FEATURE_WEBRTC = "feat_webrtc_020";
     public static final String FEATURE_AMOLED = "feat_amoled_020";
     public static final String FEATURE_BOTTOM_BLUR = "feat_bottom_blur_020";
-    public static final String FEATURE_THIRD_PARTY_COOKIES = "feat_3p_cookies_020";
+    public static final String FEATURE_EXT_INSTALLER = "feat_ext_installer_030";
+    public static final String FEATURE_EXT_PACK = "feat_ext_pack_030";
+    public static final String FEATURE_FINGERPRINT = "feat_fingerprint_030";
 
     private static final String[] ALL_FEATURES = new String[] {
             FEATURE_WEBRTC,
             FEATURE_AMOLED,
             FEATURE_BOTTOM_BLUR,
-            FEATURE_THIRD_PARTY_COOKIES
+            FEATURE_EXT_INSTALLER,
+            FEATURE_EXT_PACK,
+            FEATURE_FINGERPRINT
     };
 
     private static volatile Context sAppContext;
@@ -55,6 +60,15 @@ public final class SBrowserXPrefs {
     public static void setWebRtcPolicy(Context context, String policy) {
         prefs(context).edit().putString(KEY_WEBRTC_POLICY, policy).apply();
         markFeatureViewed(context, FEATURE_WEBRTC);
+    }
+
+    public static boolean isFingerprintProtectionEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_FINGERPRINT_PROTECTION, true);
+    }
+
+    public static void setFingerprintProtectionEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_FINGERPRINT_PROTECTION, enabled).apply();
+        markFeatureViewed(context, FEATURE_FINGERPRINT);
     }
 
     public static boolean isBottomBarBlurEnabled(Context context) {
@@ -106,13 +120,6 @@ public final class SBrowserXPrefs {
         long firstSeen = sp.getLong("first_seen_" + featureId, System.currentTimeMillis());
         long windowMs = days * 24L * 60L * 60L * 1000L;
         return (System.currentTimeMillis() - firstSeen) < windowMs;
-    }
-
-    public static boolean hasAnyNewFeature(Context context) {
-        for (String feat : ALL_FEATURES) {
-            if (isFeatureNew(context, feat)) return true;
-        }
-        return false;
     }
 
     public static void markFeatureViewed(Context context, String featureId) {

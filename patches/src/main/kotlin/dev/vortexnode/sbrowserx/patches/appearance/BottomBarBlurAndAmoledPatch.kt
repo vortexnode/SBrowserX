@@ -14,14 +14,13 @@ private const val BOTTOMBAR_CLASS =
 @Suppress("unused")
 val bottomBarBlurAndAmoledPatch = bytecodePatch(
     name = "AMOLED Black & Bottom Bar Transparency Toggle",
-    description = "Adds runtime hooks for AMOLED pure black (#000000) dark mode surfaces and the toggle to disable/restore bottom navigation bar translucency and blur.",
+    description = "Adds runtime hooks for AMOLED pure black (#000000) dark mode surfaces (preserving 0xD9 blur translucency when bottom bar blur is ON) and the toggle to disable/restore bottom navigation bar blur.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)
     dependsOn(sbrowserXCorePatch)
 
     execute {
-        // 1. Hook DeviceFeatureUtils.isToolbarBlurSupported()Z
         val blurMethod = findMethodOrThrow(
             classType = DEVICE_FEATURE_UTILS_CLASS,
             methodName = "isToolbarBlurSupported",
@@ -30,16 +29,14 @@ val bottomBarBlurAndAmoledPatch = bytecodePatch(
         )
         val blurInsns = blurMethod.implementation?.instructions
             ?: error("Missing instructions in isToolbarBlurSupported")
-        val returnIdx = blurInsns.size - 1
         blurMethod.addInstructions(
-            returnIdx,
+            blurInsns.size - 1,
             """
                 invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->isToolbarBlurAllowed(Z)Z
                 move-result p0
             """.trimIndent(),
         )
 
-        // 2. Hook Bottombar.getBackgroundColor(ThemeParam)I for pure AMOLED black (#FF000000)
         val bgMethod = findMethodOrThrow(
             classType = BOTTOMBAR_CLASS,
             methodName = "getBackgroundColor",
@@ -55,7 +52,8 @@ val bottomBarBlurAndAmoledPatch = bytecodePatch(
                 invoke-static {}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->isAmoledBlackEnabled()Z
                 move-result v0
                 if-eqz v0, :sbrowserx_stock_bg
-                const/high16 v0, -0x1000000
+                invoke-static {}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->getAmoledBottomBarColor()I
+                move-result v0
                 return v0
                 :sbrowserx_stock_bg
                 nop

@@ -1,11 +1,12 @@
 package dev.vortexnode.sbrowserx.extension.settings;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.res.Configuration;
-import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -17,14 +18,23 @@ import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import dev.vortexnode.sbrowserx.extension.SBrowserXCrxInstaller;
 import dev.vortexnode.sbrowserx.extension.SBrowserXPrefs;
 import dev.vortexnode.sbrowserx.extension.SBrowserXStrings;
+import dev.vortexnode.sbrowserx.extension.SBrowserXWebRtcManager;
 
 public final class SBrowserXSettingsActivity extends Activity {
     private static final int TEAL_DOT_COLOR = 0xFF00BFA5;
+    private static final int REQ_PICK_EXTENSION = 4101;
 
     private TextView webrtcSummaryView;
+    private View extInstallDot;
+    private View extPackDot;
     private View webrtcDot;
+    private View fingerprintDot;
     private View amoledDot;
     private View blurDot;
     private TextView daysValueView;
@@ -42,6 +52,23 @@ public final class SBrowserXSettingsActivity extends Activity {
         refreshDynamicViews();
     }
 
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQ_PICK_EXTENSION && resultCode == RESULT_OK && data != null && data.getData() != null) {
+            Uri uri = data.getData();
+            SBrowserXPrefs.markFeatureViewed(this, SBrowserXPrefs.FEATURE_EXT_INSTALLER);
+            refreshDynamicViews();
+            Toast.makeText(this, SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALLING), Toast.LENGTH_SHORT).show();
+            SBrowserXCrxInstaller.installFromUri(this, uri, (ok, msg) -> {
+                String toast = ok
+                        ? SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALL_OK)
+                        : SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALL_FAIL) + msg;
+                Toast.makeText(this, toast, Toast.LENGTH_LONG).show();
+            });
+        }
+    }
+
     private void buildUi() {
         boolean night = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
                 == Configuration.UI_MODE_NIGHT_YES;
@@ -52,6 +79,9 @@ public final class SBrowserXSettingsActivity extends Activity {
         int textPrimary = night ? 0xFFF5F5F7 : 0xFF111113;
         int textSecondary = night ? 0xFFA0A0A8 : 0xFF636368;
         int accent = 0xFF6250FF;
+        int dialogTheme = night
+                ? android.R.style.Theme_DeviceDefault_Dialog_Alert
+                : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert;
 
         getWindow().setStatusBarColor(bgColor);
         getWindow().setNavigationBarColor(bgColor);
@@ -86,6 +116,52 @@ public final class SBrowserXSettingsActivity extends Activity {
         header.addView(title);
         root.addView(header);
 
+        // --- Extensions ---
+        root.addView(sectionHeader(SBrowserXStrings.get(SBrowserXStrings.CAT_EXTENSIONS), textSecondary));
+        LinearLayout extCard = card(cardColor);
+        extInstallDot = createTealDot();
+        addActionRow(
+                extCard,
+                SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALL_FILE),
+                SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALL_FILE_SUMMARY),
+                textPrimary,
+                textSecondary,
+                extInstallDot,
+                v -> launchFilePicker()
+        );
+        extCard.addView(divider(night));
+        extPackDot = createTealDot();
+        addActionRow(
+                extCard,
+                SBrowserXStrings.get(SBrowserXStrings.EXT_PACK_TITLE),
+                SBrowserXStrings.get(SBrowserXStrings.EXT_PACK_SUMMARY),
+                textPrimary,
+                textSecondary,
+                extPackDot,
+                v -> showRecommendedPackDialog(dialogTheme)
+        );
+        extCard.addView(divider(night));
+        addActionRow(
+                extCard,
+                SBrowserXStrings.get(SBrowserXStrings.EXT_OPEN_MANAGER),
+                null,
+                accent,
+                textSecondary,
+                null,
+                v -> openUrlInSelf("internet://extensions")
+        );
+        extCard.addView(divider(night));
+        addActionRow(
+                extCard,
+                SBrowserXStrings.get(SBrowserXStrings.EXT_OPEN_CWS),
+                null,
+                accent,
+                textSecondary,
+                null,
+                v -> openUrlInSelf("https://chromewebstore.google.com/category/extensions")
+        );
+        root.addView(extCard);
+
         // --- Privacy & Security ---
         root.addView(sectionHeader(SBrowserXStrings.get(SBrowserXStrings.CAT_PRIVACY), textSecondary));
         LinearLayout privacyCard = card(cardColor);
@@ -98,6 +174,22 @@ public final class SBrowserXSettingsActivity extends Activity {
                 textSecondary,
                 webrtcDot,
                 v -> startActivity(new Intent(this, SBrowserXWebRtcDialogActivity.class))
+        );
+        privacyCard.addView(divider(night));
+        fingerprintDot = createTealDot();
+        addSwitchRow(
+                privacyCard,
+                SBrowserXStrings.get(SBrowserXStrings.FINGERPRINT_TITLE),
+                SBrowserXStrings.get(SBrowserXStrings.FINGERPRINT_SUMMARY),
+                SBrowserXPrefs.isFingerprintProtectionEnabled(this),
+                textPrimary,
+                textSecondary,
+                fingerprintDot,
+                (btn, checked) -> {
+                    SBrowserXPrefs.setFingerprintProtectionEnabled(this, checked);
+                    SBrowserXWebRtcManager.applyToProfile(this);
+                    refreshDynamicViews();
+                }
         );
         root.addView(privacyCard);
 
@@ -174,24 +266,79 @@ public final class SBrowserXSettingsActivity extends Activity {
         refreshDynamicViews();
     }
 
+    private void launchFilePicker() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        startActivityForResult(intent, REQ_PICK_EXTENSION);
+    }
+
+    private void showRecommendedPackDialog(int theme) {
+        SBrowserXPrefs.markFeatureViewed(this, SBrowserXPrefs.FEATURE_EXT_PACK);
+        refreshDynamicViews();
+
+        String[][] items = SBrowserXCrxInstaller.RECOMMENDED_EXTENSIONS;
+        String[] labels = new String[items.length];
+        boolean[] checked = new boolean[items.length];
+        for (int i = 0; i < items.length; i++) {
+            labels[i] = items[i][1];
+            checked[i] = true;
+        }
+
+        new AlertDialog.Builder(this, theme)
+                .setTitle(SBrowserXStrings.get(SBrowserXStrings.EXT_PACK_TITLE))
+                .setMultiChoiceItems(labels, checked, (dialog, which, isChecked) -> checked[which] = isChecked)
+                .setPositiveButton(SBrowserXStrings.get(SBrowserXStrings.BTN_INSTALL), (dialog, which) -> {
+                    List<String> selectedIds = new ArrayList<>();
+                    for (int i = 0; i < items.length; i++) {
+                        if (checked[i]) selectedIds.add(items[i][0]);
+                    }
+                    if (selectedIds.isEmpty()) return;
+                    Toast.makeText(this, SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALLING), Toast.LENGTH_SHORT).show();
+                    SBrowserXCrxInstaller.installFromChromeWebStore(this, selectedIds, (ok, msg) -> {
+                        String toast = ok
+                                ? SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALL_OK) + " (" + msg + ")"
+                                : SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALL_FAIL) + msg;
+                        Toast.makeText(this, toast, Toast.LENGTH_LONG).show();
+                    });
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void openUrlInSelf(String url) {
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+            intent.setPackage(getPackageName());
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            finish();
+        } catch (Throwable t) {
+            Toast.makeText(this, t.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
     private void refreshDynamicViews() {
         if (webrtcSummaryView != null) {
             webrtcSummaryView.setText(SBrowserXStrings.webrtcLabel(SBrowserXPrefs.getWebRtcPolicy(this)));
         }
-        if (webrtcDot != null) {
-            webrtcDot.setVisibility(SBrowserXPrefs.isFeatureNew(this, SBrowserXPrefs.FEATURE_WEBRTC) ? View.VISIBLE : View.GONE);
-        }
-        if (amoledDot != null) {
-            amoledDot.setVisibility(SBrowserXPrefs.isFeatureNew(this, SBrowserXPrefs.FEATURE_AMOLED) ? View.VISIBLE : View.GONE);
-        }
-        if (blurDot != null) {
-            blurDot.setVisibility(SBrowserXPrefs.isFeatureNew(this, SBrowserXPrefs.FEATURE_BOTTOM_BLUR) ? View.VISIBLE : View.GONE);
-        }
+        setDot(extInstallDot, SBrowserXPrefs.FEATURE_EXT_INSTALLER);
+        setDot(extPackDot, SBrowserXPrefs.FEATURE_EXT_PACK);
+        setDot(webrtcDot, SBrowserXPrefs.FEATURE_WEBRTC);
+        setDot(fingerprintDot, SBrowserXPrefs.FEATURE_FINGERPRINT);
+        setDot(amoledDot, SBrowserXPrefs.FEATURE_AMOLED);
+        setDot(blurDot, SBrowserXPrefs.FEATURE_BOTTOM_BLUR);
         if (daysValueView != null) {
             int days = SBrowserXPrefs.getHighlightDays(this);
             daysValueView.setText(days == 0
                     ? SBrowserXStrings.get(SBrowserXStrings.HIGHLIGHT_DAYS_OFF)
                     : String.format(SBrowserXStrings.get(SBrowserXStrings.HIGHLIGHT_DAYS_FMT), days));
+        }
+    }
+
+    private void setDot(View dot, String feat) {
+        if (dot != null) {
+            dot.setVisibility(SBrowserXPrefs.isFeatureNew(this, feat) ? View.VISIBLE : View.GONE);
         }
     }
 

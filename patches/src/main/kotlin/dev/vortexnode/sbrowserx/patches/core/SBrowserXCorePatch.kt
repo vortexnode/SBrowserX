@@ -10,6 +10,7 @@ import dev.vortexnode.sbrowserx.shared.findMethodOrThrow
 import org.w3c.dom.Element
 
 private const val SBROWSER_APP_CLASS = "Lcom/sec/android/app/sbrowser/SBrowserApplication;"
+private const val SBROWSER_CMDLINE_CLASS = "Lcom/sec/android/app/sbrowser/init/SBrowserCommandLine;"
 private const val SETTINGS_ACTIVITY_CLASS =
     "dev.vortexnode.sbrowserx.extension.settings.SBrowserXSettingsActivity"
 private const val WEBRTC_DIALOG_ACTIVITY_CLASS =
@@ -21,7 +22,6 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
     finalize {
         val targetPkg = SBrowserPackageRenameTarget.packageName
 
-        // 1. Register SBrowserXSettingsActivity and SBrowserXWebRtcDialogActivity in AndroidManifest.xml
         document("AndroidManifest.xml").use { manifest ->
             val root = manifest.documentElement ?: error("Missing <manifest>")
             val application = root.getElementsByTagName("application").item(0) as? Element
@@ -52,13 +52,12 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
             }
         }
 
-        // 2. Inject SBrowserX Hub at the top of res/xml/settings_fragment.xml
         document("res/xml/settings_fragment.xml").use { xml ->
             val screen = xml.documentElement ?: error("Missing PreferenceScreen in settings_fragment.xml")
             val pref = xml.createElement("com.sec.android.app.sbrowser.common.settings.PreferenceCustom")
             pref.setAttributeNS(ANDROID_NS, "android:key", "sbrowserx_settings_hub")
             pref.setAttributeNS(ANDROID_NS, "android:title", "SBrowserX  \u25CF")
-            pref.setAttributeNS(ANDROID_NS, "android:summary", "WebRTC, AMOLED, UI & Extensions")
+            pref.setAttributeNS(ANDROID_NS, "android:summary", "Extensions (.crx/.zip), WebRTC, Fingerprint & AMOLED")
 
             val intent = xml.createElement("intent")
             intent.setAttributeNS(ANDROID_NS, "android:targetPackage", targetPkg)
@@ -73,7 +72,6 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
             }
         }
 
-        // 3. Inject native WebRTC IP handling policy duplicate into res/xml/privacy_preferences.xml
         document("res/xml/privacy_preferences.xml").use { xml ->
             val screen = xml.documentElement ?: error("Missing PreferenceScreen in privacy_preferences.xml")
             val pref = xml.createElement("com.sec.android.app.sbrowser.common.settings.PreferenceCustom")
@@ -86,7 +84,6 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
             intent.setAttributeNS(ANDROID_NS, "android:targetClass", WEBRTC_DIALOG_ACTIVITY_CLASS)
             pref.appendChild(intent)
 
-            // Insert right after anti_tracking_level if present, otherwise append
             val nodes = screen.childNodes
             var inserted = false
             for (i in 0 until nodes.length) {
@@ -120,8 +117,8 @@ private fun hasActivity(application: Element, className: String): Boolean {
 
 @Suppress("unused")
 val sbrowserXCorePatch = bytecodePatch(
-    name = "SBrowserX Settings & WebRTC Protection",
-    description = "Adds the SBrowserX settings hub (15 languages, teal new-feature badges), system-level WebRTC IP leak protection (duplicated in Privacy), AMOLED Black theme, and bottom navigation bar transparency toggle.",
+    name = "SBrowserX Settings, Extensions & Privacy Core",
+    description = "Adds the SBrowserX settings hub (15 languages, teal new-feature badges), native .crx/.zip extension installer, recommended 5-extension pack, WebRTC IP leak protection, and native anti-fingerprint protection.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)
@@ -129,7 +126,7 @@ val sbrowserXCorePatch = bytecodePatch(
     dependsOn(sbrowserXCoreResourcePatch)
 
     execute {
-        // Hook SBrowserApplication.onCreate() before Terrace/Chromium reads Default/Preferences
+        // 1. Hook SBrowserApplication.onCreate() before Terrace/Chromium reads Default/Preferences
         findMethodOrThrow(
             classType = SBROWSER_APP_CLASS,
             methodName = "onCreate",
@@ -138,6 +135,20 @@ val sbrowserXCorePatch = bytecodePatch(
         ).addInstruction(
             0,
             "invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onApplicationCreate(Landroid/app/Application;)V",
+        )
+
+        // 2. Hook SBrowserCommandLine.setCustomFeatures() right before return-void for native anti-fingerprint flags
+        val cmdMethod = findMethodOrThrow(
+            classType = SBROWSER_CMDLINE_CLASS,
+            methodName = "setCustomFeatures",
+            parameterTypes = emptyList(),
+            returnType = "V",
+        )
+        val cmdInsns = cmdMethod.implementation?.instructions
+            ?: error("Missing implementation in SBrowserCommandLine.setCustomFeatures")
+        cmdMethod.addInstruction(
+            cmdInsns.size - 1,
+            "invoke-static {}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onCommandLineCustomFeatures()V",
         )
     }
 }
