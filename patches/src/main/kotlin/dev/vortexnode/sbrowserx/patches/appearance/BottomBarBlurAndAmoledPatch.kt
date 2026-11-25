@@ -10,17 +10,27 @@ private const val DEVICE_FEATURE_UTILS_CLASS =
     "Lcom/sec/android/app/sbrowser/common/device/DeviceFeatureUtils;"
 private const val BOTTOMBAR_CLASS =
     "Lcom/sec/android/app/sbrowser/toolbar/Bottombar;"
+private const val TOOLBAR_CLASS =
+    "Lcom/sec/android/app/sbrowser/toolbar/Toolbar;"
+private const val GRADIENT_DRAWABLE_FACTORY_CLASS =
+    "Lcom/sec/android/app/sbrowser/toolbar/blur/GradientDrawableFactory;"
+private const val GRADIENT_BITMAP_FACTORY_CLASS =
+    "Lcom/sec/android/app/sbrowser/hide_toolbar/GradientBitmapFactory;"
+private const val TIN_CONTENT_VIEW_CORE_CLASS =
+    "Lcom/sec/terrace/content/browser/TinContentViewCore;"
 
 @Suppress("unused")
 val bottomBarBlurAndAmoledPatch = bytecodePatch(
     name = "AMOLED Black & Bottom Bar Transparency Toggle",
-    description = "Adds runtime hooks for AMOLED pure black (#000000) dark mode surfaces (preserving 0xD9 blur translucency when bottom bar blur is ON) and the toggle to disable/restore bottom navigation bar blur.",
+    description = "True frosted-glass bottom bar & toolbar translucency with adjustable transparency (15-85%), enhanced Chromium compositor blur, and AMOLED pure black (#000000) dark mode surfaces.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)
     dependsOn(sbrowserXCorePatch)
 
     execute {
+        // 1. DeviceFeatureUtils.isToolbarBlurSupported()Z (.locals 0)
+        // Forces real-time blur pipeline ON when user enables it, or OFF when disabled.
         val blurMethod = findMethodOrThrow(
             classType = DEVICE_FEATURE_UTILS_CLASS,
             methodName = "isToolbarBlurSupported",
@@ -37,6 +47,8 @@ val bottomBarBlurAndAmoledPatch = bytecodePatch(
             """.trimIndent(),
         )
 
+        // 2. Bottombar.getBackgroundColor(ThemeParam)I (.locals 1)
+        // Uses AMOLED pure black in night mode when enabled, and preserves translucent alpha.
         val bgMethod = findMethodOrThrow(
             classType = BOTTOMBAR_CLASS,
             methodName = "getBackgroundColor",
@@ -57,6 +69,108 @@ val bottomBarBlurAndAmoledPatch = bytecodePatch(
                 return v0
                 :sbrowserx_stock_bg
                 nop
+            """.trimIndent(),
+        )
+
+        // 3. Toolbar.isTranslucentColor(I)Z (.locals 0, p0 unused as 'this' in stock body)
+        // Ensures Toolbar always routes through setGradientBackground when blur is ON,
+        // even when a website provides an opaque theme-color.
+        val translucentMethod = findMethodOrThrow(
+            classType = TOOLBAR_CLASS,
+            methodName = "isTranslucentColor",
+            parameterTypes = listOf("I"),
+            returnType = "Z",
+        )
+        translucentMethod.addInstructions(
+            0,
+            """
+                if-eqz p1, :sbrowserx_stock_translucent
+                invoke-static {}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->isBottomBarBlurEnabled()Z
+                move-result p0
+                if-eqz p0, :sbrowserx_stock_translucent
+                const/4 p0, 0x1
+                return p0
+                :sbrowserx_stock_translucent
+                nop
+            """.trimIndent(),
+        )
+
+        // 4. GradientDrawableFactory.createToolbarGradientDrawable(Context, I)GradientDrawable (.locals 1)
+        // Replaces Samsung's nearly-opaque 0xFF->0xFA gradient with true frosted-glass alpha gradient.
+        val toolbarGradMethod = findMethodOrThrow(
+            classType = GRADIENT_DRAWABLE_FACTORY_CLASS,
+            methodName = "createToolbarGradientDrawable",
+            parameterTypes = listOf("Landroid/content/Context;", "I"),
+            returnType = "Landroid/graphics/drawable/GradientDrawable;",
+        )
+        toolbarGradMethod.addInstructions(
+            0,
+            """
+                invoke-static {p0, p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->createToolbarGlassDrawable(Landroid/content/Context;I)Landroid/graphics/drawable/GradientDrawable;
+                move-result-object v0
+                if-eqz v0, :sbrowserx_stock_tb_grad
+                return-object v0
+                :sbrowserx_stock_tb_grad
+                nop
+            """.trimIndent(),
+        )
+
+        // 5. GradientDrawableFactory.createBottombarGradientDrawable(Context, I)GradientDrawable (.locals 0)
+        // Zero new locals: returns glass GradientDrawable when enabled, or stock-equivalent fallback.
+        val bottombarGradMethod = findMethodOrThrow(
+            classType = GRADIENT_DRAWABLE_FACTORY_CLASS,
+            methodName = "createBottombarGradientDrawable",
+            parameterTypes = listOf("Landroid/content/Context;", "I"),
+            returnType = "Landroid/graphics/drawable/GradientDrawable;",
+        )
+        bottombarGradMethod.addInstructions(
+            0,
+            """
+                invoke-static {p0, p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->createBottombarGlassDrawable(Landroid/content/Context;I)Landroid/graphics/drawable/GradientDrawable;
+                move-result-object p0
+                return-object p0
+            """.trimIndent(),
+        )
+
+        // 6. GradientBitmapFactory.createGradientBitmap(IIIZ)Bitmap (.locals 10)
+        // Matches scroll-compositor bitmap gradient alpha to the resting glass alpha (no white flash on scroll).
+        val gradBmpMethod = findMethodOrThrow(
+            classType = GRADIENT_BITMAP_FACTORY_CLASS,
+            methodName = "createGradientBitmap",
+            parameterTypes = listOf("I", "I", "I", "Z"),
+            returnType = "Landroid/graphics/Bitmap;",
+        )
+        gradBmpMethod.addInstructions(
+            0,
+            """
+                invoke-static {p0, p1, p2, p3}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->createGlassGradientBitmapOrNull(IIIZ)Landroid/graphics/Bitmap;
+                move-result-object v0
+                if-eqz v0, :sbrowserx_stock_grad_bmp
+                return-object v0
+                :sbrowserx_stock_grad_bmp
+                nop
+            """.trimIndent(),
+        )
+
+        // 7. TinContentViewCore.enableBlurEffectOnToolbar(BitmapLayer, IIIIIFI)V (.locals 13)
+        // Boosts Chromium compositor GPU blur radius (30 -> 48..68) and lowers tint alpha
+        // so it doesn't double-stack with the Android View overlay.
+        val nativeBlurMethod = findMethodOrThrow(
+            classType = TIN_CONTENT_VIEW_CORE_CLASS,
+            methodName = "enableBlurEffectOnToolbar",
+            parameterTypes = listOf(
+                "Lcom/sec/terrace/content/browser/TerraceBitmapLayer${'$'}BitmapLayer;",
+                "I", "I", "I", "I", "I", "F", "I",
+            ),
+            returnType = "V",
+        )
+        nativeBlurMethod.addInstructions(
+            0,
+            """
+                invoke-static/range {p7 .. p7}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->adjustToolbarBlurRadius(F)F
+                move-result p7
+                invoke-static/range {p8 .. p8}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->adjustToolbarBlurTintColor(I)I
+                move-result p8
             """.trimIndent(),
         )
     }

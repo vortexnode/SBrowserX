@@ -39,6 +39,8 @@ public final class SBrowserXSettingsActivity extends Activity {
     private TextView gtransSummaryView;
     private TextView extDlSummaryView;
     private TextView daysValueView;
+    private TextView blurLevelValueView;
+    private LinearLayout blurLevelRow;
     private View extInstallDot, extPackDot, webrtcDot, fingerprintDot, hideAdsDot, gtransDot, extDlDot, amoledDot, blurDot;
 
     @Override
@@ -179,6 +181,8 @@ public final class SBrowserXSettingsActivity extends Activity {
                     SBrowserXPrefs.setBottomBarBlurEnabled(this, checked);
                     refreshDynamicViews();
                 });
+        appearanceCard.addView(divider(night));
+        addBlurTransparencySliderRow(appearanceCard, textPrimary);
         root.addView(appearanceCard);
 
         // --- New Features Highlight ---
@@ -310,6 +314,14 @@ public final class SBrowserXSettingsActivity extends Activity {
         setDot(extDlDot, SBrowserXPrefs.FEATURE_EXT_DOWNLOADER);
         setDot(amoledDot, SBrowserXPrefs.FEATURE_AMOLED);
         setDot(blurDot, SBrowserXPrefs.FEATURE_BOTTOM_BLUR);
+        if (blurLevelValueView != null) {
+            boolean blurOn = SBrowserXPrefs.isBottomBarBlurEnabled(this);
+            int pct = SBrowserXPrefs.getBottomBarTransparency(this);
+            blurLevelValueView.setText(pct + "%");
+            if (blurLevelRow != null) {
+                blurLevelRow.setAlpha(blurOn ? 1.0f : 0.45f);
+            }
+        }
         if (daysValueView != null) {
             int days = SBrowserXPrefs.getHighlightDays(this);
             daysValueView.setText(days == 0
@@ -483,6 +495,46 @@ public final class SBrowserXSettingsActivity extends Activity {
         sw.setThumbTintList(null);
         sw.setTrackDrawable(trackStates);
         sw.setThumbDrawable(thumb);
+    }
+
+    private void addBlurTransparencySliderRow(LinearLayout parent, int titleColor) {
+        blurLevelRow = new LinearLayout(this);
+        blurLevelRow.setOrientation(LinearLayout.VERTICAL);
+        blurLevelRow.setPadding(dp(18), dp(14), dp(18), dp(14));
+
+        LinearLayout top = new LinearLayout(this);
+        top.setOrientation(LinearLayout.HORIZONTAL);
+        top.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView tvTitle = new TextView(this);
+        tvTitle.setText(SBrowserXStrings.get(SBrowserXStrings.BOTTOM_BLUR_LEVEL_TITLE));
+        tvTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        tvTitle.setTextColor(titleColor);
+        tvTitle.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        top.addView(tvTitle);
+
+        blurLevelValueView = new TextView(this);
+        blurLevelValueView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        blurLevelValueView.setTextColor(ONEUI_BLUE);
+        top.addView(blurLevelValueView);
+        blurLevelRow.addView(top);
+
+        SeekBar sb = new SeekBar(this);
+        sb.setMax(70); // 15% .. 85%
+        sb.setProgress(Math.max(0, Math.min(70, SBrowserXPrefs.getBottomBarTransparency(this) - 15)));
+        sb.setPadding(0, dp(10), 0, dp(4));
+        sb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (fromUser) {
+                    SBrowserXPrefs.setBottomBarTransparency(SBrowserXSettingsActivity.this, progress + 15);
+                    refreshDynamicViews();
+                }
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+        blurLevelRow.addView(sb);
+        parent.addView(blurLevelRow);
     }
 
     private void addDaysSliderRow(LinearLayout parent, int titleColor, int summaryColor) {

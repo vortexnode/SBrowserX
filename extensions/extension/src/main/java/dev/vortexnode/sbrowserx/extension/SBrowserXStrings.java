@@ -67,6 +67,7 @@ public final class SBrowserXStrings {
     public static final String BTN_ENABLE = "btn_enable";
     public static final String BTN_DISABLE = "btn_disable";
     public static final String EXT_OPEN_NATIVE = "ext_open_native";
+    public static final String BOTTOM_BLUR_LEVEL_TITLE = "bottom_blur_level_title";
 
     private static final Map<String, Map<String, String>> CATALOG = new HashMap<>();
 
@@ -319,6 +320,29 @@ public final class SBrowserXStrings {
             map.put(keys[i], values[i]);
         }
         CATALOG.put(lang, map);
+    }
+
+    static {
+        putOne("en", BOTTOM_BLUR_LEVEL_TITLE, "Bar transparency");
+        putOne("ru", BOTTOM_BLUR_LEVEL_TITLE, "Прозрачность панели");
+        putOne("uk", BOTTOM_BLUR_LEVEL_TITLE, "Прозорість панелі");
+        putOne("es", BOTTOM_BLUR_LEVEL_TITLE, "Transparencia de la barra");
+        putOne("pt", BOTTOM_BLUR_LEVEL_TITLE, "Transparência da barra");
+        putOne("de", BOTTOM_BLUR_LEVEL_TITLE, "Leistentransparenz");
+        putOne("fr", BOTTOM_BLUR_LEVEL_TITLE, "Transparence de la barre");
+        putOne("it", BOTTOM_BLUR_LEVEL_TITLE, "Trasparenza della barra");
+        putOne("pl", BOTTOM_BLUR_LEVEL_TITLE, "Przezroczystość paska");
+        putOne("tr", BOTTOM_BLUR_LEVEL_TITLE, "Çubuk şeffaflığı");
+        putOne("ar", BOTTOM_BLUR_LEVEL_TITLE, "شفافية الشريط");
+        putOne("hi", BOTTOM_BLUR_LEVEL_TITLE, "बार पारदर्शिता");
+        putOne("zh", BOTTOM_BLUR_LEVEL_TITLE, "工具栏透明度");
+        putOne("ja", BOTTOM_BLUR_LEVEL_TITLE, "バーの透明度");
+        putOne("ko", BOTTOM_BLUR_LEVEL_TITLE, "하단 바 투명도");
+    }
+
+    private static void putOne(String lang, String key, String value) {
+        Map<String, String> m = CATALOG.get(lang);
+        if (m != null) m.put(key, value);
     }
 
     public static String get(String key) {

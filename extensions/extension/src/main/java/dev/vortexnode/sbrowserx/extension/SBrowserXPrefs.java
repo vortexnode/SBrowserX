@@ -15,6 +15,7 @@ public final class SBrowserXPrefs {
     public static final String KEY_FINGERPRINT_PROTECTION = "fingerprint_protection_enabled";
     public static final String KEY_HIDE_SAMSUNG_ADBLOCKERS = "hide_samsung_adblockers_enabled";
     public static final String KEY_BOTTOM_BAR_BLUR = "bottom_bar_blur_enabled";
+    public static final String KEY_BOTTOM_BAR_TRANSPARENCY = "bottom_bar_transparency_percent";
     public static final String KEY_AMOLED_BLACK = "amoled_black_enabled";
     public static final String KEY_EXTERNAL_DOWNLOADER = "external_downloader_enabled";
     public static final String KEY_EXTERNAL_DOWNLOADER_PKG = "external_downloader_package";
@@ -111,6 +112,17 @@ public final class SBrowserXPrefs {
 
     public static void setBottomBarBlurEnabled(Context context, boolean enabled) {
         prefs(context).edit().putBoolean(KEY_BOTTOM_BAR_BLUR, enabled).apply();
+        markFeatureViewed(context, FEATURE_BOTTOM_BLUR);
+    }
+
+    public static int getBottomBarTransparency(Context context) {
+        int val = prefs(context).getInt(KEY_BOTTOM_BAR_TRANSPARENCY, 50);
+        return Math.max(15, Math.min(85, val));
+    }
+
+    public static void setBottomBarTransparency(Context context, int percent) {
+        int clamped = Math.max(15, Math.min(85, percent));
+        prefs(context).edit().putInt(KEY_BOTTOM_BAR_TRANSPARENCY, clamped).apply();
         markFeatureViewed(context, FEATURE_BOTTOM_BLUR);
     }
 

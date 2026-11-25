@@ -5,6 +5,13 @@ import android.app.Application;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.Shader;
+import android.graphics.Paint;
+import android.graphics.LinearGradient;
+import android.graphics.Color;
+import android.graphics.Canvas;
+import android.graphics.Bitmap;
 import android.os.Process;
 import android.util.Log;
 
@@ -107,13 +114,21 @@ public final class SBrowserXHooks {
     }
 
     public static boolean isToolbarBlurAllowed(boolean stockSupported) {
-        if (!stockSupported) return false;
         try {
             Context ctx = SBrowserXPrefs.getAppContext();
-            if (ctx == null) return true;
+            if (ctx == null) return stockSupported;
             return SBrowserXPrefs.isBottomBarBlurEnabled(ctx);
         } catch (Throwable t) {
             return stockSupported;
+        }
+    }
+
+    public static boolean isBottomBarBlurEnabled() {
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            return ctx == null || SBrowserXPrefs.isBottomBarBlurEnabled(ctx);
+        } catch (Throwable t) {
+            return true;
         }
     }
 
@@ -127,13 +142,157 @@ public final class SBrowserXHooks {
         }
     }
 
+    private static int getGlassBaseAlpha() {
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            int transparency = ctx != null ? SBrowserXPrefs.getBottomBarTransparency(ctx) : 50;
+            int opacity = 100 - transparency; // 15..85
+            return clampByte(Math.round(255f * opacity / 100f));
+        } catch (Throwable t) {
+            return 0x80;
+        }
+    }
+
+    private static int clampByte(int v) {
+        return Math.max(0, Math.min(255, v));
+    }
+
+    private static int withAlpha(int color, int alpha) {
+        return (color & 0x00FFFFFF) | (clampByte(alpha) << 24);
+    }
+
+    private static boolean isDarkColor(int color) {
+        int r = Color.red(color);
+        int g = Color.green(color);
+        int b = Color.blue(color);
+        // Perceived luminance < 96
+        return (r * 299 + g * 587 + b * 114) < 96000;
+    }
+
+    private static int normalizeGlassBaseRgb(int baseColor) {
+        if (isAmoledBlackEnabled() && isDarkColor(baseColor)) {
+            return 0xFF000000;
+        }
+        return baseColor | 0xFF000000;
+    }
+
+    private static boolean isFocusLayout(Context ctx) {
+        if (ctx == null) return false;
+        try {
+            Class<?> cls = Class.forName("com.sec.android.app.sbrowser.common.device.DeviceLayoutUtil");
+            Boolean focus = (Boolean) cls.getMethod("isFocusLayoutType", Context.class).invoke(null, ctx);
+            if (!Boolean.TRUE.equals(focus)) return false;
+            Boolean landscapeOrTab = (Boolean) cls.getMethod("isLandscapeOrTabletStyle", Context.class).invoke(null, ctx);
+            return !Boolean.TRUE.equals(landscapeOrTab);
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
     public static int getAmoledBottomBarColor() {
         try {
             Context ctx = SBrowserXPrefs.getAppContext();
             boolean blurOn = ctx == null || SBrowserXPrefs.isBottomBarBlurEnabled(ctx);
-            return blurOn ? 0xD9000000 : 0xFF000000;
+            return blurOn ? withAlpha(0x000000, getGlassBaseAlpha()) : 0xFF000000;
         } catch (Throwable t) {
-            return 0xD9000000;
+            return 0x80000000;
+        }
+    }
+
+    public static GradientDrawable createToolbarGlassDrawable(Context ctx, int baseColor) {
+        if (!isBottomBarBlurEnabled()) return null;
+        try {
+            int rgb = normalizeGlassBaseRgb(baseColor);
+            int baseAlpha = getGlassBaseAlpha();
+            int edgeAlpha = clampByte(Math.round(baseAlpha * 0.62f));
+            int midAlpha = clampByte(Math.round(baseAlpha * 0.88f));
+            int solidAlpha = clampByte(Math.round(baseAlpha * 1.06f));
+
+            GradientDrawable gd = new GradientDrawable();
+            gd.setOrientation(GradientDrawable.Orientation.TOP_BOTTOM);
+            if (isFocusLayout(ctx)) {
+                // Address bar is at bottom directly above Bottombar: soft fade from page into bar
+                gd.setColors(new int[] { withAlpha(rgb, edgeAlpha), withAlpha(rgb, midAlpha) });
+            } else {
+                // Address bar is at top: denser near status bar, softer toward page
+                gd.setColors(new int[] { withAlpha(rgb, solidAlpha), withAlpha(rgb, edgeAlpha) });
+            }
+            return gd;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    public static GradientDrawable createBottombarGlassDrawable(Context ctx, int baseColor) {
+        try {
+            int rgb = normalizeGlassBaseRgb(baseColor);
+            GradientDrawable gd = new GradientDrawable();
+            gd.setOrientation(GradientDrawable.Orientation.TOP_BOTTOM);
+            if (!isBottomBarBlurEnabled()) {
+                gd.setColors(new int[] { withAlpha(rgb, 0xFF), withAlpha(rgb, 0xFF) });
+                return gd;
+            }
+            int baseAlpha = getGlassBaseAlpha();
+            int edgeAlpha = clampByte(Math.round(baseAlpha * 0.62f));
+            int midAlpha = clampByte(Math.round(baseAlpha * 0.88f));
+            int botAlpha = clampByte(Math.round(baseAlpha * 1.08f));
+            if (isFocusLayout(ctx)) {
+                // Seamless continuation from Focus Toolbar above it down to system navbar
+                gd.setColors(new int[] { withAlpha(rgb, midAlpha), withAlpha(rgb, botAlpha) });
+            } else {
+                // Standalone bottom navigation bar: soft edge at top, slightly denser at bottom
+                gd.setColors(new int[] { withAlpha(rgb, edgeAlpha), withAlpha(rgb, botAlpha) });
+            }
+            return gd;
+        } catch (Throwable t) {
+            GradientDrawable fallback = new GradientDrawable();
+            fallback.setColor(baseColor);
+            return fallback;
+        }
+    }
+
+    public static Bitmap createGlassGradientBitmapOrNull(int baseColor, int width, int height, boolean fadeToBottom) {
+        if (!isBottomBarBlurEnabled() || width <= 0 || height <= 0) return null;
+        try {
+            int rgb = normalizeGlassBaseRgb(baseColor);
+            int baseAlpha = getGlassBaseAlpha();
+            int softAlpha = clampByte(Math.round(baseAlpha * 0.65f));
+            int denseAlpha = clampByte(Math.round(baseAlpha * 1.04f));
+            int cTop = fadeToBottom ? withAlpha(rgb, denseAlpha) : withAlpha(rgb, softAlpha);
+            int cBot = fadeToBottom ? withAlpha(rgb, softAlpha) : withAlpha(rgb, denseAlpha);
+
+            Bitmap bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(bmp);
+            Paint paint = new Paint();
+            paint.setShader(new LinearGradient(0f, 0f, 0f, height, cTop, cBot, Shader.TileMode.CLAMP));
+            canvas.drawRect(0f, 0f, width, height, paint);
+            return bmp;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    public static float adjustToolbarBlurRadius(float stockRadius) {
+        if (!isBottomBarBlurEnabled()) return stockRadius;
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            int transparency = ctx != null ? SBrowserXPrefs.getBottomBarTransparency(ctx) : 50;
+            // Scale blur radius smoothly from 44f (low transparency) to 68f (high transparency)
+            return 40f + (transparency * 0.34f);
+        } catch (Throwable t) {
+            return 56f;
+        }
+    }
+
+    public static int adjustToolbarBlurTintColor(int stockColor) {
+        if (!isBottomBarBlurEnabled()) return stockColor;
+        try {
+            int rgb = normalizeGlassBaseRgb(stockColor);
+            // Keep Chromium compositor tint light so it doesn't double-stack with the View overlay
+            int tintAlpha = clampByte(Math.round(getGlassBaseAlpha() * 0.42f));
+            return withAlpha(rgb, tintAlpha);
+        } catch (Throwable t) {
+            return stockColor;
         }
     }
 
