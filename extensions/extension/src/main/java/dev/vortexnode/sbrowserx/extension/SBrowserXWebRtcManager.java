@@ -1,6 +1,7 @@
 package dev.vortexnode.sbrowserx.extension;
 
 import android.content.Context;
+import android.content.Intent;
 import android.util.Log;
 
 import org.json.JSONObject;
@@ -77,5 +78,19 @@ public final class SBrowserXWebRtcManager {
             fos.write(content.getBytes(StandardCharsets.UTF_8));
             fos.getFD().sync();
         }
+    }
+
+    public static void restartBrowser(Context context) {
+        if (context == null) return;
+        try {
+            Intent launch = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
+            if (launch != null) {
+                launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                context.startActivity(launch);
+            }
+        } catch (Throwable t) {
+            Log.e(TAG, "restartBrowser failed", t);
+        }
+        android.os.Process.killProcess(android.os.Process.myPid());
     }
 }
