@@ -354,4 +354,20 @@ public final class SBrowserXHooks {
             }
         } catch (Throwable ignored) {}
     }
+
+    public static String getExternalDownloaderSummary(Context ctx) {
+        if (ctx == null || !SBrowserXPrefs.isExternalDownloaderEnabled(ctx)) {
+            return SBrowserXStrings.get(SBrowserXStrings.BTN_DISABLE);
+        }
+        String pkg = SBrowserXPrefs.getExternalDownloaderPackage(ctx);
+        if (pkg == null || pkg.isEmpty()) {
+            return SBrowserXStrings.get(SBrowserXStrings.EXT_DL_CHOOSER);
+        }
+        try {
+            android.content.pm.PackageManager pm = ctx.getPackageManager();
+            CharSequence label = pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0));
+            if (label != null && label.length() > 0) return label.toString();
+        } catch (Throwable ignored) {}
+        return pkg;
+    }
 }
