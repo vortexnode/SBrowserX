@@ -59,6 +59,7 @@ public final class SBrowserXHooks {
         try {
             SBrowserXPrefs.init(app);
             SBrowserXWebRtcManager.applyToProfile(app);
+            SBrowserXBackupManager.runAutoBackupIfDue(app);
         } catch (Throwable t) {
             Log.e(TAG, "onApplicationCreate failed", t);
         }
@@ -311,6 +312,88 @@ public final class SBrowserXHooks {
             return bmp;
         } catch (Throwable t) {
             return null;
+        }
+    }
+
+    public static boolean isCompactLayoutActivePublic() {
+        return isCompactLayoutActive();
+    }
+
+    public static int adjustMaxTabCount(int stockMax) {
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            if (ctx != null && SBrowserXPrefs.isUnlimitedTabsEnabled(ctx)) {
+                return 9999;
+            }
+        } catch (Throwable ignored) {}
+        return stockMax;
+    }
+
+    public static boolean handleBrowsingAssistClick(Object appMenuHandler) {
+        try {
+            Activity act = sMainActivityRef.get();
+            Context ctx = act != null ? act : SBrowserXPrefs.getAppContext();
+            if (ctx == null) return false;
+
+            String key = SBrowserXPrefs.getTranslateApiKey(ctx);
+            if (key == null || key.trim().isEmpty()) {
+                Intent i = new Intent(ctx, dev.vortexnode.sbrowserx.extension.settings.SBrowserXAiSummaryActivity.class);
+                if (!(ctx instanceof Activity)) i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                ctx.startActivity(i);
+                return true;
+            }
+
+            Object tab = null;
+            if (appMenuHandler != null) {
+                try {
+                    Field fTd = appMenuHandler.getClass().getDeclaredField("mTabDelegate");
+                    fTd.setAccessible(true);
+                    Object td = fTd.get(appMenuHandler);
+                    if (td != null) {
+                        tab = td.getClass().getMethod("getCurrentTab").invoke(td);
+                    }
+                } catch (Throwable ignored) {}
+            }
+            if (tab != null) {
+                final String title = String.valueOf(tab.getClass().getMethod("getTitle").invoke(tab));
+                final String url = String.valueOf(tab.getClass().getMethod("getUrl").invoke(tab));
+                final Context launchCtx = ctx;
+                android.webkit.ValueCallback<String> cb = jsonText -> {
+                    String extracted = "";
+                    try {
+                        if (jsonText != null && !jsonText.isEmpty() && !"null".equals(jsonText)) {
+                            extracted = new org.json.JSONArray("[" + jsonText + "]").optString(0, "");
+                        }
+                    } catch (Throwable ignored) {
+                        extracted = jsonText != null ? jsonText : "";
+                    }
+                    Intent i = new Intent(launchCtx, dev.vortexnode.sbrowserx.extension.settings.SBrowserXAiSummaryActivity.class);
+                    i.putExtra(dev.vortexnode.sbrowserx.extension.settings.SBrowserXAiSummaryActivity.EXTRA_PAGE_TITLE, title);
+                    i.putExtra(dev.vortexnode.sbrowserx.extension.settings.SBrowserXAiSummaryActivity.EXTRA_PAGE_URL, url);
+                    i.putExtra(dev.vortexnode.sbrowserx.extension.settings.SBrowserXAiSummaryActivity.EXTRA_PAGE_TEXT, extracted);
+                    if (!(launchCtx instanceof Activity)) i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    launchCtx.startActivity(i);
+                };
+                String js = "(function(){var el=document.querySelector('article,main')||document.body;return el?(el.innerText||'').slice(0,14000):'';})()";
+                Method evalM = null;
+                for (Method m : tab.getClass().getMethods()) {
+                    if ("evaluateJavaScript".equals(m.getName()) && m.getParameterTypes().length == 2) {
+                        evalM = m;
+                        break;
+                    }
+                }
+                if (evalM != null) {
+                    evalM.invoke(tab, js, cb);
+                    return true;
+                }
+            }
+            Intent i = new Intent(ctx, dev.vortexnode.sbrowserx.extension.settings.SBrowserXBrowsingAssistActivity.class);
+            if (!(ctx instanceof Activity)) i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            ctx.startActivity(i);
+            return true;
+        } catch (Throwable t) {
+            Log.w(TAG, "handleBrowsingAssistClick failed", t);
+            return false;
         }
     }
 
@@ -1444,15 +1527,51 @@ public final class SBrowserXHooks {
                     SBrowserXStrings.get(SBrowserXStrings.LAYOUT_TRANSPARENCY_TITLE),
                     layoutSum);
 
-            setNativePref(findPref, fragment, "sbrowserx_layout_compact_button",
-                    SBrowserXStrings.get(SBrowserXStrings.COMPACT_AI_BTN_TITLE),
-                    SBrowserXStrings.compactButtonLabel(SBrowserXPrefs.getCompactAiButton(ctx)));
+            boolean isCompact = isCompactLayoutActive();
+            Object compactBtnPref = findPref.invoke(fragment, "sbrowserx_layout_compact_button");
+            if (compactBtnPref != null) {
+                compactBtnPref.getClass().getMethod("setTitle", CharSequence.class)
+                        .invoke(compactBtnPref, SBrowserXStrings.get(SBrowserXStrings.COMPACT_AI_BTN_TITLE));
+                compactBtnPref.getClass().getMethod("setSummary", CharSequence.class)
+                        .invoke(compactBtnPref, isCompact
+                                ? SBrowserXStrings.compactButtonLabel(SBrowserXPrefs.getCompactAiButton(ctx))
+                                : SBrowserXStrings.get(SBrowserXStrings.LAYOUT_ONLY_COMPACT));
+                compactBtnPref.getClass().getMethod("setEnabled", boolean.class)
+                        .invoke(compactBtnPref, isCompact);
+            }
 
             String transSum = (SBrowserXPrefs.isGoogleTranslateEnabled(ctx) ? onLbl : offLbl)
                     + " • " + SBrowserXGoogleTranslator.getLanguageDisplayName(SBrowserXPrefs.getTranslateTargetLang(ctx));
             setNativePref(findPref, fragment, "sbrowserx_useful_translate",
                     SBrowserXStrings.get(SBrowserXStrings.GTRANS_SETTINGS_TITLE),
                     transSum);
+
+            bindNativeSwitch(findPref, fragment, "sbrowserx_unlimited_tabs",
+                    SBrowserXStrings.get(SBrowserXStrings.UNLIMITED_TABS_TITLE),
+                    SBrowserXStrings.get(SBrowserXStrings.UNLIMITED_TABS_SUMMARY),
+                    SBrowserXPrefs.isUnlimitedTabsEnabled(ctx),
+                    checked -> SBrowserXPrefs.setUnlimitedTabsEnabled(ctx, checked));
+
+            setNativePref(findPref, fragment, "sbrowserx_sync_backup",
+                    SBrowserXStrings.get(SBrowserXStrings.SYNC_BACKUP_TITLE),
+                    SBrowserXStrings.get(SBrowserXStrings.SYNC_BACKUP_SUMMARY));
+
+            setNativePref(findPref, fragment, "sbrowserx_browsing_assist",
+                    SBrowserXStrings.get(SBrowserXStrings.ASSIST_TITLE),
+                    SBrowserXStrings.get(SBrowserXStrings.ASSIST_SUMMARY));
+
+            String[] deadKeys = new String[] {
+                    "cloud_sync", "pref_browsing_assist", "pref_drawing_assist",
+                    "pref_shopping_assistant", "pref_read_aloud", "pref_contact_us", "pref_leave_internet"
+            };
+            for (String dk : deadKeys) {
+                try {
+                    Object dp = findPref.invoke(fragment, dk);
+                    if (dp != null) {
+                        dp.getClass().getMethod("setVisible", boolean.class).invoke(dp, false);
+                    }
+                } catch (Throwable ignored2) {}
+            }
         } catch (Throwable ignored) {}
     }
 

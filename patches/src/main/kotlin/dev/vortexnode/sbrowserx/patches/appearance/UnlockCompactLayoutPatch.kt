@@ -14,6 +14,8 @@ private const val HIDE_TOOLBAR_COMPACT_CLASS =
     "Lcom/sec/android/app/sbrowser/hide_toolbar/HideToolbarHandlerCompact;"
 private const val CUSTOMIZE_MENU_MODEL_CLASS =
     "Lcom/sec/android/app/sbrowser/common/customize_toolbar/CustomizeMenuModel;"
+private const val TOOLBAR_BUTTON_LAYOUT_CLASS =
+    "Lcom/sec/android/app/sbrowser/toolbar/ToolbarButtonLayout;"
 
 @Suppress("unused")
 val unlockCompactLayoutPatch = bytecodePatch(
@@ -166,6 +168,26 @@ val unlockCompactLayoutPatch = bytecodePatch(
             """
                 invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->replaceCompactAiButton(Ljava/util/List;)Ljava/util/List;
                 move-result-object p0
+            """.trimIndent(),
+        )
+
+        // 8. ToolbarButtonLayout.updatePinnedExtensionButtons()V (.locals 11)
+        // Eliminates the 1-frame 40dp horizontal phantom gap between Tabs [8] and More (⋮) during page load in Compact mode.
+        val pinnedExtMethod = findMethodOrThrow(
+            classType = TOOLBAR_BUTTON_LAYOUT_CLASS,
+            methodName = "updatePinnedExtensionButtons",
+            parameterTypes = emptyList(),
+            returnType = "V",
+        )
+        pinnedExtMethod.addInstructions(
+            0,
+            """
+                invoke-static {}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->isCompactLayoutActivePublic()Z
+                move-result v0
+                if-eqz v0, :sbrowserx_stock_pinned_ext
+                return-void
+                :sbrowserx_stock_pinned_ext
+                nop
             """.trimIndent(),
         )
     }

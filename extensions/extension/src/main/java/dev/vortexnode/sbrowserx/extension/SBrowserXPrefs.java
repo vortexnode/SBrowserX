@@ -21,6 +21,15 @@ public final class SBrowserXPrefs {
     public static final String KEY_COMPACT_BAR_BLUR = "compact_bar_blur_enabled";
     public static final String KEY_COMPACT_BAR_TRANSPARENCY = "compact_bar_transparency_percent";
     public static final String KEY_COMPACT_AI_BUTTON = "compact_ai_slot_button";
+    public static final String KEY_UNLIMITED_TABS = "unlimited_tabs_enabled";
+    public static final String KEY_BACKUP_LOCAL_AUTO = "backup_local_auto";
+    public static final String KEY_BACKUP_LOCAL_INTERVAL = "backup_local_interval";
+    public static final String KEY_BACKUP_LOCAL_TREE = "backup_local_tree_uri";
+    public static final String KEY_BACKUP_LOCAL_TS = "backup_last_ts_local";
+    public static final String KEY_BACKUP_DRIVE_AUTO = "backup_drive_auto";
+    public static final String KEY_BACKUP_DRIVE_INTERVAL = "backup_drive_interval";
+    public static final String KEY_BACKUP_DRIVE_TREE = "backup_drive_tree_uri";
+    public static final String KEY_BACKUP_DRIVE_TS = "backup_last_ts_drive";
     public static final String KEY_AMOLED_BLACK = "amoled_black_enabled";
     public static final String KEY_FORCE_ADAPTIVE_DARK = "force_adaptive_dark_enabled";
     public static final String KEY_DARK_BRIGHT_IMAGES = "dark_bright_images_enabled";
@@ -217,6 +226,78 @@ public final class SBrowserXPrefs {
 
     public static void setCompactAiButton(Context context, String value) {
         prefs(context).edit().putString(KEY_COMPACT_AI_BUTTON, value != null ? value : COMPACT_BTN_NEW_TAB).apply();
+    }
+
+    public static boolean isUnlimitedTabsEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_UNLIMITED_TABS, true);
+    }
+
+    public static void setUnlimitedTabsEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_UNLIMITED_TABS, enabled).apply();
+    }
+
+    public static boolean isLocalAutoBackupEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_BACKUP_LOCAL_AUTO, false);
+    }
+
+    public static void setLocalAutoBackupEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_BACKUP_LOCAL_AUTO, enabled).apply();
+    }
+
+    public static String getLocalAutoBackupInterval(Context context) {
+        return prefs(context).getString(KEY_BACKUP_LOCAL_INTERVAL, SBrowserXBackupManager.INTERVAL_WEEKLY);
+    }
+
+    public static void setLocalAutoBackupInterval(Context context, String interval) {
+        prefs(context).edit().putString(KEY_BACKUP_LOCAL_INTERVAL, interval).apply();
+    }
+
+    public static String getLocalBackupTreeUri(Context context) {
+        return prefs(context).getString(KEY_BACKUP_LOCAL_TREE, "");
+    }
+
+    public static void setLocalBackupTreeUri(Context context, String uri) {
+        prefs(context).edit().putString(KEY_BACKUP_LOCAL_TREE, uri != null ? uri : "").apply();
+    }
+
+    public static long getLocalBackupLastTs(Context context) {
+        return prefs(context).getLong(KEY_BACKUP_LOCAL_TS, 0L);
+    }
+
+    public static void setLocalBackupLastTs(Context context, long ts) {
+        prefs(context).edit().putLong(KEY_BACKUP_LOCAL_TS, ts).apply();
+    }
+
+    public static boolean isDriveAutoBackupEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_BACKUP_DRIVE_AUTO, false);
+    }
+
+    public static void setDriveAutoBackupEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_BACKUP_DRIVE_AUTO, enabled).apply();
+    }
+
+    public static String getDriveAutoBackupInterval(Context context) {
+        return prefs(context).getString(KEY_BACKUP_DRIVE_INTERVAL, SBrowserXBackupManager.INTERVAL_WEEKLY);
+    }
+
+    public static void setDriveAutoBackupInterval(Context context, String interval) {
+        prefs(context).edit().putString(KEY_BACKUP_DRIVE_INTERVAL, interval).apply();
+    }
+
+    public static String getDriveBackupTreeUri(Context context) {
+        return prefs(context).getString(KEY_BACKUP_DRIVE_TREE, "");
+    }
+
+    public static void setDriveBackupTreeUri(Context context, String uri) {
+        prefs(context).edit().putString(KEY_BACKUP_DRIVE_TREE, uri != null ? uri : "").apply();
+    }
+
+    public static long getDriveBackupLastTs(Context context) {
+        return prefs(context).getLong(KEY_BACKUP_DRIVE_TS, 0L);
+    }
+
+    public static void setDriveBackupLastTs(Context context, long ts) {
+        prefs(context).edit().putLong(KEY_BACKUP_DRIVE_TS, ts).apply();
     }
 
     public static boolean isExternalDownloaderEnabled(Context context) {

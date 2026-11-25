@@ -35,6 +35,14 @@ private const val TRANSPARENCY_DIALOG_ACTIVITY_CLASS =
     "dev.vortexnode.sbrowserx.extension.settings.SBrowserXTransparencyDialogActivity"
 private const val COMPACT_BTN_DIALOG_ACTIVITY_CLASS =
     "dev.vortexnode.sbrowserx.extension.settings.SBrowserXCompactButtonDialogActivity"
+private const val BACKUP_ACTIVITY_CLASS =
+    "dev.vortexnode.sbrowserx.extension.settings.SBrowserXBackupActivity"
+private const val BROWSING_ASSIST_ACTIVITY_CLASS =
+    "dev.vortexnode.sbrowserx.extension.settings.SBrowserXBrowsingAssistActivity"
+private const val AI_SUMMARY_ACTIVITY_CLASS =
+    "dev.vortexnode.sbrowserx.extension.settings.SBrowserXAiSummaryActivity"
+private const val APP_MENU_HANDLER_CLASS =
+    "Lcom/sec/android/app/sbrowser/main_view/menu/AppMenuHandler;"
 
 private fun createIntentPref(
     xml: Document,
@@ -100,6 +108,9 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
             ensureActivity(manifest, application, EXT_DL_DIALOG_ACTIVITY_CLASS, "@android:style/Theme.Translucent.NoTitleBar")
             ensureActivity(manifest, application, TRANSPARENCY_DIALOG_ACTIVITY_CLASS, "@android:style/Theme.Translucent.NoTitleBar")
             ensureActivity(manifest, application, COMPACT_BTN_DIALOG_ACTIVITY_CLASS, "@android:style/Theme.Translucent.NoTitleBar")
+            ensureActivity(manifest, application, BACKUP_ACTIVITY_CLASS, "@android:style/Theme.DeviceDefault.NoActionBar")
+            ensureActivity(manifest, application, BROWSING_ASSIST_ACTIVITY_CLASS, "@android:style/Theme.DeviceDefault.NoActionBar")
+            ensureActivity(manifest, application, AI_SUMMARY_ACTIVITY_CLASS, "@android:style/Theme.Translucent.NoTitleBar")
         }
 
         // 1. Main Settings: SBrowserX hub + native Extensions manager
@@ -117,13 +128,27 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
                 targetPkg, EXT_BRIDGE_ACTIVITY_CLASS,
             )
 
+            val syncBackupPref = createIntentPref(
+                xml, "sbrowserx_sync_backup", "Sync & Backup",
+                "Local scheduled backup & Google Drive",
+                targetPkg, BACKUP_ACTIVITY_CLASS,
+            )
+            val assistPref = createIntentPref(
+                xml, "sbrowserx_browsing_assist", "Browsing assist",
+                "AI Summary (Gemini API) & Built-in Translator",
+                targetPkg, BROWSING_ASSIST_ACTIVITY_CLASS,
+            )
             val firstChild = screen.firstChild
             if (firstChild != null) {
                 screen.insertBefore(hubPref, firstChild)
                 screen.insertBefore(extPref, firstChild)
+                screen.insertBefore(syncBackupPref, firstChild)
+                screen.insertBefore(assistPref, firstChild)
             } else {
                 screen.appendChild(hubPref)
                 screen.appendChild(extPref)
+                screen.appendChild(syncBackupPref)
+                screen.appendChild(assistPref)
             }
         }
 
@@ -242,6 +267,12 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
                     targetPkg, TRANSLATE_SETTINGS_ACTIVITY_CLASS,
                 ),
             )
+            screen.appendChild(
+                createSwitchPref(
+                    xml, "sbrowserx_unlimited_tabs", "Remove 99-tab limit",
+                    "Allows up to 9999 open tabs instead of 99", true,
+                ),
+            )
         }
     }
 }
@@ -339,6 +370,24 @@ val sbrowserXCorePatch = bytecodePatch(
                 const/4 v0, 0x0
                 return v0
                 :sbrowserx_cb_stock
+                nop
+            """.trimIndent(),
+        )
+
+        // Intercept More Menu -> "Browsing assist" click to launch Gemini 2.5 Flash AI Page Summary
+        findMethodOrThrow(
+            classType = APP_MENU_HANDLER_CLASS,
+            methodName = "onBrowsingAssistClicked",
+            parameterTypes = emptyList(),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->handleBrowsingAssistClick(Ljava/lang/Object;)Z
+                move-result v0
+                if-eqz v0, :sbrowserx_stock_assist
+                return-void
+                :sbrowserx_stock_assist
                 nop
             """.trimIndent(),
         )

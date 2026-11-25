@@ -80,27 +80,8 @@ public final class SBrowserXSettingsActivity extends Activity {
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(16), dp(20), dp(16), dp(36));
 
-        // Top Bar
-        LinearLayout header = new LinearLayout(this);
-        header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(dp(4), dp(8), dp(4), dp(18));
-
-        TextView backBtn = new TextView(this);
-        backBtn.setText("\u2190");
-        backBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 24);
-        backBtn.setTextColor(textPrimary);
-        backBtn.setPadding(dp(4), dp(4), dp(16), dp(4));
-        backBtn.setOnClickListener(v -> finish());
-        header.addView(backBtn);
-
-        TextView title = new TextView(this);
-        title.setText(SBrowserXStrings.get(SBrowserXStrings.TITLE_HUB));
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 24);
-        title.setTypeface(Typeface.DEFAULT_BOLD);
-        title.setTextColor(textPrimary);
-        header.addView(title);
-        root.addView(header);
+        // One UI 8 Top Bar with circular '<' back button
+        root.addView(buildOneUiHeader(this, SBrowserXStrings.get(SBrowserXStrings.TITLE_HUB), night, textPrimary, v -> finish()));
 
         // --- Extensions ---
         root.addView(sectionHeader(SBrowserXStrings.get(SBrowserXStrings.CAT_EXTENSIONS), textSecondary));
@@ -116,11 +97,13 @@ public final class SBrowserXSettingsActivity extends Activity {
                 textPrimary, textSecondary, extPackDot, v -> showRecommendedPackDialog(dialogTheme));
 
         extCard.addView(divider(night));
-        addActionRow(extCard, SBrowserXStrings.getOpenNativeExtensionsLabel(),
-                null, accent, textSecondary, null, v -> SBrowserXHooks.openNativeExtensionsActivity(this));
+        addActionRow(extCard, SBrowserXStrings.get(SBrowserXStrings.EXT_MANAGE_TITLE),
+                SBrowserXStrings.get(SBrowserXStrings.EXT_MANAGE_SUMMARY),
+                textPrimary, textSecondary, null, v -> SBrowserXHooks.openNativeExtensionsActivity(this));
         extCard.addView(divider(night));
         addActionRow(extCard, SBrowserXStrings.get(SBrowserXStrings.EXT_OPEN_CWS),
-                null, accent, textSecondary, null, v -> openWebUrlInSelf("https://chromewebstore.google.com/category/extensions"));
+                SBrowserXStrings.get(SBrowserXStrings.EXT_OPEN_CWS_SUMMARY),
+                textPrimary, textSecondary, null, v -> openWebUrlInSelf("https://chromewebstore.google.com/category/extensions"));
         root.addView(extCard);
 
         // --- Privacy & Security ---
@@ -174,6 +157,21 @@ public final class SBrowserXSettingsActivity extends Activity {
                     SBrowserXPrefs.setExternalDownloaderImagesEnabled(this, checked);
                     refreshDynamicViews();
                 });
+        featCard.addView(divider(night));
+        addSwitchRow(featCard, SBrowserXStrings.get(SBrowserXStrings.UNLIMITED_TABS_TITLE),
+                SBrowserXStrings.get(SBrowserXStrings.UNLIMITED_TABS_SUMMARY),
+                SBrowserXPrefs.isUnlimitedTabsEnabled(this), night, textPrimary, textSecondary, null,
+                (btn, checked) -> SBrowserXPrefs.setUnlimitedTabsEnabled(this, checked));
+        featCard.addView(divider(night));
+        addActionRow(featCard, SBrowserXStrings.get(SBrowserXStrings.ASSIST_TITLE),
+                SBrowserXStrings.get(SBrowserXStrings.ASSIST_SUMMARY),
+                textPrimary, textSecondary, null,
+                v -> startActivity(new Intent(this, SBrowserXBrowsingAssistActivity.class)));
+        featCard.addView(divider(night));
+        addActionRow(featCard, SBrowserXStrings.get(SBrowserXStrings.SYNC_BACKUP_TITLE),
+                SBrowserXStrings.get(SBrowserXStrings.SYNC_BACKUP_SUMMARY),
+                textPrimary, textSecondary, null,
+                v -> startActivity(new Intent(this, SBrowserXBackupActivity.class)));
         root.addView(featCard);
 
         // --- Appearance & UI ---
@@ -209,41 +207,77 @@ public final class SBrowserXSettingsActivity extends Activity {
                     refreshDynamicViews();
                 });
         appearanceCard.addView(divider(night));
+        boolean isCompactLayout = SBrowserXHooks.isCompactLayoutActivePublic();
         blurDot = createTealDot();
-        addSwitchRow(appearanceCard, SBrowserXStrings.get(SBrowserXStrings.BOTTOM_BLUR_TITLE),
-                SBrowserXStrings.get(SBrowserXStrings.BOTTOM_BLUR_SUMMARY),
+        Switch swBottomBlur = addSwitchRow(appearanceCard, SBrowserXStrings.get(SBrowserXStrings.BOTTOM_BLUR_TITLE),
+                isCompactLayout ? SBrowserXStrings.get(SBrowserXStrings.LAYOUT_ONLY_STANDARD)
+                        : SBrowserXStrings.get(SBrowserXStrings.BOTTOM_BLUR_SUMMARY),
                 SBrowserXPrefs.isBottomBarBlurEnabled(this), night, textPrimary, textSecondary, blurDot,
                 (btn, checked) -> {
                     SBrowserXPrefs.setBottomBarBlurEnabled(this, checked);
                     refreshDynamicViews();
                 });
+        if (isCompactLayout) {
+            swBottomBlur.setEnabled(false);
+            ((View) swBottomBlur.getParent()).setAlpha(0.42f);
+            ((View) swBottomBlur.getParent()).setClickable(false);
+        }
         appearanceCard.addView(divider(night));
         addBlurTransparencySliderRow(appearanceCard, textPrimary);
+        if (isCompactLayout && blurLevelRow != null) {
+            blurLevelRow.setEnabled(false);
+            blurLevelRow.setAlpha(0.42f);
+        }
         appearanceCard.addView(divider(night));
-        addSwitchRow(appearanceCard, SBrowserXStrings.get(SBrowserXStrings.URL_BAR_BLUR_TITLE),
-                SBrowserXStrings.get(SBrowserXStrings.URL_BAR_BLUR_SUMMARY),
+        Switch swUrlBlur = addSwitchRow(appearanceCard, SBrowserXStrings.get(SBrowserXStrings.URL_BAR_BLUR_TITLE),
+                isCompactLayout ? SBrowserXStrings.get(SBrowserXStrings.LAYOUT_ONLY_STANDARD)
+                        : SBrowserXStrings.get(SBrowserXStrings.URL_BAR_BLUR_SUMMARY),
                 SBrowserXPrefs.isUrlBarBlurEnabled(this), night, textPrimary, textSecondary, null,
                 (btn, checked) -> {
                     SBrowserXPrefs.setUrlBarBlurEnabled(this, checked);
                     refreshDynamicViews();
                 });
+        if (isCompactLayout) {
+            swUrlBlur.setEnabled(false);
+            ((View) swUrlBlur.getParent()).setAlpha(0.42f);
+            ((View) swUrlBlur.getParent()).setClickable(false);
+        }
         appearanceCard.addView(divider(night));
         addUrlBarTransparencySliderRow(appearanceCard, textPrimary);
+        if (isCompactLayout && urlBlurLevelRow != null) {
+            urlBlurLevelRow.setEnabled(false);
+            urlBlurLevelRow.setAlpha(0.42f);
+        }
         appearanceCard.addView(divider(night));
-        addSwitchRow(appearanceCard, SBrowserXStrings.get(SBrowserXStrings.COMPACT_BAR_BLUR_TITLE),
-                SBrowserXStrings.get(SBrowserXStrings.COMPACT_BAR_BLUR_SUMMARY),
+        Switch swCompactBlur = addSwitchRow(appearanceCard, SBrowserXStrings.get(SBrowserXStrings.COMPACT_BAR_BLUR_TITLE),
+                !isCompactLayout ? SBrowserXStrings.get(SBrowserXStrings.LAYOUT_ONLY_COMPACT)
+                        : SBrowserXStrings.get(SBrowserXStrings.COMPACT_BAR_BLUR_SUMMARY),
                 SBrowserXPrefs.isCompactBarBlurEnabled(this), night, textPrimary, textSecondary, null,
                 (btn, checked) -> {
                     SBrowserXPrefs.setCompactBarBlurEnabled(this, checked);
                     refreshDynamicViews();
                 });
+        if (!isCompactLayout) {
+            swCompactBlur.setEnabled(false);
+            ((View) swCompactBlur.getParent()).setAlpha(0.42f);
+            ((View) swCompactBlur.getParent()).setClickable(false);
+        }
         appearanceCard.addView(divider(night));
         addCompactBarTransparencySliderRow(appearanceCard, textPrimary);
+        if (!isCompactLayout && compactBlurLevelRow != null) {
+            compactBlurLevelRow.setEnabled(false);
+            compactBlurLevelRow.setAlpha(0.42f);
+        }
         appearanceCard.addView(divider(night));
         compactBtnSummaryView = addActionRow(appearanceCard, SBrowserXStrings.get(SBrowserXStrings.COMPACT_AI_BTN_TITLE),
-                SBrowserXStrings.compactButtonLabel(SBrowserXPrefs.getCompactAiButton(this)),
+                isCompactLayout
+                        ? SBrowserXStrings.compactButtonLabel(SBrowserXPrefs.getCompactAiButton(this))
+                        : SBrowserXStrings.get(SBrowserXStrings.LAYOUT_ONLY_COMPACT),
                 textPrimary, textSecondary, null,
-                v -> startActivity(new Intent(this, SBrowserXCompactButtonDialogActivity.class)));
+                isCompactLayout ? v -> startActivity(new Intent(this, SBrowserXCompactButtonDialogActivity.class)) : null);
+        if (!isCompactLayout && compactBtnSummaryView != null && compactBtnSummaryView.getParent() instanceof View) {
+            ((View) compactBtnSummaryView.getParent()).setAlpha(0.42f);
+        }
         root.addView(appearanceCard);
 
         // --- New Features Highlight ---
@@ -252,7 +286,7 @@ public final class SBrowserXSettingsActivity extends Activity {
         addDaysSliderRow(highlightCard, textPrimary, textSecondary);
         highlightCard.addView(divider(night));
         addActionRow(highlightCard, SBrowserXStrings.get(SBrowserXStrings.MARK_ALL_VIEWED),
-                null, accent, textSecondary, null, v -> {
+                null, textPrimary, textSecondary, null, v -> {
                     SBrowserXPrefs.markAllViewed(this);
                     refreshDynamicViews();
                     Toast.makeText(this, SBrowserXStrings.get(SBrowserXStrings.MARK_ALL_VIEWED_DONE), Toast.LENGTH_SHORT).show();
@@ -265,7 +299,7 @@ public final class SBrowserXSettingsActivity extends Activity {
         rlp.topMargin = dp(16);
         addActionRow(restartCard, SBrowserXStrings.get(SBrowserXStrings.RESTART_TITLE),
                 SBrowserXStrings.get(SBrowserXStrings.RESTART_SUMMARY),
-                accent, textSecondary, null, v -> SBrowserXWebRtcManager.restartBrowser(this));
+                textPrimary, textSecondary, null, v -> SBrowserXWebRtcManager.restartBrowser(this));
         root.addView(restartCard);
 
         scroll.addView(root);
@@ -367,7 +401,10 @@ public final class SBrowserXSettingsActivity extends Activity {
             extDlSummaryView.setText(SBrowserXHooks.getExternalDownloaderSummary(this));
         }
         if (compactBtnSummaryView != null) {
-            compactBtnSummaryView.setText(SBrowserXStrings.compactButtonLabel(SBrowserXPrefs.getCompactAiButton(this)));
+            boolean isC = SBrowserXHooks.isCompactLayoutActivePublic();
+            compactBtnSummaryView.setText(isC
+                    ? SBrowserXStrings.compactButtonLabel(SBrowserXPrefs.getCompactAiButton(this))
+                    : SBrowserXStrings.get(SBrowserXStrings.LAYOUT_ONLY_COMPACT));
         }
         if (extDlImagesSwitch != null && extDlImagesSwitch.getParent() instanceof View) {
             boolean extOn = SBrowserXPrefs.isExternalDownloaderEnabled(this);
@@ -544,6 +581,41 @@ public final class SBrowserXSettingsActivity extends Activity {
         row.setOnClickListener(v -> sw.toggle());
         parent.addView(row);
         return sw;
+    }
+
+    static LinearLayout buildOneUiHeader(
+            Activity act, String titleText, boolean night, int textPrimary, View.OnClickListener onBack
+    ) {
+        float d = act.getResources().getDisplayMetrics().density;
+        LinearLayout header = new LinearLayout(act);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setPadding(Math.round(2 * d), Math.round(6 * d), Math.round(4 * d), Math.round(16 * d));
+
+        TextView backBtn = new TextView(act);
+        backBtn.setText("\u2039");
+        backBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 26);
+        backBtn.setGravity(Gravity.CENTER);
+        backBtn.setTextColor(textPrimary);
+        backBtn.setIncludeFontPadding(false);
+        GradientDrawable circle = new GradientDrawable();
+        circle.setShape(GradientDrawable.OVAL);
+        circle.setColor(night ? 0xFF232329 : 0xFFE6E7EC);
+        backBtn.setBackground(circle);
+        int sz = Math.round(38 * d);
+        LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(sz, sz);
+        blp.rightMargin = Math.round(14 * d);
+        backBtn.setLayoutParams(blp);
+        backBtn.setOnClickListener(onBack);
+        header.addView(backBtn);
+
+        TextView title = new TextView(act);
+        title.setText(titleText);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22);
+        title.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        title.setTextColor(textPrimary);
+        header.addView(title);
+        return header;
     }
 
     static void styleOneUiBlueSwitch(Switch sw, boolean night) {
