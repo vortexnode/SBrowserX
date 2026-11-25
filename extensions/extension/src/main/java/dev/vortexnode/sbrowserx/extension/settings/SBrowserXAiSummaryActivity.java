@@ -176,7 +176,7 @@ public final class SBrowserXAiSummaryActivity extends Activity {
                         }
                     }
                     if (lastCode >= 200 && lastCode < 300) break;
-                    if (lastCode != 404) break;
+                    if (lastCode != 404 && lastCode != 503 && lastCode != 429) break;
                 }
                 if (lastCode < 200 || lastCode >= 300) {
                     String errMsg = "HTTP " + lastCode;

@@ -769,9 +769,37 @@ public final class SBrowserXHooks {
                 tcl.getMethod("appendSwitch", String.class).invoke(null, "force-dark-mode");
                 tcl.getMethod("appendSwitchWithValue", String.class, String.class)
                         .invoke(null, "blink-settings", "forceDarkModeEnabled=true");
+                // InversionAlgorithm=4 (CIELAB lightness inversion, preserves true brand hues),
+                // ImagePolicy=1 (kFilterNone: never invert raster images or small app icons!)
+                tcl.getMethod("appendSwitchWithValue", String.class, String.class)
+                        .invoke(null, "dark-mode-settings", "InversionAlgorithm=4,ImagePolicy=1");
             } else {
                 tcl.getMethod("removeSwitch", String.class).invoke(null, "force-dark-mode");
                 tcl.getMethod("removeSwitch", String.class).invoke(null, "blink-settings");
+                tcl.getMethod("removeSwitch", String.class).invoke(null, "dark-mode-settings");
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    public static int getTerraceBackgroundColorOverride(Context ctx) {
+        try {
+            Context c = ctx != null ? ctx : SBrowserXPrefs.getAppContext();
+            boolean darkActive = isBrowserNightMode(c) || isForceAdaptiveDarkEnabled();
+            if (darkActive) {
+                return isAmoledBlackEnabled() ? 0xFF000000 : 0xFF121212;
+            }
+        } catch (Throwable ignored) {}
+        return 0;
+    }
+
+    public static void onTabLoadFinishedDarkCss(Object tabEventHandler) {
+        if (tabEventHandler == null) return;
+        try {
+            Field f = tabEventHandler.getClass().getDeclaredField("mWebDarkCustomHandler");
+            f.setAccessible(true);
+            Object handler = f.get(tabEventHandler);
+            if (handler != null) {
+                applyAmoledAndColorFixCss(handler);
             }
         } catch (Throwable ignored) {}
     }
@@ -816,8 +844,8 @@ public final class SBrowserXHooks {
             + "if(m[4]!==undefined&&parseFloat(m[4])<0.7)continue;"
             + "var r=+m[1],g=+m[2],b=+m[3];"
             + "var mx=Math.max(r,g,b),mn=Math.min(r,g,b),sat=mx-mn;"
-            + "var isDarkNeutral=(mx<=58&&sat<=16);"
-            + "var isLightNeutral=(mn>=210&&sat<=18);"
+            + "var isDarkNeutral=(mx<=64&&sat<=18);"
+            + "var isLightNeutral=(mn>=200&&sat<=20);"
             + "if(!isDarkNeutral&&!isLightNeutral)continue;"
             + "if(isLightNeutral){"
             + "var tn=el.tagName;"

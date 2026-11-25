@@ -14,6 +14,10 @@ private const val WEB_DARK_CUSTOM_HANDLER_CLASS =
     "Lcom/sec/android/app/sbrowser/web_dark_custom/WebDarkCustomHandler;"
 private const val MANAGE_DARK_FRAGMENT_CLASS =
     "Lcom/sec/android/app/sbrowser/settings/manage_dark_mode/ManageDarkModePreferenceFragment;"
+private const val TIN_TERRACE_INTERNALS_CLASS =
+    "Lcom/sec/terrace/TinTerraceInternals;"
+private const val TAB_EVENT_HANDLER_CLASS =
+    "Lcom/sec/android/app/sbrowser/sbrowser_tab/TabEventHandler;"
 
 @Suppress("unused")
 val forceAdaptiveDarkModePatch = bytecodePatch(
@@ -212,6 +216,40 @@ val forceAdaptiveDarkModePatch = bytecodePatch(
             """
                 invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->adjustTerraceNightMode(Z)Z
                 move-result p0
+            """.trimIndent(),
+        )
+
+        // 12. TinTerraceInternals.getBackgroundColor(Context)I (.locals 1, static)
+        // Eliminates the white cold-start/surface-init flash when Terrace night mode is bypassed
+        // in favor of Chromium Blink force-dark-mode (returns #000000 for AMOLED, #121212 for Dark).
+        findMethodOrThrow(
+            classType = TIN_TERRACE_INTERNALS_CLASS,
+            methodName = "getBackgroundColor",
+            parameterTypes = listOf("Landroid/content/Context;"),
+            returnType = "I",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->getTerraceBackgroundColorOverride(Landroid/content/Context;)I
+                move-result v0
+                if-eqz v0, :sbrowserx_stock_terrace_bg
+                return v0
+                :sbrowserx_stock_terrace_bg
+                nop
+            """.trimIndent(),
+        )
+
+        // 13. TabEventHandler.onLoadFinished(String)V (.locals 3)
+        // Guarantees AMOLED #000000 & media CSS pass runs on the fully loaded DOM (not only pre-DOM).
+        findMethodOrThrow(
+            classType = TAB_EVENT_HANDLER_CLASS,
+            methodName = "onLoadFinished",
+            parameterTypes = listOf("Ljava/lang/String;"),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onTabLoadFinishedDarkCss(Ljava/lang/Object;)V
             """.trimIndent(),
         )
     }
