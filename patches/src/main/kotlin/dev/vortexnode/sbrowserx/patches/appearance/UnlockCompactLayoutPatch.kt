@@ -190,5 +190,24 @@ val unlockCompactLayoutPatch = bytecodePatch(
                 nop
             """.trimIndent(),
         )
+
+        // 9. ToolbarButtonLayout.fitPinnedExtensions()V (.locals 8)
+        // Prevents fitPinnedExtensions from toggling any extension button visibility inside the Compact pill.
+        findMethodOrThrow(
+            classType = TOOLBAR_BUTTON_LAYOUT_CLASS,
+            methodName = "fitPinnedExtensions",
+            parameterTypes = emptyList(),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->isCompactLayoutActivePublic()Z
+                move-result v0
+                if-eqz v0, :sbrowserx_stock_fit_ext
+                return-void
+                :sbrowserx_stock_fit_ext
+                nop
+            """.trimIndent(),
+        )
     }
 }

@@ -329,6 +329,62 @@ public final class SBrowserXHooks {
         return stockMax;
     }
 
+    private static boolean isBlockedRussianEngineText(String raw) {
+        if (raw == null || raw.isEmpty()) return false;
+        String s = raw.toLowerCase(java.util.Locale.ROOT);
+        return s.contains("yandex") || s.contains("\u044f\u043d\u0434\u0435\u043a\u0441")
+                || s.contains("mail.ru") || s.contains("mail_ru") || s.contains("mailru") || s.contains("@mail")
+                || s.contains("rambler") || s.contains("\u0440\u0430\u043c\u0431\u043b\u0435\u0440")
+                || s.contains("sputnik") || s.contains("dzen.ru") || s.contains("vk.com") || s.contains("rutube");
+    }
+
+    public static void filterBlockedSearchEngines(List<?> list) {
+        if (list == null || list.isEmpty()) return;
+        try {
+            java.util.Iterator<?> it = list.iterator();
+            while (it.hasNext()) {
+                Object item = it.next();
+                if (item == null) continue;
+                boolean blocked = false;
+                if (item instanceof String) {
+                    blocked = isBlockedRussianEngineText((String) item);
+                } else {
+                    if (isBlockedRussianEngineText(item.toString())) {
+                        blocked = true;
+                    } else {
+                        String[] fieldNames = new String[] {"mName", "mTitle", "mKeyword", "mSearchUrl", "mLabel"};
+                        for (String fn : fieldNames) {
+                            try {
+                                Field f = item.getClass().getDeclaredField(fn);
+                                f.setAccessible(true);
+                                Object v = f.get(item);
+                                if (v != null && isBlockedRussianEngineText(String.valueOf(v))) {
+                                    blocked = true;
+                                    break;
+                                }
+                            } catch (Throwable ignored) {}
+                        }
+                        if (!blocked) {
+                            String[] getters = new String[] {"getTitle", "getName", "getKeyword", "getSearchUrl", "getLabel"};
+                            for (String gn : getters) {
+                                try {
+                                    Object v = item.getClass().getMethod(gn).invoke(item);
+                                    if (v != null && isBlockedRussianEngineText(String.valueOf(v))) {
+                                        blocked = true;
+                                        break;
+                                    }
+                                } catch (Throwable ignored) {}
+                            }
+                        }
+                    }
+                }
+                if (blocked) {
+                    it.remove();
+                }
+            }
+        } catch (Throwable ignored) {}
+    }
+
     public static boolean handleBrowsingAssistClick(Object appMenuHandler) {
         try {
             Activity act = sMainActivityRef.get();
@@ -974,6 +1030,25 @@ public final class SBrowserXHooks {
                 copy.set(aiIdx, replacement);
             } else {
                 copy.remove(aiIdx);
+            }
+            // Strip any dynamic extension / add-ons button from Compact bar so no 40dp phantom gap ever appears between Tabs and More
+            int extId = res.getIdentifier("action_extensions", "id", pkg);
+            int origExtId = res.getIdentifier("action_origin_toolbar_extensions", "id", pkg);
+            int tabsId = res.getIdentifier("action_tabs", "id", pkg);
+            int moreId = res.getIdentifier("action_more", "id", pkg);
+            java.util.Iterator<MenuItem> itClean = copy.iterator();
+            while (itClean.hasNext()) {
+                MenuItem mi = itClean.next();
+                if (mi == null) { itClean.remove(); continue; }
+                int id = mi.getItemId();
+                if ((extId != 0 && id == extId) || (origExtId != 0 && id == origExtId)) {
+                    itClean.remove();
+                } else if (id != tabsId && id != moreId && id != targetId && id != aiId) {
+                    // Only keep known native toolbar items on right side of Compact pill
+                    if (mi.getIntent() != null || mi.getGroupId() == 0) {
+                        itClean.remove();
+                    }
+                }
             }
             return copy;
         } catch (Throwable t) {

@@ -113,7 +113,7 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
             ensureActivity(manifest, application, AI_SUMMARY_ACTIVITY_CLASS, "@android:style/Theme.Translucent.NoTitleBar")
         }
 
-        // 1. Main Settings: SBrowserX hub + native Extensions manager
+        // 1. Main Settings: Standalone SBrowserX card -> Sync & Backup + Browsing Assist card -> Extensions inside Privacy card
         document("res/xml/settings_fragment.xml").use { xml ->
             val screen = xml.documentElement ?: error("Missing PreferenceScreen in settings_fragment.xml")
 
@@ -122,33 +122,50 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
                 "Extensions, WebRTC, Translate, Downloads & AMOLED",
                 targetPkg, SETTINGS_ACTIVITY_CLASS,
             )
-            val extPref = createIntentPref(
-                xml, "sbrowserx_settings_extensions", "@string/extensions_title",
-                "Manage extensions & Chrome Web Store",
-                targetPkg, EXT_BRIDGE_ACTIVITY_CLASS,
-            )
-
+            val cardDivider = createCategory(xml, "sbrowserx_top_card_divider", "")
             val syncBackupPref = createIntentPref(
                 xml, "sbrowserx_sync_backup", "Sync & Backup",
                 "Local scheduled backup & Google Drive",
                 targetPkg, BACKUP_ACTIVITY_CLASS,
             )
+            syncBackupPref.setAttributeNS(ANDROID_NS, "android:singleLineTitle", "false")
             val assistPref = createIntentPref(
                 xml, "sbrowserx_browsing_assist", "Browsing assist",
                 "AI Summary (Gemini API) & Built-in Translator",
                 targetPkg, BROWSING_ASSIST_ACTIVITY_CLASS,
             )
+
             val firstChild = screen.firstChild
             if (firstChild != null) {
                 screen.insertBefore(hubPref, firstChild)
-                screen.insertBefore(extPref, firstChild)
+                screen.insertBefore(cardDivider, firstChild)
                 screen.insertBefore(syncBackupPref, firstChild)
                 screen.insertBefore(assistPref, firstChild)
             } else {
                 screen.appendChild(hubPref)
-                screen.appendChild(extPref)
+                screen.appendChild(cardDivider)
                 screen.appendChild(syncBackupPref)
                 screen.appendChild(assistPref)
+            }
+
+            // Place "Extensions" down inside the Privacy & Security card (right above "privacy")
+            val extPref = createIntentPref(
+                xml, "sbrowserx_settings_extensions", "@string/extensions_title",
+                "Manage extensions & Chrome Web Store",
+                targetPkg, EXT_BRIDGE_ACTIVITY_CLASS,
+            )
+            val children = screen.childNodes
+            var extInserted = false
+            for (i in 0 until children.length) {
+                val node = children.item(i) as? Element ?: continue
+                if (node.getAttributeNS(ANDROID_NS, "key") == "privacy") {
+                    screen.insertBefore(extPref, node)
+                    extInserted = true
+                    break
+                }
+            }
+            if (!extInserted) {
+                screen.appendChild(extPref)
             }
         }
 

@@ -78,7 +78,7 @@ public final class SBrowserXSettingsActivity extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(16), dp(20), dp(16), dp(36));
+        applyOneUiEdgeToEdgePadding(root, dp(16), dp(14), dp(16), dp(36));
 
         // One UI 8 Top Bar with circular '<' back button
         root.addView(buildOneUiHeader(this, SBrowserXStrings.get(SBrowserXStrings.TITLE_HUB), night, textPrimary, v -> finish()));
@@ -583,6 +583,27 @@ public final class SBrowserXSettingsActivity extends Activity {
         return sw;
     }
 
+    static void applyOneUiEdgeToEdgePadding(View target, int leftPx, int extraTopPx, int rightPx, int extraBottomPx) {
+        target.setPadding(leftPx, extraTopPx, rightPx, extraBottomPx);
+        target.setOnApplyWindowInsetsListener((v, insets) -> {
+            int topInset = 0;
+            int bottomInset = 0;
+            if (android.os.Build.VERSION.SDK_INT >= 30) {
+                android.graphics.Insets sys = insets.getInsets(
+                        android.view.WindowInsets.Type.statusBars() | android.view.WindowInsets.Type.displayCutout());
+                android.graphics.Insets nav = insets.getInsets(android.view.WindowInsets.Type.navigationBars());
+                topInset = sys.top;
+                bottomInset = nav.bottom;
+            } else {
+                topInset = insets.getSystemWindowInsetTop();
+                bottomInset = insets.getSystemWindowInsetBottom();
+            }
+            v.setPadding(leftPx, topInset + extraTopPx, rightPx, bottomInset + extraBottomPx);
+            return insets;
+        });
+        target.requestApplyInsets();
+    }
+
     static LinearLayout buildOneUiHeader(
             Activity act, String titleText, boolean night, int textPrimary, View.OnClickListener onBack
     ) {
@@ -590,32 +611,76 @@ public final class SBrowserXSettingsActivity extends Activity {
         LinearLayout header = new LinearLayout(act);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(Math.round(2 * d), Math.round(6 * d), Math.round(4 * d), Math.round(16 * d));
+        header.setPadding(Math.round(2 * d), Math.round(8 * d), Math.round(4 * d), Math.round(18 * d));
 
         TextView backBtn = new TextView(act);
         backBtn.setText("\u2039");
-        backBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 26);
+        backBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 28);
         backBtn.setGravity(Gravity.CENTER);
         backBtn.setTextColor(textPrimary);
         backBtn.setIncludeFontPadding(false);
-        GradientDrawable circle = new GradientDrawable();
-        circle.setShape(GradientDrawable.OVAL);
-        circle.setColor(night ? 0xFF232329 : 0xFFE6E7EC);
-        backBtn.setBackground(circle);
-        int sz = Math.round(38 * d);
+        TypedValue ripple = new TypedValue();
+        act.getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, ripple, true);
+        if (ripple.resourceId != 0) backBtn.setBackgroundResource(ripple.resourceId);
+        int sz = Math.round(36 * d);
         LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(sz, sz);
-        blp.rightMargin = Math.round(14 * d);
+        blp.rightMargin = Math.round(8 * d);
         backBtn.setLayoutParams(blp);
         backBtn.setOnClickListener(onBack);
         header.addView(backBtn);
 
         TextView title = new TextView(act);
         title.setText(titleText);
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 21);
         title.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
         title.setTextColor(textPrimary);
         header.addView(title);
         return header;
+    }
+
+    static void styleOneUiSeekBar(SeekBar sb, boolean night) {
+        float d = sb.getResources().getDisplayMetrics().density;
+        int trackH = Math.max(4, Math.round(6 * d));
+        int thumbSz = Math.round(20 * d);
+        int radius = Math.round(999 * d);
+
+        GradientDrawable trackBg = new GradientDrawable();
+        trackBg.setShape(GradientDrawable.RECTANGLE);
+        trackBg.setCornerRadius(radius);
+        trackBg.setColor(night ? 0xFF3A3B42 : 0xFFD8DCE6);
+        trackBg.setSize(-1, trackH);
+
+        GradientDrawable progGrad = new GradientDrawable(
+                GradientDrawable.Orientation.LEFT_RIGHT,
+                new int[] { 0xFF2962FF, 0xFF387AFF, 0xFF63A4FF });
+        progGrad.setShape(GradientDrawable.RECTANGLE);
+        progGrad.setCornerRadius(radius);
+        progGrad.setSize(-1, trackH);
+
+        android.graphics.drawable.ClipDrawable progClip =
+                new android.graphics.drawable.ClipDrawable(progGrad, Gravity.START, android.graphics.drawable.ClipDrawable.HORIZONTAL);
+
+        android.graphics.drawable.LayerDrawable layers =
+                new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[] { trackBg, progClip });
+        layers.setId(0, android.R.id.background);
+        layers.setId(1, android.R.id.progress);
+        if (android.os.Build.VERSION.SDK_INT >= 23) {
+            layers.setLayerHeight(0, trackH);
+            layers.setLayerHeight(1, trackH);
+            layers.setLayerGravity(0, Gravity.CENTER_VERTICAL);
+            layers.setLayerGravity(1, Gravity.CENTER_VERTICAL);
+        }
+
+        GradientDrawable thumb = new GradientDrawable();
+        thumb.setShape(GradientDrawable.OVAL);
+        thumb.setSize(thumbSz, thumbSz);
+        thumb.setColor(0xFFFFFFFF);
+        thumb.setStroke(Math.max(2, Math.round(2.5f * d)), 0xFF387AFF);
+
+        sb.setProgressDrawable(layers);
+        sb.setThumb(thumb);
+        sb.setSplitTrack(false);
+        sb.setThumbOffset(Math.round(thumbSz / 2f));
     }
 
     static void styleOneUiBlueSwitch(Switch sw, boolean night) {
@@ -677,6 +742,7 @@ public final class SBrowserXSettingsActivity extends Activity {
         blurLevelRow.addView(top);
 
         SeekBar sb = new SeekBar(this);
+        styleOneUiSeekBar(sb, SBrowserXHooks.isBrowserNightMode(this));
         sb.setMax(70); // 15% .. 85%
         sb.setProgress(Math.max(0, Math.min(70, SBrowserXPrefs.getBottomBarTransparency(this) - 15)));
         sb.setPadding(0, dp(10), 0, dp(4));
@@ -717,6 +783,7 @@ public final class SBrowserXSettingsActivity extends Activity {
         urlBlurLevelRow.addView(top);
 
         SeekBar sb = new SeekBar(this);
+        styleOneUiSeekBar(sb, SBrowserXHooks.isBrowserNightMode(this));
         sb.setMax(70); // 15% .. 85%
         sb.setProgress(Math.max(0, Math.min(70, SBrowserXPrefs.getUrlBarTransparency(this) - 15)));
         sb.setPadding(0, dp(10), 0, dp(4));
@@ -757,6 +824,7 @@ public final class SBrowserXSettingsActivity extends Activity {
         compactBlurLevelRow.addView(top);
 
         SeekBar sb = new SeekBar(this);
+        styleOneUiSeekBar(sb, SBrowserXHooks.isBrowserNightMode(this));
         sb.setMax(70); // 15% .. 85%
         sb.setProgress(Math.max(0, Math.min(70, SBrowserXPrefs.getCompactBarTransparency(this) - 15)));
         sb.setPadding(0, dp(10), 0, dp(4));
@@ -797,6 +865,7 @@ public final class SBrowserXSettingsActivity extends Activity {
         box.addView(top);
 
         SeekBar sb = new SeekBar(this);
+        styleOneUiSeekBar(sb, SBrowserXHooks.isBrowserNightMode(this));
         sb.setMax(10);
         sb.setProgress(SBrowserXPrefs.getHighlightDays(this));
         sb.setPadding(0, dp(10), 0, dp(4));

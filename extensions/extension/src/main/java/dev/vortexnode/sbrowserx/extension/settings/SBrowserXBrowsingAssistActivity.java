@@ -52,7 +52,7 @@ public final class SBrowserXBrowsingAssistActivity extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(16), dp(14), dp(16), dp(36));
+        SBrowserXSettingsActivity.applyOneUiEdgeToEdgePadding(root, dp(16), dp(14), dp(16), dp(36));
 
         root.addView(SBrowserXSettingsActivity.buildOneUiHeader(
                 this, SBrowserXStrings.get(SBrowserXStrings.ASSIST_TITLE), night, textPrimary, v -> finish()));

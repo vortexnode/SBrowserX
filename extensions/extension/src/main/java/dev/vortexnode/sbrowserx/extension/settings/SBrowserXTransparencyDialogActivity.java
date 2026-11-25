@@ -124,6 +124,7 @@ public final class SBrowserXTransparencyDialogActivity extends Activity {
         }
 
         SeekBar sb = new SeekBar(this);
+        SBrowserXSettingsActivity.styleOneUiSeekBar(sb, night);
         sb.setMax(70); // 15%..85%
         sb.setProgress(Math.max(0, Math.min(70, initialPct - 15)));
         sb.setEnabled(layoutApplicable && initialOn);
