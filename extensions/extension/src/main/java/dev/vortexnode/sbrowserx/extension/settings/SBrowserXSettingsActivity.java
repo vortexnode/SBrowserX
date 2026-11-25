@@ -46,7 +46,7 @@ public final class SBrowserXSettingsActivity extends Activity {
     private LinearLayout urlBlurLevelRow;
     private TextView compactBlurLevelValueView;
     private LinearLayout compactBlurLevelRow;
-    private View extInstallDot, extPackDot, webrtcDot, fingerprintDot, hideAdsDot, gtransDot, extDlDot, amoledDot, blurDot;
+    private View extInstallDot, extPackDot, webrtcDot, fingerprintDot, hideAdsDot, gtransDot, extDlDot, amoledDot, forceDarkDot, blurDot;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
