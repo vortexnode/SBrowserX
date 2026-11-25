@@ -1,6 +1,7 @@
 package dev.vortexnode.sbrowserx.extension;
 
 import android.app.Activity;
+import android.app.Dialog;
 import android.app.Application;
 import android.content.Context;
 import android.content.Intent;
@@ -275,12 +276,43 @@ public final class SBrowserXHooks {
         }
     }
 
-    public static float adjustToolbarBlurRadius(float stockRadius) {
-        if (!isBottomBarBlurEnabled()) return stockRadius;
+    private static boolean isCompactLayoutActive() {
+        try {
+            Class<?> dfu = Class.forName("com.sec.android.app.sbrowser.common.device.DeviceFeatureUtils");
+            Object inst = dfu.getMethod("getInstance").invoke(null);
+            return Boolean.TRUE.equals(dfu.getMethod("isCompactLayoutType").invoke(inst));
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    public static int adjustCompactBarColor(int stockColor) {
         try {
             Context ctx = SBrowserXPrefs.getAppContext();
+            boolean enabled = ctx == null || SBrowserXPrefs.isCompactBarBlurEnabled(ctx);
+            int rgb = normalizeGlassBaseRgb(stockColor);
+            if (!enabled) {
+                return withAlpha(rgb, 0xFF);
+            }
+            int transparency = ctx != null ? SBrowserXPrefs.getCompactBarTransparency(ctx) : 50;
+            int opacity = 100 - transparency; // 15..85
+            int alpha = clampByte(Math.round(255f * opacity / 100f));
+            return withAlpha(rgb, alpha);
+        } catch (Throwable t) {
+            return stockColor;
+        }
+    }
+
+    public static float adjustToolbarBlurRadius(float stockRadius) {
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            if (isCompactLayoutActive()) {
+                if (ctx != null && !SBrowserXPrefs.isCompactBarBlurEnabled(ctx)) return stockRadius;
+                int transparency = ctx != null ? SBrowserXPrefs.getCompactBarTransparency(ctx) : 50;
+                return 40f + (transparency * 0.34f);
+            }
+            if (!isBottomBarBlurEnabled()) return stockRadius;
             int transparency = ctx != null ? SBrowserXPrefs.getBottomBarTransparency(ctx) : 50;
-            // Scale blur radius smoothly from 44f (low transparency) to 68f (high transparency)
             return 40f + (transparency * 0.34f);
         } catch (Throwable t) {
             return 56f;
@@ -288,10 +320,18 @@ public final class SBrowserXHooks {
     }
 
     public static int adjustToolbarBlurTintColor(int stockColor) {
-        if (!isBottomBarBlurEnabled()) return stockColor;
         try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            if (isCompactLayoutActive()) {
+                if (ctx != null && !SBrowserXPrefs.isCompactBarBlurEnabled(ctx)) return stockColor;
+                int rgb = normalizeGlassBaseRgb(stockColor);
+                int transparency = ctx != null ? SBrowserXPrefs.getCompactBarTransparency(ctx) : 50;
+                int baseAlpha = clampByte(Math.round(255f * (100 - transparency) / 100f));
+                int tintAlpha = clampByte(Math.round(baseAlpha * 0.40f));
+                return withAlpha(rgb, tintAlpha);
+            }
+            if (!isBottomBarBlurEnabled()) return stockColor;
             int rgb = normalizeGlassBaseRgb(stockColor);
-            // Keep Chromium compositor tint light so it doesn't double-stack with the View overlay
             int tintAlpha = clampByte(Math.round(getGlassBaseAlpha() * 0.42f));
             return withAlpha(rgb, tintAlpha);
         } catch (Throwable t) {
@@ -398,6 +438,96 @@ public final class SBrowserXHooks {
         } catch (Throwable t) {
             Log.w(TAG, "computeStableCompactMenuHeight fallback to stock", t);
             return 0;
+        }
+    }
+
+
+    /**
+     * Syncs the side popup More Menu (3-dots menu) translucency & One UI window blur
+     * with the active layout's transparency setting (Compact bar in Compact mode,
+     * Bottom bar in Standard/Bottom mode) and AMOLED black dark theme.
+     */
+    public static void applyMoreMenuGlassStyle(Dialog dialog) {
+        if (dialog == null || dialog.getWindow() == null) return;
+        try {
+            Context appCtx = SBrowserXPrefs.getAppContext();
+            boolean compact = isCompactLayoutActive();
+            boolean enabled;
+            int transparency;
+            if (compact) {
+                enabled = appCtx == null || SBrowserXPrefs.isCompactBarBlurEnabled(appCtx);
+                transparency = appCtx != null ? SBrowserXPrefs.getCompactBarTransparency(appCtx) : 50;
+            } else {
+                enabled = appCtx == null || SBrowserXPrefs.isBottomBarBlurEnabled(appCtx);
+                transparency = appCtx != null ? SBrowserXPrefs.getBottomBarTransparency(appCtx) : 50;
+            }
+
+            Context ctx = dialog.getContext();
+            android.content.res.Resources res = ctx.getResources();
+            String pkg = ctx.getPackageName();
+            View decor = dialog.getWindow().getDecorView();
+
+            int containerId = res.getIdentifier("dialog_container", "id", pkg);
+            int outerId = res.getIdentifier("dialog_container_outer", "id", pkg);
+            View container = containerId != 0 ? decor.findViewById(containerId) : null;
+            View outer = outerId != 0 ? decor.findViewById(outerId) : null;
+
+            boolean night = (res.getConfiguration().uiMode
+                    & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+            float density = res.getDisplayMetrics().density;
+            int radiusId = res.getIdentifier("search_window_popup_radius", "dimen", pkg);
+            int cornerPx = radiusId != 0 ? res.getDimensionPixelOffset(radiusId) : Math.round(26f * density);
+
+            if (!enabled) {
+                if (outer != null) {
+                    try {
+                        Class<?> vu = Class.forName("com.sec.android.app.sbrowser.common.utils.ViewUtil");
+                        vu.getMethod("clearBlurEffect", View.class).invoke(null, outer);
+                    } catch (Throwable ignored) {}
+                }
+                if (container != null && container.getBackground() != null) {
+                    container.getBackground().mutate().setAlpha(255);
+                }
+                return;
+            }
+
+            int opacity = 100 - transparency; // 15..85
+            int alpha = clampByte(Math.round(255f * opacity / 100f));
+            int baseRgb = night ? (isAmoledBlackEnabled() ? 0x000000 : 0x1E1E22) : 0xF6F6F8;
+
+            if (container != null) {
+                GradientDrawable gd = new GradientDrawable();
+                gd.setShape(GradientDrawable.RECTANGLE);
+                gd.setCornerRadius(cornerPx);
+                gd.setColor(withAlpha(baseRgb, alpha));
+                int strokePx = Math.max(1, Math.round(density * 0.75f));
+                gd.setStroke(strokePx, night ? 0x26FFFFFF : 0x1A000000);
+                container.setBackground(gd);
+            }
+
+            if (outer != null) {
+                // Replace UltraThick opaque blur with controllable One UI window blur matching user slider
+                int blurRadius = Math.round(60f + transparency * 1.4f); // 81..179
+                int tintAlpha = clampByte(Math.round(alpha * 0.45f));
+                int tintColor = withAlpha(baseRgb, tintAlpha);
+                try {
+                    Class<?> semBlurCls = Class.forName("com.sec.sbrowser.spl.wrapper.SemBlurInfo");
+                    Object modeField = semBlurCls.getField("BLUR_MODE_WINDOW").get(null);
+                    int blurMode = (Integer) modeField.getClass().getMethod("get").invoke(modeField);
+                    Class<?> builderCls = Class.forName("com.sec.sbrowser.spl.wrapper.SemBlurInfo$Builder");
+                    Object builder = builderCls.getConstructor(int.class).newInstance(blurMode);
+                    builderCls.getMethod("setRadius", int.class).invoke(builder, blurRadius);
+                    builderCls.getMethod("setBackgroundColor", int.class).invoke(builder, tintColor);
+                    builderCls.getMethod("setBackgroundCornerRadius", float.class).invoke(builder, (float) cornerPx);
+                    Object blurInfo = builderCls.getMethod("build").invoke(builder);
+                    Class<?> majoCls = Class.forName("com.sec.sbrowser.spl.wrapper.MajoView");
+                    majoCls.getMethod("semSetBlurInfo", View.class, Object.class).invoke(null, outer, blurInfo);
+                } catch (Throwable t) {
+                    Log.w(TAG, "applyMoreMenuGlassStyle SemBlurInfo fallback", t);
+                }
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "applyMoreMenuGlassStyle failed", t);
         }
     }
 

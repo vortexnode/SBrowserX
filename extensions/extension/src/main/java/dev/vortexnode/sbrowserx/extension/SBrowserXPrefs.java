@@ -18,6 +18,8 @@ public final class SBrowserXPrefs {
     public static final String KEY_BOTTOM_BAR_TRANSPARENCY = "bottom_bar_transparency_percent";
     public static final String KEY_URL_BAR_BLUR = "url_bar_blur_enabled";
     public static final String KEY_URL_BAR_TRANSPARENCY = "url_bar_transparency_percent";
+    public static final String KEY_COMPACT_BAR_BLUR = "compact_bar_blur_enabled";
+    public static final String KEY_COMPACT_BAR_TRANSPARENCY = "compact_bar_transparency_percent";
     public static final String KEY_AMOLED_BLACK = "amoled_black_enabled";
     public static final String KEY_EXTERNAL_DOWNLOADER = "external_downloader_enabled";
     public static final String KEY_EXTERNAL_DOWNLOADER_PKG = "external_downloader_package";
@@ -145,6 +147,26 @@ public final class SBrowserXPrefs {
     public static void setUrlBarTransparency(Context context, int percent) {
         int clamped = Math.max(15, Math.min(85, percent));
         prefs(context).edit().putInt(KEY_URL_BAR_TRANSPARENCY, clamped).apply();
+        markFeatureViewed(context, FEATURE_BOTTOM_BLUR);
+    }
+
+    public static boolean isCompactBarBlurEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_COMPACT_BAR_BLUR, true);
+    }
+
+    public static void setCompactBarBlurEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_COMPACT_BAR_BLUR, enabled).apply();
+        markFeatureViewed(context, FEATURE_BOTTOM_BLUR);
+    }
+
+    public static int getCompactBarTransparency(Context context) {
+        int val = prefs(context).getInt(KEY_COMPACT_BAR_TRANSPARENCY, 50);
+        return Math.max(15, Math.min(85, val));
+    }
+
+    public static void setCompactBarTransparency(Context context, int percent) {
+        int clamped = Math.max(15, Math.min(85, percent));
+        prefs(context).edit().putInt(KEY_COMPACT_BAR_TRANSPARENCY, clamped).apply();
         markFeatureViewed(context, FEATURE_BOTTOM_BLUR);
     }
 

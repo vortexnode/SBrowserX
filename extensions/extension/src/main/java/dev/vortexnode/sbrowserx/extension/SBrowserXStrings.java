@@ -71,6 +71,9 @@ public final class SBrowserXStrings {
     public static final String URL_BAR_BLUR_TITLE = "url_bar_blur_title";
     public static final String URL_BAR_BLUR_SUMMARY = "url_bar_blur_summary";
     public static final String URL_BAR_BLUR_LEVEL_TITLE = "url_bar_blur_level_title";
+    public static final String COMPACT_BAR_BLUR_TITLE = "compact_bar_blur_title";
+    public static final String COMPACT_BAR_BLUR_SUMMARY = "compact_bar_blur_summary";
+    public static final String COMPACT_BAR_BLUR_LEVEL_TITLE = "compact_bar_blur_level_title";
 
     private static final Map<String, Map<String, String>> CATALOG = new HashMap<>();
 
@@ -354,6 +357,20 @@ public final class SBrowserXStrings {
             putOne(lang, URL_BAR_BLUR_TITLE, "Semi-transparent address bar");
             putOne(lang, URL_BAR_BLUR_SUMMARY, "Independent translucency for the address bar capsule");
             putOne(lang, URL_BAR_BLUR_LEVEL_TITLE, "Address bar transparency");
+        }
+        putOne("en", COMPACT_BAR_BLUR_TITLE, "Semi-transparent compact bar");
+        putOne("en", COMPACT_BAR_BLUR_SUMMARY, "Independent translucency & blur for the Compact floating pill");
+        putOne("en", COMPACT_BAR_BLUR_LEVEL_TITLE, "Compact bar transparency");
+        putOne("ru", COMPACT_BAR_BLUR_TITLE, "Полупрозрачная компактная панель");
+        putOne("ru", COMPACT_BAR_BLUR_SUMMARY, "Отдельная прозрачность и размытие для Компактного макета");
+        putOne("ru", COMPACT_BAR_BLUR_LEVEL_TITLE, "Прозрачность компактной панели");
+        putOne("uk", COMPACT_BAR_BLUR_TITLE, "Напівпрозора компактна панель");
+        putOne("uk", COMPACT_BAR_BLUR_SUMMARY, "Окрема прозорість та розмиття для Компактного макета");
+        putOne("uk", COMPACT_BAR_BLUR_LEVEL_TITLE, "Прозорість компактної панелі");
+        for (String lang : new String[] {"es", "pt", "de", "fr", "it", "pl", "tr", "ar", "hi", "zh", "ja", "ko"}) {
+            putOne(lang, COMPACT_BAR_BLUR_TITLE, "Semi-transparent compact bar");
+            putOne(lang, COMPACT_BAR_BLUR_SUMMARY, "Independent translucency & blur for the Compact floating pill");
+            putOne(lang, COMPACT_BAR_BLUR_LEVEL_TITLE, "Compact bar transparency");
         }
     }
 

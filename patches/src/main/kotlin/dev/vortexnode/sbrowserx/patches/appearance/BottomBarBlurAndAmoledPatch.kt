@@ -14,6 +14,10 @@ private const val TOOLBAR_CLASS =
     "Lcom/sec/android/app/sbrowser/toolbar/Toolbar;"
 private const val TOOLBAR_LAYOUT_CLASS =
     "Lcom/sec/android/app/sbrowser/toolbar/ToolbarLayout;"
+private const val TOOLBAR_BG_DRAWABLE_CLASS =
+    "Lcom/sec/android/app/sbrowser/toolbar/ToolbarBackgroundDrawable;"
+private const val MORE_MENU_HANDLER_CLASS =
+    "Lcom/sec/android/app/sbrowser/toolbar/MoreMenuHandler;"
 private const val GRADIENT_DRAWABLE_FACTORY_CLASS =
     "Lcom/sec/android/app/sbrowser/toolbar/blur/GradientDrawableFactory;"
 private const val GRADIENT_BITMAP_FACTORY_CLASS =
@@ -190,6 +194,39 @@ val bottomBarBlurAndAmoledPatch = bytecodePatch(
             urlBgInsns.size - 1,
             """
                 invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->applyUrlBarGlassStyle(Ljava/lang/Object;)V
+            """.trimIndent(),
+        )
+
+        // 9. ToolbarBackgroundDrawable.setBackgroundColor(I)V (.locals 0)
+        // Applies independent Compact floating-pill translucency and AMOLED black tint.
+        val compactBgMethod = findMethodOrThrow(
+            classType = TOOLBAR_BG_DRAWABLE_CLASS,
+            methodName = "setBackgroundColor",
+            parameterTypes = listOf("I"),
+            returnType = "V",
+        )
+        compactBgMethod.addInstructions(
+            0,
+            """
+                invoke-static {p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->adjustCompactBarColor(I)I
+                move-result p1
+            """.trimIndent(),
+        )
+
+        // 10. MoreMenuHandler.showMoreMenuDialog(Z)V (.locals 3)
+        // Before return-void, p0 holds mMoreMenuDialog (AppCompatDialog / Dialog).
+        val moreMenuShowMethod = findMethodOrThrow(
+            classType = MORE_MENU_HANDLER_CLASS,
+            methodName = "showMoreMenuDialog",
+            parameterTypes = listOf("Z"),
+            returnType = "V",
+        )
+        val moreMenuInsns = moreMenuShowMethod.implementation?.instructions
+            ?: error("Missing instructions in showMoreMenuDialog")
+        moreMenuShowMethod.addInstructions(
+            moreMenuInsns.size - 1,
+            """
+                invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->applyMoreMenuGlassStyle(Landroid/app/Dialog;)V
             """.trimIndent(),
         )
     }

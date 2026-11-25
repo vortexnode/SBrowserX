@@ -43,6 +43,8 @@ public final class SBrowserXSettingsActivity extends Activity {
     private LinearLayout blurLevelRow;
     private TextView urlBlurLevelValueView;
     private LinearLayout urlBlurLevelRow;
+    private TextView compactBlurLevelValueView;
+    private LinearLayout compactBlurLevelRow;
     private View extInstallDot, extPackDot, webrtcDot, fingerprintDot, hideAdsDot, gtransDot, extDlDot, amoledDot, blurDot;
 
     @Override
@@ -195,6 +197,16 @@ public final class SBrowserXSettingsActivity extends Activity {
                 });
         appearanceCard.addView(divider(night));
         addUrlBarTransparencySliderRow(appearanceCard, textPrimary);
+        appearanceCard.addView(divider(night));
+        addSwitchRow(appearanceCard, SBrowserXStrings.get(SBrowserXStrings.COMPACT_BAR_BLUR_TITLE),
+                SBrowserXStrings.get(SBrowserXStrings.COMPACT_BAR_BLUR_SUMMARY),
+                SBrowserXPrefs.isCompactBarBlurEnabled(this), night, textPrimary, textSecondary, null,
+                (btn, checked) -> {
+                    SBrowserXPrefs.setCompactBarBlurEnabled(this, checked);
+                    refreshDynamicViews();
+                });
+        appearanceCard.addView(divider(night));
+        addCompactBarTransparencySliderRow(appearanceCard, textPrimary);
         root.addView(appearanceCard);
 
         // --- New Features Highlight ---
@@ -340,6 +352,14 @@ public final class SBrowserXSettingsActivity extends Activity {
             urlBlurLevelValueView.setText(pct + "%");
             if (urlBlurLevelRow != null) {
                 urlBlurLevelRow.setAlpha(urlBlurOn ? 1.0f : 0.45f);
+            }
+        }
+        if (compactBlurLevelValueView != null) {
+            boolean compactOn = SBrowserXPrefs.isCompactBarBlurEnabled(this);
+            int pct = SBrowserXPrefs.getCompactBarTransparency(this);
+            compactBlurLevelValueView.setText(pct + "%");
+            if (compactBlurLevelRow != null) {
+                compactBlurLevelRow.setAlpha(compactOn ? 1.0f : 0.45f);
             }
         }
         if (daysValueView != null) {
@@ -595,6 +615,46 @@ public final class SBrowserXSettingsActivity extends Activity {
         });
         urlBlurLevelRow.addView(sb);
         parent.addView(urlBlurLevelRow);
+    }
+
+    private void addCompactBarTransparencySliderRow(LinearLayout parent, int titleColor) {
+        compactBlurLevelRow = new LinearLayout(this);
+        compactBlurLevelRow.setOrientation(LinearLayout.VERTICAL);
+        compactBlurLevelRow.setPadding(dp(18), dp(14), dp(18), dp(14));
+
+        LinearLayout top = new LinearLayout(this);
+        top.setOrientation(LinearLayout.HORIZONTAL);
+        top.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView tvTitle = new TextView(this);
+        tvTitle.setText(SBrowserXStrings.get(SBrowserXStrings.COMPACT_BAR_BLUR_LEVEL_TITLE));
+        tvTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        tvTitle.setTextColor(titleColor);
+        tvTitle.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        top.addView(tvTitle);
+
+        compactBlurLevelValueView = new TextView(this);
+        compactBlurLevelValueView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        compactBlurLevelValueView.setTextColor(ONEUI_BLUE);
+        top.addView(compactBlurLevelValueView);
+        compactBlurLevelRow.addView(top);
+
+        SeekBar sb = new SeekBar(this);
+        sb.setMax(70); // 15% .. 85%
+        sb.setProgress(Math.max(0, Math.min(70, SBrowserXPrefs.getCompactBarTransparency(this) - 15)));
+        sb.setPadding(0, dp(10), 0, dp(4));
+        sb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (fromUser) {
+                    SBrowserXPrefs.setCompactBarTransparency(SBrowserXSettingsActivity.this, progress + 15);
+                    refreshDynamicViews();
+                }
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+        compactBlurLevelRow.addView(sb);
+        parent.addView(compactBlurLevelRow);
     }
 
     private void addDaysSliderRow(LinearLayout parent, int titleColor, int summaryColor) {
