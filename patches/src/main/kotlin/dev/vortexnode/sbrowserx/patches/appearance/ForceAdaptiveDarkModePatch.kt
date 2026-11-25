@@ -12,6 +12,8 @@ private const val TERRACE_PREF_BRIDGE_CLASS =
     "Lcom/sec/terrace/browser/prefs/TerracePrefServiceBridge;"
 private const val WEB_DARK_CUSTOM_HANDLER_CLASS =
     "Lcom/sec/android/app/sbrowser/web_dark_custom/WebDarkCustomHandler;"
+private const val MANAGE_DARK_FRAGMENT_CLASS =
+    "Lcom/sec/android/app/sbrowser/settings/manage_dark_mode/ManageDarkModePreferenceFragment;"
 
 @Suppress("unused")
 val forceAdaptiveDarkModePatch = bytecodePatch(
@@ -140,6 +142,59 @@ val forceAdaptiveDarkModePatch = bytecodePatch(
             0,
             """
                 invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->removeAmoledAndColorFixCss(Ljava/lang/Object;)V
+            """.trimIndent(),
+        )
+
+        // 8. ManageDarkModePreferenceFragment.updateBrightnessSettingEnabled(Z)V (.locals 4)
+        // Keeps Samsung's "Webpage brightness in dark mode" mutually exclusive with Vivid Images.
+        val updateBrightMethod = findMethodOrThrow(
+            classType = MANAGE_DARK_FRAGMENT_CLASS,
+            methodName = "updateBrightnessSettingEnabled",
+            parameterTypes = listOf("Z"),
+            returnType = "V",
+        )
+        updateBrightMethod.addInstructions(
+            0,
+            """
+                invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->recordDarkModeFragment(Ljava/lang/Object;)V
+            """.trimIndent(),
+        )
+        val updateBrightInsns = updateBrightMethod.implementation?.instructions
+            ?: error("Missing instructions in updateBrightnessSettingEnabled")
+        updateBrightMethod.addInstructions(
+            updateBrightInsns.size - 1,
+            """
+                invoke-static {}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->syncDarkBrightnessExclusionFromTL()V
+            """.trimIndent(),
+        )
+
+        // 9. ManageDarkModePreferenceFragment.lambda$onCreate$1(Preference, Object)Z (.locals 0)
+        // Enabling Samsung's "Always apply dark mode" (which activates brightness slider) turns OFF Vivid Images.
+        val applyDefaultLambda = findMethodOrThrow(
+            classType = MANAGE_DARK_FRAGMENT_CLASS,
+            methodName = "lambda${'$'}onCreate${'$'}1",
+            parameterTypes = listOf("Landroidx/preference/Preference;", "Ljava/lang/Object;"),
+            returnType = "Z",
+        )
+        applyDefaultLambda.addInstructions(
+            0,
+            """
+                invoke-static {p0, p2}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onNativeApplyDefaultDarkToggled(Ljava/lang/Object;Ljava/lang/Object;)V
+            """.trimIndent(),
+        )
+
+        // 10. ManageDarkModePreferenceFragment.lambda$onCreate$0(Preference, Object)Z (.locals 0, static)
+        // Moving Samsung's brightness slider turns OFF Vivid Images.
+        val brightSliderLambda = findMethodOrThrow(
+            classType = MANAGE_DARK_FRAGMENT_CLASS,
+            methodName = "lambda${'$'}onCreate${'$'}0",
+            parameterTypes = listOf("Landroidx/preference/Preference;", "Ljava/lang/Object;"),
+            returnType = "Z",
+        )
+        brightSliderLambda.addInstructions(
+            0,
+            """
+                invoke-static {p0, p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onNativeWebBrightnessChanged(Ljava/lang/Object;Ljava/lang/Object;)V
             """.trimIndent(),
         )
     }

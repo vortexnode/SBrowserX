@@ -381,9 +381,9 @@ public final class SBrowserXStrings {
             putOne(lang, COMPACT_BAR_BLUR_LEVEL_TITLE, "Compact bar transparency");
         }
         putOne("en", FORCE_DARK_TITLE, "Force adaptive dark mode for sites");
-        putOne("en", FORCE_DARK_SUMMARY, "Forces Chrome CIELAB dark mode on websites even in Light UI (enabling turns off Vivid Images)");
+        putOne("en", FORCE_DARK_SUMMARY, "Forces dark mode on websites even in Light UI (restart required)");
         putOne("ru", FORCE_DARK_TITLE, "Адаптивная тёмная тема для сайтов");
-        putOne("ru", FORCE_DARK_SUMMARY, "Красит все сайты в тёмный даже в светлом режиме интерфейса через Chrome CIELAB (включение выключает «Яркие картинки»)");
+        putOne("ru", FORCE_DARK_SUMMARY, "Принудительно затемняет сайты даже при светлом интерфейсе браузера (требуется перезапуск)");
         putOne("uk", FORCE_DARK_TITLE, "Адаптивна темна тема для сайтів");
         putOne("uk", FORCE_DARK_SUMMARY, "Примусово затемнює сайти (враховує рідну темну тему сайту, працює навіть у світлому режимі)");
         for (String lang : new String[] {"es", "pt", "de", "fr", "it", "pl", "tr", "ar", "hi", "zh", "ja", "ko"}) {
@@ -393,20 +393,20 @@ public final class SBrowserXStrings {
         putOne("en", EXT_DL_IMAGES_TITLE, "Also forward images to downloader");
         putOne("en", EXT_DL_IMAGES_SUMMARY, "ON: images, videos & files go to external downloader. OFF: browser saves images natively");
         putOne("en", DARK_BRIGHT_IMG_TITLE, "Vivid images in Dark Mode");
-        putOne("en", DARK_BRIGHT_IMG_SUMMARY, "Disables NightDim & 50% dim veil, preserves site colors & vivid photos (enabling turns off Force Day Dark)");
+        putOne("en", DARK_BRIGHT_IMG_SUMMARY, "Disables NightDim & 50% dim veil, preserves true site colors & vivid photos (mutually exclusive with Samsung Webpage brightness in dark mode)");
         putOne("ru", EXT_DL_IMAGES_TITLE, "Скачивать и картинки через менеджер");
         putOne("ru", EXT_DL_IMAGES_SUMMARY, "ВКЛ: всё (включая картинки) идёт в сторонний менеджер. ВЫКЛ: картинки сохраняет сам браузер");
         putOne("ru", DARK_BRIGHT_IMG_TITLE, "Яркие картинки в тёмной теме");
-        putOne("ru", DARK_BRIGHT_IMG_SUMMARY, "Отключает NightDim и 50%-фильтр, сохраняет цвета сайтов и яркость фото (включение выключает «Принудительную тёмную тему днём»)");
+        putOne("ru", DARK_BRIGHT_IMG_SUMMARY, "Отключает NightDim и 50%-фильтр, сохраняет цвета сайтов и яркость фото (взаимоисключаемо с «Яркость веб-страницы в режиме затемнения»)");
         putOne("uk", EXT_DL_IMAGES_TITLE, "Завантажувати й картинки через менеджер");
         putOne("uk", EXT_DL_IMAGES_SUMMARY, "УВІМК: усе (включно з картинками) йде у сторонній менеджер. ВИМК: картинки зберігає браузер");
         putOne("uk", DARK_BRIGHT_IMG_TITLE, "Яскраві картинки у темній темі");
-        putOne("uk", DARK_BRIGHT_IMG_SUMMARY, "Вимикає сіре затемнення NightDim і 50%-фільтр Samsung — фото залишаються соковитими");
+        putOne("uk", DARK_BRIGHT_IMG_SUMMARY, "Вимикає NightDim і 50%-фільтр, зберігає кольори сайтів і яскравість фото (взаємовиключно з «Яскравість веб-сторінки в темному режимі»)");
         for (String lang : new String[] {"es", "pt", "de", "fr", "it", "pl", "tr", "ar", "hi", "zh", "ja", "ko"}) {
             putOne(lang, EXT_DL_IMAGES_TITLE, "Also forward images to downloader");
             putOne(lang, EXT_DL_IMAGES_SUMMARY, "ON: images, videos & files go to external downloader. OFF: browser saves images natively");
             putOne(lang, DARK_BRIGHT_IMG_TITLE, "Vivid images in Dark Mode");
-            putOne(lang, DARK_BRIGHT_IMG_SUMMARY, "Disables NightDim & 50% dim veil, preserves site colors & vivid photos (enabling turns off Force Day Dark)");
+            putOne(lang, DARK_BRIGHT_IMG_SUMMARY, "Disables NightDim & 50% dim veil, preserves true site colors & vivid photos (mutually exclusive with Samsung Webpage brightness in dark mode)");
         }
         putOne("en", LAYOUT_TRANSPARENCY_TITLE, "Panel & address bar translucency");
         putOne("en", COMPACT_AI_BTN_TITLE, "Compact bar button (replaces Samsung AI)");

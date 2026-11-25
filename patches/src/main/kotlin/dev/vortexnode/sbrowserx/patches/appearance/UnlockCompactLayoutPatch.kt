@@ -18,7 +18,7 @@ private const val CUSTOMIZE_MENU_MODEL_CLASS =
 @Suppress("unused")
 val unlockCompactLayoutPatch = bytecodePatch(
     name = "Unlock Compact Layout",
-    description = "Restores Samsung Internet's native Compact toolbar layout, fixes More-Menu height oscillation and pull-to-refresh/scroll pill jitter, and replaces the Galaxy AI button with a user-configurable button.",
+    description = "Restores Samsung Internet's native Compact toolbar layout, fixes More-Menu height oscillation and Compact pill scroll/refresh jitter, and replaces the Galaxy AI button with a user-configurable button.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)
@@ -59,8 +59,47 @@ val unlockCompactLayoutPatch = bytecodePatch(
             """.trimIndent(),
         )
 
-        // 3. HideToolbarHandlerCompact.adjustToolbarScrollByBottomControls(SBrowserTabDelegate, F, F)V (.locals 2)
-        // Prevents the Compact floating pill from shrinking/jittering (0.85x <-> 1.0x) while page is refreshing/loading.
+        // 3. HideToolbarHandlerCompact.updateToolbarByBottomOffsetY(SBrowserTabDelegate, F, F)Z (.locals 3)
+        // Eliminates Android-View <-> GPU-Bitmap swap jitter on all websites by smoothly translating
+        // the live Compact pill directly with a 4px deadzone and loading lock.
+        val compactOffsetMethod = findMethodOrThrow(
+            classType = HIDE_TOOLBAR_COMPACT_CLASS,
+            methodName = "updateToolbarByBottomOffsetY",
+            parameterTypes = listOf(
+                "Lcom/sec/android/app/sbrowser/common/model/sbrowser_tab/SBrowserTabDelegate;",
+                "F",
+                "F",
+            ),
+            returnType = "Z",
+        )
+        compactOffsetMethod.addInstructions(
+            0,
+            """
+                invoke-static {p0, p1, p2}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->handleCompactBottomOffsetY(Ljava/lang/Object;Ljava/lang/Object;F)Z
+                move-result v0
+                if-eqz v0, :sbrowserx_stock_compact_offset
+                return v0
+                :sbrowserx_stock_compact_offset
+                nop
+            """.trimIndent(),
+        )
+
+        // 4. HideToolbarHandlerCompact.resetBottomControlViewPosition()V (.locals 1)
+        val compactResetMethod = findMethodOrThrow(
+            classType = HIDE_TOOLBAR_COMPACT_CLASS,
+            methodName = "resetBottomControlViewPosition",
+            parameterTypes = emptyList(),
+            returnType = "V",
+        )
+        compactResetMethod.addInstructions(
+            0,
+            """
+                invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->resetCompactBarTranslation(Ljava/lang/Object;)V
+            """.trimIndent(),
+        )
+
+        // 5. HideToolbarHandlerCompact.adjustToolbarScrollByBottomControls(SBrowserTabDelegate, F, F)V (.locals 2)
+        // Prevents Samsung's unfinished 0.85x scale/fade jitter from ever firing on the Compact pill.
         val compactScrollMethod = findMethodOrThrow(
             classType = HIDE_TOOLBAR_COMPACT_CLASS,
             methodName = "adjustToolbarScrollByBottomControls",
@@ -83,11 +122,11 @@ val unlockCompactLayoutPatch = bytecodePatch(
             """.trimIndent(),
         )
 
-        // 4. CustomizeMenuModel.getToolbarRightItemsWithPinnedExtensions()Ljava/util/List; (.locals 8)
+        // 6. CustomizeMenuModel.getToolbarRightItems()Ljava/util/List; (.locals 0, single return!)
         // Replaces Samsung's Galaxy AI (action_browsing_assist) icon in Compact mode with user-selected button.
         val rightItemsMethod = findMethodOrThrow(
             classType = CUSTOMIZE_MENU_MODEL_CLASS,
-            methodName = "getToolbarRightItemsWithPinnedExtensions",
+            methodName = "getToolbarRightItems",
             parameterTypes = emptyList(),
             returnType = "Ljava/util/List;",
         )
@@ -98,12 +137,35 @@ val unlockCompactLayoutPatch = bytecodePatch(
             """.trimIndent(),
         )
         val rightInsns = rightItemsMethod.implementation?.instructions
-            ?: error("Missing instructions in getToolbarRightItemsWithPinnedExtensions")
+            ?: error("Missing instructions in getToolbarRightItems")
         rightItemsMethod.addInstructions(
             rightInsns.size - 1,
             """
-                invoke-static {v1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->replaceCompactAiButton(Ljava/util/List;)Ljava/util/List;
-                move-result-object v1
+                invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->replaceCompactAiButton(Ljava/util/List;)Ljava/util/List;
+                move-result-object p0
+            """.trimIndent(),
+        )
+
+        // 7. CustomizeMenuModel.getToolbarLeftItems()Ljava/util/List; (.locals 0, single return!)
+        val leftItemsMethod = findMethodOrThrow(
+            classType = CUSTOMIZE_MENU_MODEL_CLASS,
+            methodName = "getToolbarLeftItems",
+            parameterTypes = emptyList(),
+            returnType = "Ljava/util/List;",
+        )
+        leftItemsMethod.addInstructions(
+            0,
+            """
+                invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->recordCustomizeMenuModel(Ljava/lang/Object;)V
+            """.trimIndent(),
+        )
+        val leftInsns = leftItemsMethod.implementation?.instructions
+            ?: error("Missing instructions in getToolbarLeftItems")
+        leftItemsMethod.addInstructions(
+            leftInsns.size - 1,
+            """
+                invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->replaceCompactAiButton(Ljava/util/List;)Ljava/util/List;
+                move-result-object p0
             """.trimIndent(),
         )
     }

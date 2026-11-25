@@ -198,11 +198,7 @@ public final class SBrowserXPrefs {
     }
 
     public static void setForceAdaptiveDarkEnabled(Context context, boolean enabled) {
-        SharedPreferences.Editor ed = prefs(context).edit().putBoolean(KEY_FORCE_ADAPTIVE_DARK, enabled);
-        if (enabled) {
-            ed.putBoolean(KEY_DARK_BRIGHT_IMAGES, false);
-        }
-        ed.apply();
+        prefs(context).edit().putBoolean(KEY_FORCE_ADAPTIVE_DARK, enabled).apply();
         markFeatureViewed(context, FEATURE_FORCE_DARK);
     }
 
@@ -211,11 +207,7 @@ public final class SBrowserXPrefs {
     }
 
     public static void setDarkBrightImagesEnabled(Context context, boolean enabled) {
-        SharedPreferences.Editor ed = prefs(context).edit().putBoolean(KEY_DARK_BRIGHT_IMAGES, enabled);
-        if (enabled) {
-            ed.putBoolean(KEY_FORCE_ADAPTIVE_DARK, false);
-        }
-        ed.apply();
+        prefs(context).edit().putBoolean(KEY_DARK_BRIGHT_IMAGES, enabled).apply();
         markFeatureViewed(context, FEATURE_FORCE_DARK);
     }
 

@@ -194,9 +194,7 @@ public final class SBrowserXSettingsActivity extends Activity {
                 (btn, checked) -> {
                     SBrowserXPrefs.setDarkBrightImagesEnabled(this, checked);
                     SBrowserXHooks.applyDarkBrightImagesNow(checked);
-                    if (checked && forceDarkSwitch != null && forceDarkSwitch.isChecked()) {
-                        forceDarkSwitch.setChecked(false);
-                    }
+
                     refreshDynamicViews();
                 });
         appearanceCard.addView(divider(night));
@@ -207,9 +205,7 @@ public final class SBrowserXSettingsActivity extends Activity {
                 (btn, checked) -> {
                     SBrowserXPrefs.setForceAdaptiveDarkEnabled(this, checked);
                     SBrowserXHooks.applyForceAdaptiveDarkNow(checked);
-                    if (checked && darkBrightSwitch != null && darkBrightSwitch.isChecked()) {
-                        darkBrightSwitch.setChecked(false);
-                    }
+
                     refreshDynamicViews();
                 });
         appearanceCard.addView(divider(night));

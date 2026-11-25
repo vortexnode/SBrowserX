@@ -47,6 +47,7 @@ public final class SBrowserXCompactButtonDialogActivity extends Activity {
                 .setTitle(SBrowserXStrings.get(SBrowserXStrings.COMPACT_AI_BTN_TITLE))
                 .setSingleChoiceItems(labels, selected, (dialog, which) -> {
                     SBrowserXPrefs.setCompactAiButton(this, VALUES[which]);
+                    SBrowserXHooks.notifyCompactToolbarUpdated();
                     dialog.dismiss();
                     finish();
                 })

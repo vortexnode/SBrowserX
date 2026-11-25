@@ -570,6 +570,7 @@ public final class SBrowserXHooks {
 
 
     private static final ThreadLocal<Object> sCustomizeMenuModelTL = new ThreadLocal<>();
+    private static final ThreadLocal<Object> sDarkModeFragmentTL = new ThreadLocal<>();
 
     // --- Fix #1, #2, #4: Unified Dark Mode + True Colors + Pure AMOLED Websites ---
 
@@ -650,15 +651,164 @@ public final class SBrowserXHooks {
         } catch (Throwable ignored) {}
     }
 
+    // --- Fix #1 (v0.9.2): Mutual exclusion between Vivid Images and Samsung Web Dark Mode Brightness ---
+
+    public static void recordDarkModeFragment(Object fragment) {
+        sDarkModeFragmentTL.set(fragment);
+    }
+
+    public static void syncDarkBrightnessExclusionFromTL() {
+        Object fragment = sDarkModeFragmentTL.get();
+        sDarkModeFragmentTL.remove();
+        syncDarkBrightnessExclusion(fragment);
+    }
+
+    public static void syncDarkBrightnessExclusion(Object fragment) {
+        if (fragment == null) return;
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            boolean brightOn = ctx != null && SBrowserXPrefs.isDarkBrightImagesEnabled(ctx);
+            Method findPref = fragment.getClass().getMethod("findPreference", CharSequence.class);
+            Object titlePref = findPref.invoke(fragment, "pref_web_dark_mode_brightness_title");
+            Object thumbPref = findPref.invoke(fragment, "pref_web_dark_mode_brightness_thumbnail");
+            Object seekPref = findPref.invoke(fragment, "pref_web_dark_mode_brightness");
+
+            if (brightOn) {
+                if (titlePref != null) {
+                    titlePref.getClass().getMethod("setEnabled", boolean.class).invoke(titlePref, false);
+                    String lang = java.util.Locale.getDefault().getLanguage();
+                    String note = "ru".equals(lang)
+                            ? "Отключено, пока активны «Яркие картинки в тёмной теме»"
+                            : ("uk".equals(lang)
+                            ? "Вимкнено, поки активні «Яскраві картинки в темній темі»"
+                            : "Disabled while Vivid images in Dark Mode is ON");
+                    titlePref.getClass().getMethod("setSummary", CharSequence.class).invoke(titlePref, note);
+                }
+                if (thumbPref != null) {
+                    thumbPref.getClass().getMethod("setEnabled", boolean.class).invoke(thumbPref, false);
+                }
+                if (seekPref != null) {
+                    seekPref.getClass().getMethod("setEnabled", boolean.class).invoke(seekPref, false);
+                }
+            } else {
+                if (titlePref != null) {
+                    titlePref.getClass().getMethod("setSummary", CharSequence.class).invoke(titlePref, (CharSequence) null);
+                }
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    public static void onNativeApplyDefaultDarkToggled(Object fragment, Object newValue) {
+        try {
+            if (Boolean.TRUE.equals(newValue)) {
+                Context ctx = SBrowserXPrefs.getAppContext();
+                if (ctx != null && SBrowserXPrefs.isDarkBrightImagesEnabled(ctx)) {
+                    SBrowserXPrefs.setDarkBrightImagesEnabled(ctx, false);
+                    applyDarkBrightImagesNow(false);
+                    if (fragment != null) {
+                        Method findPref = fragment.getClass().getMethod("findPreference", CharSequence.class);
+                        syncSwitchChecked(findPref, fragment, "sbrowserx_dark_bright_images", false);
+                        syncDarkBrightnessExclusion(fragment);
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    public static void onNativeWebBrightnessChanged(Object preference, Object newValue) {
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            if (ctx != null && SBrowserXPrefs.isDarkBrightImagesEnabled(ctx)) {
+                SBrowserXPrefs.setDarkBrightImagesEnabled(ctx, false);
+                applyDarkBrightImagesNow(false);
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    // --- Fix #2 (v0.9.2): Zero-Jitter Compact Bar (Direct Android View Translation, No Bitmap Swap) ---
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public static boolean handleCompactBottomOffsetY(Object handler, Object tabDelegate, float bottomControlsOffsetYPix) {
+        if (handler == null || tabDelegate == null) return false;
+        try {
+            Class<?> baseCls = handler.getClass().getSuperclass();
+            if (baseCls == null) return false;
+
+            Field fOffset = baseCls.getDeclaredField("mBottomControlsOffsetYPix");
+            fOffset.setAccessible(true);
+            fOffset.setFloat(handler, bottomControlsOffsetYPix);
+
+            Field fTop = baseCls.getDeclaredField("mTopBar");
+            fTop.setAccessible(true);
+            Object topBar = fTop.get(handler);
+            if (topBar == null) return false;
+
+            // Keep Chromium's bitmap toolbar layer hidden so it never fights/flickers against the live Android view.
+            try {
+                Class<?> layerEnum = Class.forName("com.sec.terrace.content.browser.TerraceBitmapLayer$BitmapLayer");
+                Object bottomLayer = Enum.valueOf((Class<Enum>) layerEnum, "BITMAP_LAYER_BOTTOMBAR");
+                tabDelegate.getClass().getMethod("updateBitmapToolbarLayerVisibility", layerEnum, boolean.class)
+                        .invoke(tabDelegate, bottomLayer, false);
+            } catch (Throwable ignored) {}
+
+            boolean fullScreen = Boolean.TRUE.equals(
+                    tabDelegate.getClass().getMethod("isFullScreenMode").invoke(tabDelegate));
+            if (fullScreen) return true;
+
+            boolean loading = Boolean.TRUE.equals(
+                    tabDelegate.getClass().getMethod("isLoading").invoke(tabDelegate));
+
+            // Ensure the real Compact bar view stays visible (no hideTopBar() / bitmap-layer swap)
+            int vis = (Integer) topBar.getClass().getMethod("getVisibility").invoke(topBar);
+            if (vis != 0) {
+                baseCls.getMethod("showTopBar").invoke(handler);
+            }
+
+            // Deadzone (4px) + loading lock eliminates micro-jitter on refresh, sticky headers & dynamic viewport sites
+            float ty = (loading || bottomControlsOffsetYPix <= 4.0f) ? 0.0f : bottomControlsOffsetYPix;
+            topBar.getClass().getMethod("setTranslationY", float.class).invoke(topBar, ty);
+            topBar.getClass().getMethod("setAlpha", float.class).invoke(topBar, 1.0f);
+            topBar.getClass().getMethod("setScaleX", float.class).invoke(topBar, 1.0f);
+            topBar.getClass().getMethod("setScaleY", float.class).invoke(topBar, 1.0f);
+            return true;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    public static void resetCompactBarTranslation(Object handler) {
+        if (handler == null) return;
+        try {
+            Class<?> baseCls = handler.getClass().getSuperclass();
+            if (baseCls == null) return;
+            Field fTop = baseCls.getDeclaredField("mTopBar");
+            fTop.setAccessible(true);
+            Object topBar = fTop.get(handler);
+            if (topBar != null) {
+                topBar.getClass().getMethod("setTranslationY", float.class).invoke(topBar, 0.0f);
+                topBar.getClass().getMethod("setAlpha", float.class).invoke(topBar, 1.0f);
+                topBar.getClass().getMethod("setScaleX", float.class).invoke(topBar, 1.0f);
+                topBar.getClass().getMethod("setScaleY", float.class).invoke(topBar, 1.0f);
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    public static void notifyCompactToolbarUpdated() {
+        try {
+            Class<?> ctm = Class.forName("com.sec.android.app.sbrowser.common.customize_toolbar.CustomizeToolbarManager");
+            Object inst = ctm.getMethod("getInstance").invoke(null);
+            ctm.getMethod("reloadMenu").invoke(inst);
+        } catch (Throwable t) {
+            Log.w(TAG, "notifyCompactToolbarUpdated failed", t);
+        }
+    }
+
     // --- Fix #3: Stabilize Compact Bar on Refresh/Load + Replace Galaxy AI Icon ---
 
     public static boolean shouldStabilizeCompactBarOnLoad(Object handler, Object tabDelegate) {
         if (handler == null || tabDelegate == null) return false;
         try {
-            boolean loading = Boolean.TRUE.equals(
-                    tabDelegate.getClass().getMethod("isLoading").invoke(tabDelegate));
-            if (!loading) return false;
-            // While page is refreshing/loading, keep Compact pill steady at 1.0f scale & alpha (no 0.85x jitter)
+            // Never let Samsung's unfinished 0.85x shrink/fade jitter run on Compact pill
             Class<?> baseCls = handler.getClass().getSuperclass();
             if (baseCls != null) {
                 Field fTop = baseCls.getDeclaredField("mTopBar");
@@ -1265,7 +1415,15 @@ public final class SBrowserXHooks {
                     checked -> {
                         SBrowserXPrefs.setDarkBrightImagesEnabled(ctx, checked);
                         applyDarkBrightImagesNow(checked);
-                        if (checked) syncSwitchChecked(findPref, fragment, "sbrowserx_dark_adaptive_sites", false);
+                        if (checked) {
+                            syncSwitchChecked(findPref, fragment, "pref_apply_default_dark_mode", false);
+                        }
+                        try {
+                            Method upd = fragment.getClass().getDeclaredMethod("updateBrightnessSettingEnabled", boolean.class);
+                            upd.setAccessible(true);
+                            upd.invoke(fragment, false);
+                        } catch (Throwable ignored) {}
+                        syncDarkBrightnessExclusion(fragment);
                     });
 
             bindNativeSwitch(findPref, fragment, "sbrowserx_dark_adaptive_sites",
@@ -1275,8 +1433,9 @@ public final class SBrowserXHooks {
                     checked -> {
                         SBrowserXPrefs.setForceAdaptiveDarkEnabled(ctx, checked);
                         applyForceAdaptiveDarkNow(checked);
-                        if (checked) syncSwitchChecked(findPref, fragment, "sbrowserx_dark_bright_images", false);
                     });
+
+            syncDarkBrightnessExclusion(fragment);
 
             String layoutSum = (SBrowserXPrefs.isBottomBarBlurEnabled(ctx) ? SBrowserXPrefs.getBottomBarTransparency(ctx) + "%" : offLbl)
                     + " • " + (SBrowserXPrefs.isUrlBarBlurEnabled(ctx) ? SBrowserXPrefs.getUrlBarTransparency(ctx) + "%" : offLbl)
