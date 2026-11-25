@@ -437,8 +437,9 @@ public final class SBrowserXHooks {
     public static String resolveTransLangDisplayName(Object service, String code) {
         if (code == null || code.isEmpty()) return "";
         if (isGoogleTranslateEnabled()) {
-            String display = getGoogleTranslateLangDisplayName(code);
-            if (display != null && !display.isEmpty()) return display;
+            // TransBarLangListHandler.getDisplayName() expects a BCP-47 locale tag (e.g. "ru", "en", "zh-CN"),
+            // NOT a pre-translated display name!
+            return code.replace('_', '-');
         }
         if (service != null) {
             try {
