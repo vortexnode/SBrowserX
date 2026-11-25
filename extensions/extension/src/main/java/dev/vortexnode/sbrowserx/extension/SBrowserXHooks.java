@@ -370,4 +370,55 @@ public final class SBrowserXHooks {
         } catch (Throwable ignored) {}
         return pkg;
     }
+
+    public static String[] getGoogleTranslateLangCodes() {
+        if (!isGoogleTranslateEnabled()) return null;
+        String[][] langs = SBrowserXGoogleTranslator.SUPPORTED_LANGUAGES;
+        String[] out = new String[langs.length];
+        for (int i = 0; i < langs.length; i++) {
+            out[i] = langs[i][0];
+        }
+        return out;
+    }
+
+    public static String getGoogleTranslateTargetLangOrNull() {
+        if (!isGoogleTranslateEnabled()) return null;
+        Context ctx = SBrowserXPrefs.getAppContext();
+        return ctx != null ? SBrowserXPrefs.getTranslateTargetLang(ctx) : "en";
+    }
+
+    public static void onTransBarTargetLangSelected(String code) {
+        if (code == null || code.isEmpty() || "add_lang".equals(code)) return;
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            if (ctx != null && SBrowserXPrefs.isGoogleTranslateEnabled(ctx)) {
+                SBrowserXPrefs.setTranslateTargetLang(ctx, code);
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    public static boolean openNativeExtensionsActivity(Context context) {
+        if (context == null) return false;
+        try {
+            Class<?> extAct = Class.forName("com.sec.android.app.sbrowser.extensions.ExtensionsActivity");
+            Intent intent = new Intent(context, extAct);
+            Activity main = sMainActivityRef.get();
+            if (main != null) {
+                try {
+                    Class<?> mim = Class.forName("com.sec.android.app.sbrowser.multi_instance.MultiInstanceManager");
+                    Object inst = mim.getMethod("getInstance").invoke(null);
+                    String id = (String) mim.getMethod("getMainActivityId", Activity.class).invoke(inst, main);
+                    if (id != null) intent.putExtra("SBrowserMainActivityContextId", id);
+                } catch (Throwable ignored) {}
+            }
+            if (!(context instanceof Activity)) {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            }
+            context.startActivity(intent);
+            return true;
+        } catch (Throwable t) {
+            Log.e(TAG, "openNativeExtensionsActivity failed", t);
+            return false;
+        }
+    }
 }

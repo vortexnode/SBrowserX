@@ -113,6 +113,9 @@ public final class SBrowserXSettingsActivity extends Activity {
                     }
                 });
         extCard.addView(divider(night));
+        addActionRow(extCard, SBrowserXStrings.getOpenNativeExtensionsLabel(),
+                null, accent, textSecondary, null, v -> SBrowserXHooks.openNativeExtensionsActivity(this));
+        extCard.addView(divider(night));
         addActionRow(extCard, SBrowserXStrings.get(SBrowserXStrings.EXT_OPEN_CWS),
                 null, accent, textSecondary, null, v -> openWebUrlInSelf("https://chromewebstore.google.com/category/extensions"));
         root.addView(extCard);

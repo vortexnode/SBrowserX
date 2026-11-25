@@ -66,6 +66,7 @@ public final class SBrowserXStrings {
     public static final String EXT_DL_DIALOG_MSG = "ext_dl_dialog_msg";
     public static final String BTN_ENABLE = "btn_enable";
     public static final String BTN_DISABLE = "btn_disable";
+    public static final String EXT_OPEN_NATIVE = "ext_open_native";
 
     private static final Map<String, Map<String, String>> CATALOG = new HashMap<>();
 
@@ -335,5 +336,24 @@ public final class SBrowserXStrings {
         if (SBrowserXPrefs.WEBRTC_PUBLIC_AND_PRIVATE.equals(policy)) return get(WEBRTC_PUB_PRIV);
         if (SBrowserXPrefs.WEBRTC_PUBLIC_ONLY.equals(policy)) return get(WEBRTC_PUB_ONLY);
         return get(WEBRTC_DISABLE_UDP);
+    }
+
+    public static String getOpenNativeExtensionsLabel() {
+        String lang = Locale.getDefault().getLanguage();
+        if ("ru".equals(lang)) return "Нативный список расширений Samsung (без лагов)";
+        if ("uk".equals(lang)) return "Нативний список розширень Samsung (без лагів)";
+        if ("es".equals(lang)) return "Lista nativa de extensiones Samsung (rápida)";
+        if ("pt".equals(lang)) return "Lista nativa de extensões Samsung (rápida)";
+        if ("de".equals(lang)) return "Native Samsung-Erweiterungsliste (schnell)";
+        if ("fr".equals(lang)) return "Liste native des extensions Samsung (rapide)";
+        if ("it".equals(lang)) return "Elenco nativo estensioni Samsung (veloce)";
+        if ("pl".equals(lang)) return "Natywna lista rozszerzeń Samsung (szybka)";
+        if ("tr".equals(lang)) return "Yerel Samsung uzantı listesi (hızlı)";
+        if ("ar".equals(lang)) return "قائمة إضافات سامسونج الأصلية (سريعة)";
+        if ("hi".equals(lang)) return "नेटिव Samsung एक्सटेंशन सूची (तेज़)";
+        if ("zh".equals(lang)) return "三星原生扩展列表（流畅无卡顿）";
+        if ("ja".equals(lang)) return "Samsungネイティブ拡張機能一覧（軽量）";
+        if ("ko".equals(lang)) return "삼성 기본 확장 프로그램 목록 (빠름)";
+        return "Native Samsung Extensions list (fast, no lag)";
     }
 }

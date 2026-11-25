@@ -16,6 +16,8 @@ private const val WEB_ASSIST_UTIL_CLASS =
     "Lcom/sec/android/app/sbrowser/artificial_intelligence/utils/WebAssistUtil;"
 private const val SIX_MANAGER_CLASS =
     "Lcom/sec/android/app/sbrowser/extensions/SixManager;"
+private const val LANG_PACK_MANAGER_CLASS =
+    "Lcom/sec/android/app/sbrowser/artificial_intelligence/translate/LangPackManager;"
 
 @Suppress("unused")
 val googleTranslatePatch = bytecodePatch(
@@ -282,6 +284,71 @@ val googleTranslatePatch = bytecodePatch(
                 if-eqz v0, :sbrowserx_openset_stock
                 return-void
                 :sbrowserx_openset_stock
+                nop
+            """.trimIndent(),
+        )
+
+        // 10. SixTransService.getLangList(String)[String] -> populate TransBar dropdown with all 40 Google Translate languages
+        findMethodOrThrow(
+            classType = SIX_TRANS_SERVICE_CLASS,
+            methodName = "getLangList",
+            parameterTypes = listOf("Ljava/lang/String;"),
+            returnType = "[Ljava/lang/String;",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->getGoogleTranslateLangCodes()[Ljava/lang/String;
+                move-result-object p1
+                if-eqz p1, :sbrowserx_gl1_stock
+                return-object p1
+                :sbrowserx_gl1_stock
+                nop
+            """.trimIndent(),
+        )
+
+        // 11. LangPackManager.getTargetLang(I) -> return configured Google Translate target language (e.g. "ru")
+        findMethodOrThrow(
+            classType = LANG_PACK_MANAGER_CLASS,
+            methodName = "getTargetLang",
+            parameterTypes = listOf("I"),
+            returnType = "Ljava/lang/String;",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->getGoogleTranslateTargetLangOrNull()Ljava/lang/String;
+                move-result-object p0
+                if-eqz p0, :sbrowserx_tl_stock
+                return-object p0
+                :sbrowserx_tl_stock
+                nop
+            """.trimIndent(),
+        )
+
+        // 12. SixTransService.setTargetLang(String) -> sync language picked in TransBar back to SBrowserX prefs
+        findMethodOrThrow(
+            classType = SIX_TRANS_SERVICE_CLASS,
+            methodName = "setTargetLang",
+            parameterTypes = listOf("Ljava/lang/String;"),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            "invoke-static {p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onTransBarTargetLangSelected(Ljava/lang/String;)V",
+        )
+
+        // 13. SixTransService.openLangPackSettings()V -> open Chrome-style Google Translate settings instead of Samsung Language Packs
+        findMethodOrThrow(
+            classType = SIX_TRANS_SERVICE_CLASS,
+            methodName = "openLangPackSettings",
+            parameterTypes = emptyList(),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->tryOpenTranslateSettings(Ljava/lang/Object;)Z
+                move-result v0
+                if-eqz v0, :sbrowserx_olp_stock
+                return-void
+                :sbrowserx_olp_stock
                 nop
             """.trimIndent(),
         )

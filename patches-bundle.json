@@ -1,7 +1,7 @@
 {
   "created_at": "2026-11-25T01:45:00",
-  "description": "SBrowserX v0.5.2 — окончательный фикс сброса расширений (отключено автоудаление в SixPkgUpdater и SixDefaultExtLoader), принудительное включение встроенного webtrans.crx для родной панели перевода без Samsung Account, и выбор любого стороннего загрузчика (ABDM, 1DM, ADM, Seal и др.).",
-  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v0.5.2/patches-0.5.2.mpp",
+  "description": "SBrowserX v0.5.3 — полный список из 40 языков Google Translate прямо в выпадающем меню родной панели перевода Samsung (TransBar), автоподстановка целевого языка (например, русский), синхронизация выбора языка и кнопка быстрого нативного списка расширений Samsung без лагов.",
+  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v0.5.3/patches-0.5.3.mpp",
   "signature_download_url": "",
-  "version": "0.5.2"
+  "version": "0.5.3"
 }
