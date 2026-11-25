@@ -299,6 +299,108 @@ public final class SBrowserXHooks {
         }
     }
 
+
+    /**
+     * Fixes Samsung's Compact-mode MoreMenuHandler.getHeight() oscillation bug:
+     * stock code compared (mRecyclerView.getHeight() + mHeaderLayout.getHeight()) < maxH
+     * while omitting mBottomMenuLayout, so once laid out at maxH the RecyclerView was
+     * always shorter than maxH, flipping the dialog to WRAP_CONTENT (-2) and back in a loop.
+     */
+    public static int computeStableCompactMenuHeight(Object handler) {
+        if (handler == null) return 0;
+        try {
+            Class<?> cls = handler.getClass();
+
+            Field fCtx = cls.getDeclaredField("mContext");
+            fCtx.setAccessible(true);
+            Context ctx = (Context) fCtx.get(handler);
+            if (!(ctx instanceof Activity)) return 0;
+            Activity act = (Activity) ctx;
+
+            Method mGetYOffset = cls.getDeclaredMethod("getYOffset");
+            mGetYOffset.setAccessible(true);
+            int yOffset = (Integer) mGetYOffset.invoke(handler);
+
+            View decor = act.getWindow().getDecorView();
+            int decorH = decor.getHeight();
+            if (decorH <= 0) return 0;
+
+            android.content.res.Resources res = ctx.getResources();
+            String pkg = ctx.getPackageName();
+
+            int multiWinMargin = 0;
+            try {
+                Class<?> dsCls = Class.forName("com.sec.android.app.sbrowser.common.device.DeviceSettings");
+                boolean inMulti = Boolean.TRUE.equals(dsCls.getMethod("isInMultiWindowMode", Activity.class).invoke(null, act));
+                if (inMulti) {
+                    int id = res.getIdentifier("toolbar_option_menu_compact_dialog_top_margin_multi_window", "dimen", pkg);
+                    if (id != 0) multiWinMargin = res.getDimensionPixelOffset(id);
+                }
+            } catch (Throwable ignored) {}
+
+            int statusBarH = 0;
+            int navBarH = 0;
+            try {
+                Class<?> dluCls = Class.forName("com.sec.android.app.sbrowser.common.device.DeviceLayoutUtil");
+                statusBarH = (Integer) dluCls.getMethod("getStatusBarHeight", View.class).invoke(null, decor);
+                navBarH = (Integer) dluCls.getMethod("getNavigationBarHeight", View.class).invoke(null, decor);
+            } catch (Throwable ignored) {}
+
+            int availH = decorH - yOffset - multiWinMargin - statusBarH - navBarH;
+            int maxDimenId = res.getIdentifier("toolbar_option_menu_compact_dialog_max_height", "dimen", pkg);
+            int maxDimenH = maxDimenId != 0 ? res.getDimensionPixelOffset(maxDimenId) : availH;
+            int maxH = Math.min(availH, maxDimenH);
+            if (maxH <= 0) return 0;
+
+            int itemHId = res.getIdentifier("toolbar_option_menu_compact_list_item_height", "dimen", pkg);
+            int itemH = itemHId != 0 ? res.getDimensionPixelOffset(itemHId)
+                    : Math.round(48f * res.getDisplayMetrics().density);
+
+            int itemCount = 0;
+            Field fAdapter = cls.getDeclaredField("mMenuAdapter");
+            fAdapter.setAccessible(true);
+            Object adapter = fAdapter.get(handler);
+            if (adapter != null) {
+                itemCount = (Integer) adapter.getClass().getMethod("getItemCount").invoke(adapter);
+            }
+
+            int headerH = 0;
+            try {
+                Method mCalcHeader = cls.getDeclaredMethod("calculateHeaderHeight");
+                mCalcHeader.setAccessible(true);
+                headerH = (Integer) mCalcHeader.invoke(handler);
+            } catch (Throwable ignored) {}
+            try {
+                Field fHeader = cls.getDeclaredField("mHeaderLayout");
+                fHeader.setAccessible(true);
+                View hv = (View) fHeader.get(handler);
+                if (hv != null && hv.getVisibility() == View.VISIBLE && hv.getHeight() > headerH) {
+                    headerH = hv.getHeight();
+                }
+            } catch (Throwable ignored) {}
+
+            int bottomH = 0;
+            try {
+                Field fBottom = cls.getDeclaredField("mBottomMenuLayout");
+                fBottom.setAccessible(true);
+                View bv = (View) fBottom.get(handler);
+                if (bv != null && bv.getVisibility() == View.VISIBLE) {
+                    int minBottom = Math.round(56f * res.getDisplayMetrics().density);
+                    bottomH = Math.max(bv.getHeight(), minBottom);
+                }
+            } catch (Throwable ignored) {}
+
+            int totalContentH = (itemH * itemCount) + headerH + bottomH;
+            if (totalContentH > 0 && totalContentH < maxH) {
+                return -2; // ViewGroup.LayoutParams.WRAP_CONTENT
+            }
+            return maxH;
+        } catch (Throwable t) {
+            Log.w(TAG, "computeStableCompactMenuHeight fallback to stock", t);
+            return 0;
+        }
+    }
+
     public static void applyUrlBarGlassStyle(Object locationBarObj) {
         if (locationBarObj == null) return;
         try {

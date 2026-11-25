@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-11-25T12:25:00",
-  "description": "SBrowserX v0.7.4 — возвращена штатная настройка «Компактный» макет в Настройки → Макет и меню (однострочная нижняя панель с адресной строкой и кнопками).",
-  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v0.7.4/patches-0.7.4.mpp",
+  "created_at": "2026-11-25T12:40:00",
+  "description": "SBrowserX v0.7.5 — исправлен баг с прыгающей высотой всплывающего меню (3 точки) в Компактном режиме: меню больше не дёргается при прокрутке и не наползает на нижнюю панель.",
+  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v0.7.5/patches-0.7.5.mpp",
   "signature_download_url": "",
-  "version": "0.7.4"
+  "version": "0.7.5"
 }
