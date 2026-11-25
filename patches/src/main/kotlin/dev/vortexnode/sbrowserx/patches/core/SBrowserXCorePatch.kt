@@ -22,6 +22,8 @@ private const val SETTINGS_ACTIVITY_CLASS =
     "dev.vortexnode.sbrowserx.extension.settings.SBrowserXSettingsActivity"
 private const val TRANSLATE_SETTINGS_ACTIVITY_CLASS =
     "dev.vortexnode.sbrowserx.extension.settings.SBrowserXTranslateSettingsActivity"
+private const val EXT_MANAGER_ACTIVITY_CLASS =
+    "dev.vortexnode.sbrowserx.extension.settings.SBrowserXExtensionsActivity"
 private const val WEBRTC_DIALOG_ACTIVITY_CLASS =
     "dev.vortexnode.sbrowserx.extension.settings.SBrowserXWebRtcDialogActivity"
 private const val EXT_BRIDGE_ACTIVITY_CLASS =
@@ -42,6 +44,7 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
 
             ensureActivity(manifest, application, SETTINGS_ACTIVITY_CLASS, "@android:style/Theme.DeviceDefault.NoActionBar")
             ensureActivity(manifest, application, TRANSLATE_SETTINGS_ACTIVITY_CLASS, "@android:style/Theme.DeviceDefault.NoActionBar")
+            ensureActivity(manifest, application, EXT_MANAGER_ACTIVITY_CLASS, "@android:style/Theme.DeviceDefault.NoActionBar")
             ensureActivity(manifest, application, WEBRTC_DIALOG_ACTIVITY_CLASS, "@android:style/Theme.Translucent.NoTitleBar")
             ensureActivity(manifest, application, EXT_BRIDGE_ACTIVITY_CLASS, "@android:style/Theme.Translucent.NoTitleBar")
             ensureActivity(manifest, application, EXT_DL_DIALOG_ACTIVITY_CLASS, "@android:style/Theme.Translucent.NoTitleBar")

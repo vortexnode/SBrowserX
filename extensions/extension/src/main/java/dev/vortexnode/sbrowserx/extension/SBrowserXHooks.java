@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import dev.vortexnode.sbrowserx.extension.settings.SBrowserXTranslateSettingsActivity;
+import dev.vortexnode.sbrowserx.extension.settings.SBrowserXExtensionsActivity;
 
 public final class SBrowserXHooks {
     private static final String TAG = "SBrowserXHooks";
@@ -400,8 +401,7 @@ public final class SBrowserXHooks {
     public static boolean openNativeExtensionsActivity(Context context) {
         if (context == null) return false;
         try {
-            Class<?> extAct = Class.forName("com.sec.android.app.sbrowser.extensions.ExtensionsActivity");
-            Intent intent = new Intent(context, extAct);
+            Intent intent = new Intent(context, SBrowserXExtensionsActivity.class);
             Activity main = sMainActivityRef.get();
             if (main != null) {
                 try {
@@ -420,5 +420,37 @@ public final class SBrowserXHooks {
             Log.e(TAG, "openNativeExtensionsActivity failed", t);
             return false;
         }
+    }
+
+    public static String getGoogleTranslateLangDisplayName(String code) {
+        if (!isGoogleTranslateEnabled() || code == null || code.isEmpty()) return null;
+        try {
+            java.util.Locale loc = java.util.Locale.forLanguageTag(code.replace('_', '-'));
+            String name = loc.getDisplayLanguage(java.util.Locale.getDefault());
+            if (name != null && !name.isEmpty() && !name.equalsIgnoreCase(code)) {
+                return name;
+            }
+        } catch (Throwable ignored) {}
+        return SBrowserXGoogleTranslator.getLanguageDisplayName(code);
+    }
+
+    public static String resolveTransLangDisplayName(Object service, String code) {
+        if (code == null || code.isEmpty()) return "";
+        if (isGoogleTranslateEnabled()) {
+            String display = getGoogleTranslateLangDisplayName(code);
+            if (display != null && !display.isEmpty()) return display;
+        }
+        if (service != null) {
+            try {
+                Field f = service.getClass().getDeclaredField("mSupportLangMap");
+                f.setAccessible(true);
+                Object map = f.get(service);
+                if (map instanceof java.util.Map) {
+                    Object val = ((java.util.Map<?, ?>) map).get(code);
+                    if (val instanceof String) return (String) val;
+                }
+            } catch (Throwable ignored) {}
+        }
+        return code;
     }
 }

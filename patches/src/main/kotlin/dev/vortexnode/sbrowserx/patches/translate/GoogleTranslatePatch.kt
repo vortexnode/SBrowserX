@@ -18,6 +18,8 @@ private const val SIX_MANAGER_CLASS =
     "Lcom/sec/android/app/sbrowser/extensions/SixManager;"
 private const val LANG_PACK_MANAGER_CLASS =
     "Lcom/sec/android/app/sbrowser/artificial_intelligence/translate/LangPackManager;"
+private const val TEXT_TRANSLATE_MANAGER_CLASS =
+    "Lcom/sec/android/app/sbrowser/artificial_intelligence/translate/TextTranslateManager;"
 
 @Suppress("unused")
 val googleTranslatePatch = bytecodePatch(
@@ -349,6 +351,40 @@ val googleTranslatePatch = bytecodePatch(
                 if-eqz v0, :sbrowserx_olp_stock
                 return-void
                 :sbrowserx_olp_stock
+                nop
+            """.trimIndent(),
+        )
+
+        // 14. SixTransService.getLangLocaleInfo(String)String -> return localized display name for all 40 languages
+        findMethodOrThrow(
+            classType = SIX_TRANS_SERVICE_CLASS,
+            methodName = "getLangLocaleInfo",
+            parameterTypes = listOf("Ljava/lang/String;"),
+            returnType = "Ljava/lang/String;",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {p0, p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->resolveTransLangDisplayName(Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/String;
+                move-result-object p0
+                return-object p0
+            """.trimIndent(),
+        )
+
+        // 15. TextTranslateManager.isSupport()Z -> true when Google Translate enabled (bypass Samsung SCS check)
+        findMethodOrThrow(
+            classType = TEXT_TRANSLATE_MANAGER_CLASS,
+            methodName = "isSupport",
+            parameterTypes = emptyList(),
+            returnType = "Z",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->isGoogleTranslateEnabled()Z
+                move-result v0
+                if-eqz v0, :sbrowserx_ttm_stock
+                const/4 v0, 0x1
+                return v0
+                :sbrowserx_ttm_stock
                 nop
             """.trimIndent(),
         )
