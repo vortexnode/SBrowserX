@@ -155,6 +155,28 @@ public final class SBrowserXHooks {
         }
     }
 
+    /**
+     * Checks Samsung Internet's actual active dark mode (honoring BOTH system dark theme
+     * AND the in-browser "Dark mode -> On/Off" override in DarkModeUtils).
+     */
+    public static boolean isBrowserNightMode(Context ctx) {
+        try {
+            Class<?> dmu = Class.forName("com.sec.android.app.sbrowser.common.device.DarkModeUtils");
+            Object inst = dmu.getMethod("getInstance").invoke(null);
+            if (inst != null) {
+                Object res = dmu.getMethod("isDarkModeEnabled").invoke(inst);
+                if (res instanceof Boolean) return (Boolean) res;
+            }
+        } catch (Throwable ignored) {}
+        if (ctx != null) {
+            try {
+                return (ctx.getResources().getConfiguration().uiMode
+                        & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+            } catch (Throwable ignored) {}
+        }
+        return false;
+    }
+
     private static int getGlassBaseAlpha() {
         try {
             Context ctx = SBrowserXPrefs.getAppContext();
@@ -481,8 +503,7 @@ public final class SBrowserXHooks {
             View container = containerId != 0 ? decor.findViewById(containerId) : null;
             View outer = outerId != 0 ? decor.findViewById(outerId) : null;
 
-            boolean night = (res.getConfiguration().uiMode
-                    & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+            boolean night = isBrowserNightMode(ctx);
             float density = res.getDisplayMetrics().density;
             int radiusId = res.getIdentifier("search_window_popup_radius", "dimen", pkg);
             int cornerPx = radiusId != 0 ? res.getDimensionPixelOffset(radiusId) : Math.round(26f * density);
@@ -570,8 +591,7 @@ public final class SBrowserXHooks {
 
             if (mutated instanceof GradientDrawable && !isEdit && alpha < 220) {
                 Context vCtx = urlBarParent.getContext();
-                boolean night = (vCtx.getResources().getConfiguration().uiMode
-                        & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+                boolean night = isBrowserNightMode(vCtx);
                 int strokePx = Math.max(1, Math.round(vCtx.getResources().getDisplayMetrics().density * 0.75f));
                 int strokeColor = night ? 0x26FFFFFF : 0x1A000000;
                 ((GradientDrawable) mutated).setStroke(strokePx, strokeColor);
@@ -767,8 +787,10 @@ public final class SBrowserXHooks {
     }
 
     public static int adjustForceDarkBehavior(int stockBehavior) {
-        if (isForceAdaptiveDarkEnabled() || isDarkBrightImagesEnabled()) {
-            return 2; // PREFER_MEDIA_QUERY_OVER_FORCE_DARK (always prefer website's native dark theme first)
+        // In Samsung Terrace: 1 = Always apply dark mode to ALL sites (including light-only sites like comss.ru),
+        // 2 = Use website's own dark theme ONLY (leave light-only sites white).
+        if (isForceAdaptiveDarkEnabled()) {
+            return 1;
         }
         return stockBehavior;
     }
@@ -779,7 +801,6 @@ public final class SBrowserXHooks {
             if (enabled) {
                 bridge.getMethod("setUseNightDim", boolean.class, int.class).invoke(null, false, 0);
                 bridge.getMethod("setVAXContrastFactor", int.class).invoke(null, 100);
-                bridge.getMethod("setForceDarkBehavior", int.class).invoke(null, 2);
             } else {
                 bridge.getMethod("setVAXContrastFactor", int.class).invoke(null, 50);
             }
@@ -791,13 +812,14 @@ public final class SBrowserXHooks {
     public static void applyForceAdaptiveDarkNow(boolean enabled) {
         try {
             Class<?> bridge = Class.forName("com.sec.terrace.browser.prefs.TerracePrefServiceBridge");
+            Class<?> dmu = Class.forName("com.sec.android.app.sbrowser.common.device.DarkModeUtils");
+            Object inst = dmu.getMethod("getInstance").invoke(null);
             if (enabled) {
-                bridge.getMethod("setForceDarkBehavior", int.class).invoke(null, 2);
+                bridge.getMethod("setForceDarkBehavior", int.class).invoke(null, 1);
                 bridge.getMethod("setNightMode", boolean.class).invoke(null, true);
             } else {
-                // Re-sync with DarkModeUtils stock state
-                Class<?> dmu = Class.forName("com.sec.android.app.sbrowser.common.device.DarkModeUtils");
-                Object inst = dmu.getMethod("getInstance").invoke(null);
+                boolean useSiteOnly = Boolean.TRUE.equals(dmu.getMethod("isUseWebsiteDarkThemeEnabled").invoke(inst));
+                bridge.getMethod("setForceDarkBehavior", int.class).invoke(null, useSiteOnly ? 2 : 1);
                 boolean stockDark = Boolean.TRUE.equals(dmu.getMethod("isContentDarkModeEnabled").invoke(inst));
                 bridge.getMethod("setNightMode", boolean.class).invoke(null, stockDark);
             }
@@ -983,6 +1005,51 @@ public final class SBrowserXHooks {
                 String summary = SBrowserXStrings.get(SBrowserXStrings.CAT_EXTENSIONS) + ", WebRTC, "
                         + SBrowserXStrings.get(SBrowserXStrings.CAT_APPEARANCE);
                 hub.getClass().getMethod("setSummary", CharSequence.class).invoke(hub, summary);
+            }
+
+            String onLbl = SBrowserXStrings.get(SBrowserXStrings.BTN_ENABLE);
+            String offLbl = SBrowserXStrings.get(SBrowserXStrings.BTN_DISABLE);
+
+            setNativePref(findPref, fragment, "sbrowserx_privacy_fingerprint",
+                    SBrowserXStrings.get(SBrowserXStrings.FINGERPRINT_TITLE),
+                    SBrowserXPrefs.isFingerprintProtectionEnabled(ctx) ? onLbl : offLbl);
+            setNativePref(findPref, fragment, "sbrowserx_privacy_hide_adblockers",
+                    SBrowserXStrings.get(SBrowserXStrings.HIDE_ADBLOCKERS_TITLE),
+                    SBrowserXPrefs.isHideSamsungAdBlockersEnabled(ctx) ? onLbl : offLbl);
+            setNativePref(findPref, fragment, "sbrowserx_external_downloader_images",
+                    SBrowserXStrings.get(SBrowserXStrings.EXT_DL_IMAGES_TITLE),
+                    SBrowserXPrefs.isExternalDownloaderImagesEnabled(ctx) ? onLbl : offLbl);
+            setNativePref(findPref, fragment, "sbrowserx_dark_amoled",
+                    SBrowserXStrings.get(SBrowserXStrings.AMOLED_TITLE),
+                    SBrowserXPrefs.isAmoledBlackEnabled(ctx) ? onLbl : offLbl);
+            setNativePref(findPref, fragment, "sbrowserx_dark_bright_images",
+                    SBrowserXStrings.get(SBrowserXStrings.DARK_BRIGHT_IMG_TITLE),
+                    SBrowserXPrefs.isDarkBrightImagesEnabled(ctx) ? onLbl : offLbl);
+            setNativePref(findPref, fragment, "sbrowserx_dark_adaptive_sites",
+                    SBrowserXStrings.get(SBrowserXStrings.FORCE_DARK_TITLE),
+                    SBrowserXPrefs.isForceAdaptiveDarkEnabled(ctx) ? onLbl : offLbl);
+
+            String layoutSum = (SBrowserXPrefs.isBottomBarBlurEnabled(ctx) ? SBrowserXPrefs.getBottomBarTransparency(ctx) + "%" : offLbl)
+                    + " • " + (SBrowserXPrefs.isUrlBarBlurEnabled(ctx) ? SBrowserXPrefs.getUrlBarTransparency(ctx) + "%" : offLbl)
+                    + " • " + (SBrowserXPrefs.isCompactBarBlurEnabled(ctx) ? SBrowserXPrefs.getCompactBarTransparency(ctx) + "%" : offLbl);
+            setNativePref(findPref, fragment, "sbrowserx_layout_transparency",
+                    SBrowserXStrings.get(SBrowserXStrings.BOTTOM_BLUR_TITLE),
+                    layoutSum);
+
+            String transSum = (SBrowserXPrefs.isGoogleTranslateEnabled(ctx) ? onLbl : offLbl)
+                    + " • " + SBrowserXGoogleTranslator.getLanguageDisplayName(SBrowserXPrefs.getTranslateTargetLang(ctx));
+            setNativePref(findPref, fragment, "sbrowserx_useful_translate",
+                    SBrowserXStrings.get(SBrowserXStrings.GTRANS_SETTINGS_TITLE),
+                    transSum);
+        } catch (Throwable ignored) {}
+    }
+
+    private static void setNativePref(Method findPref, Object fragment, String key, String title, String summary) {
+        try {
+            Object pref = findPref.invoke(fragment, key);
+            if (pref != null) {
+                pref.getClass().getMethod("setTitle", CharSequence.class).invoke(pref, title);
+                pref.getClass().getMethod("setSummary", CharSequence.class).invoke(pref, summary);
             }
         } catch (Throwable ignored) {}
     }

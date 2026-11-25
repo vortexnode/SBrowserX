@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import dev.vortexnode.sbrowserx.extension.SBrowserXHooks;
 import dev.vortexnode.sbrowserx.extension.SBrowserXPrefs;
 import dev.vortexnode.sbrowserx.extension.SBrowserXStrings;
 
@@ -25,8 +26,7 @@ public final class SBrowserXExternalDownloaderDialogActivity extends Activity {
         super.onCreate(savedInstanceState);
         SBrowserXPrefs.init(this);
 
-        boolean night = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
-                == Configuration.UI_MODE_NIGHT_YES;
+        boolean night = SBrowserXHooks.isBrowserNightMode(this);
         int theme = night
                 ? android.R.style.Theme_DeviceDefault_Dialog_Alert
                 : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert;

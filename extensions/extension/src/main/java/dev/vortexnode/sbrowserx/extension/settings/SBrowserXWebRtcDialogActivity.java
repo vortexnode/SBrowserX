@@ -7,6 +7,7 @@ import android.content.res.Configuration;
 import android.os.Bundle;
 import android.widget.Toast;
 
+import dev.vortexnode.sbrowserx.extension.SBrowserXHooks;
 import dev.vortexnode.sbrowserx.extension.SBrowserXPrefs;
 import dev.vortexnode.sbrowserx.extension.SBrowserXStrings;
 import dev.vortexnode.sbrowserx.extension.SBrowserXWebRtcManager;
@@ -24,8 +25,7 @@ public final class SBrowserXWebRtcDialogActivity extends Activity {
         super.onCreate(savedInstanceState);
         SBrowserXPrefs.init(this);
 
-        boolean night = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
-                == Configuration.UI_MODE_NIGHT_YES;
+        boolean night = SBrowserXHooks.isBrowserNightMode(this);
         int theme = night
                 ? android.R.style.Theme_DeviceDefault_Dialog_Alert
                 : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert;

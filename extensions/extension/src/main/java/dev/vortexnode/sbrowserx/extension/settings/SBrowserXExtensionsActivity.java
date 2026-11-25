@@ -51,8 +51,7 @@ public final class SBrowserXExtensionsActivity extends Activity {
         super.onCreate(savedInstanceState);
         SBrowserXPrefs.init(this);
 
-        night = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
-                == Configuration.UI_MODE_NIGHT_YES;
+        night = SBrowserXHooks.isBrowserNightMode(this);
         boolean amoled = night && SBrowserXPrefs.isAmoledBlackEnabled(this);
 
         int bgColor = amoled ? 0xFF000000 : (night ? 0xFF0D0D10 : 0xFFF2F2F7);

@@ -48,8 +48,7 @@ public final class SBrowserXChromeTranslateBanner {
                     ((ViewGroup) existing.getParent()).removeView(existing);
                 }
 
-                boolean night = (activity.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
-                        == Configuration.UI_MODE_NIGHT_YES;
+                boolean night = SBrowserXHooks.isBrowserNightMode(activity);
                 boolean ru = isRu();
 
                 // One UI translucent glass look

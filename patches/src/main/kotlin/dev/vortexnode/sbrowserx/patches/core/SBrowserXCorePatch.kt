@@ -9,6 +9,7 @@ import dev.vortexnode.sbrowserx.shared.Constants.ANDROID_NS
 import dev.vortexnode.sbrowserx.shared.Constants.COMPATIBILITY_SBROWSER
 import dev.vortexnode.sbrowserx.shared.findMethodOrThrow
 import dev.vortexnode.sbrowserx.shared.returnConstantBoolean
+import org.w3c.dom.Document
 import org.w3c.dom.Element
 
 private const val SBROWSER_APP_CLASS = "Lcom/sec/android/app/sbrowser/SBrowserApplication;"
@@ -31,8 +32,37 @@ private const val EXT_BRIDGE_ACTIVITY_CLASS =
 private const val EXT_DL_DIALOG_ACTIVITY_CLASS =
     "dev.vortexnode.sbrowserx.extension.settings.SBrowserXExternalDownloaderDialogActivity"
 
+private fun createIntentPref(
+    xml: Document,
+    key: String,
+    title: String,
+    summary: String,
+    targetPkg: String,
+    targetClass: String,
+): Element {
+    val pref = xml.createElement("com.sec.android.app.sbrowser.common.settings.PreferenceCustom")
+    pref.setAttributeNS(ANDROID_NS, "android:key", key)
+    pref.setAttributeNS(ANDROID_NS, "android:title", title)
+    pref.setAttributeNS(ANDROID_NS, "android:summary", summary)
+    val intent = xml.createElement("intent")
+    intent.setAttributeNS(ANDROID_NS, "android:targetPackage", targetPkg)
+    intent.setAttributeNS(ANDROID_NS, "android:targetClass", targetClass)
+    pref.appendChild(intent)
+    return pref
+}
+
+private fun createCategory(xml: Document, key: String, title: String = "SBrowserX"): Element {
+    val cat = xml.createElement("androidx.preference.PreferenceCategory")
+    cat.setAttributeNS(ANDROID_NS, "android:selectable", "false")
+    cat.setAttributeNS(ANDROID_NS, "android:key", key)
+    if (title.isNotEmpty()) {
+        cat.setAttributeNS(ANDROID_NS, "android:title", title)
+    }
+    return cat
+}
+
 internal val sbrowserXCoreResourcePatch = resourcePatch(
-    description = "Registers SBrowserX activities, adds SBrowserX & Extensions to Settings, WebRTC card in Privacy, and External Downloader in Sites & Downloads.",
+    description = "Registers SBrowserX activities and mirrors all SBrowserX settings cleanly into their matching native Samsung Internet settings sections (Main, Privacy, Sites & Downloads, Dark Mode, Layout & Menu, Useful Features).",
 ) {
     finalize {
         val targetPkg = SBrowserPackageRenameTarget.packageName
@@ -50,26 +80,20 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
             ensureActivity(manifest, application, EXT_DL_DIALOG_ACTIVITY_CLASS, "@android:style/Theme.Translucent.NoTitleBar")
         }
 
+        // 1. Main Settings: SBrowserX hub + native Extensions manager
         document("res/xml/settings_fragment.xml").use { xml ->
             val screen = xml.documentElement ?: error("Missing PreferenceScreen in settings_fragment.xml")
 
-            val hubPref = xml.createElement("com.sec.android.app.sbrowser.common.settings.PreferenceCustom")
-            hubPref.setAttributeNS(ANDROID_NS, "android:key", "sbrowserx_settings_hub")
-            hubPref.setAttributeNS(ANDROID_NS, "android:title", "SBrowserX  \u25CF")
-            hubPref.setAttributeNS(ANDROID_NS, "android:summary", "Extensions, WebRTC, Translate, Downloads & AMOLED")
-            val hubIntent = xml.createElement("intent")
-            hubIntent.setAttributeNS(ANDROID_NS, "android:targetPackage", targetPkg)
-            hubIntent.setAttributeNS(ANDROID_NS, "android:targetClass", SETTINGS_ACTIVITY_CLASS)
-            hubPref.appendChild(hubIntent)
-
-            val extPref = xml.createElement("com.sec.android.app.sbrowser.common.settings.PreferenceCustom")
-            extPref.setAttributeNS(ANDROID_NS, "android:key", "sbrowserx_settings_extensions")
-            extPref.setAttributeNS(ANDROID_NS, "android:title", "@string/extensions_title")
-            extPref.setAttributeNS(ANDROID_NS, "android:summary", "Manage extensions & Chrome Web Store")
-            val extIntent = xml.createElement("intent")
-            extIntent.setAttributeNS(ANDROID_NS, "android:targetPackage", targetPkg)
-            extIntent.setAttributeNS(ANDROID_NS, "android:targetClass", EXT_BRIDGE_ACTIVITY_CLASS)
-            extPref.appendChild(extIntent)
+            val hubPref = createIntentPref(
+                xml, "sbrowserx_settings_hub", "SBrowserX  \u25CF",
+                "Extensions, WebRTC, Translate, Downloads & AMOLED",
+                targetPkg, SETTINGS_ACTIVITY_CLASS,
+            )
+            val extPref = createIntentPref(
+                xml, "sbrowserx_settings_extensions", "@string/extensions_title",
+                "Manage extensions & Chrome Web Store",
+                targetPkg, EXT_BRIDGE_ACTIVITY_CLASS,
+            )
 
             val firstChild = screen.firstChild
             if (firstChild != null) {
@@ -81,22 +105,23 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
             }
         }
 
+        // 2. Privacy & Security: WebRTC + Fingerprint protection + Hide Samsung Ad Blockers
         document("res/xml/privacy_preferences.xml").use { xml ->
             val screen = xml.documentElement ?: error("Missing PreferenceScreen in privacy_preferences.xml")
 
-            val cat = xml.createElement("androidx.preference.PreferenceCategory")
-            cat.setAttributeNS(ANDROID_NS, "android:selectable", "false")
-            cat.setAttributeNS(ANDROID_NS, "android:key", "sbrowserx_webrtc_card_category")
-
-            val pref = xml.createElement("com.sec.android.app.sbrowser.common.settings.PreferenceCustom")
-            pref.setAttributeNS(ANDROID_NS, "android:key", "sbrowserx_privacy_webrtc")
-            pref.setAttributeNS(ANDROID_NS, "android:title", "WebRTC IP handling policy")
-            pref.setAttributeNS(ANDROID_NS, "android:summary", "SBrowserX \u2022 WebRTC leak protection")
-
-            val intent = xml.createElement("intent")
-            intent.setAttributeNS(ANDROID_NS, "android:targetPackage", targetPkg)
-            intent.setAttributeNS(ANDROID_NS, "android:targetClass", WEBRTC_DIALOG_ACTIVITY_CLASS)
-            pref.appendChild(intent)
+            val cat = createCategory(xml, "sbrowserx_webrtc_card_category", "SBrowserX")
+            val webrtcPref = createIntentPref(
+                xml, "sbrowserx_privacy_webrtc", "WebRTC IP handling policy",
+                "WebRTC leak protection", targetPkg, WEBRTC_DIALOG_ACTIVITY_CLASS,
+            )
+            val fpPref = createIntentPref(
+                xml, "sbrowserx_privacy_fingerprint", "Fingerprint protection",
+                "Native WebAudio & Screen anti-fingerprinting", targetPkg, SETTINGS_ACTIVITY_CLASS,
+            )
+            val hideAdsPref = createIntentPref(
+                xml, "sbrowserx_privacy_hide_adblockers", "Hide Samsung Ad Blockers",
+                "Hide built-in Ad Blockers menu item", targetPkg, SETTINGS_ACTIVITY_CLASS,
+            )
 
             val nodes = screen.childNodes
             var inserted = false
@@ -104,31 +129,90 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
                 val node = nodes.item(i) as? Element ?: continue
                 if (node.getAttributeNS(ANDROID_NS, "key") == "enhanced_clean_category") {
                     screen.insertBefore(cat, node)
-                    screen.insertBefore(pref, node)
+                    screen.insertBefore(webrtcPref, node)
+                    screen.insertBefore(fpPref, node)
+                    screen.insertBefore(hideAdsPref, node)
                     inserted = true
                     break
                 }
             }
             if (!inserted) {
                 screen.appendChild(cat)
-                screen.appendChild(pref)
+                screen.appendChild(webrtcPref)
+                screen.appendChild(fpPref)
+                screen.appendChild(hideAdsPref)
             }
         }
 
+        // 3. Sites & Downloads: External downloader + Images toggle
         document("res/xml/sites_content_preferences.xml").use { xml ->
             val screen = xml.documentElement ?: error("Missing PreferenceScreen in sites_content_preferences.xml")
 
-            val pref = xml.createElement("com.sec.android.app.sbrowser.common.settings.PreferenceCustom")
-            pref.setAttributeNS(ANDROID_NS, "android:key", "sbrowserx_external_downloader")
-            pref.setAttributeNS(ANDROID_NS, "android:title", "External download manager")
-            pref.setAttributeNS(ANDROID_NS, "android:summary", "SBrowserX \u2022 ADM, 1DM, etc.")
+            screen.appendChild(
+                createIntentPref(
+                    xml, "sbrowserx_external_downloader", "External download manager",
+                    "ADM, 1DM, ABDM, Seal", targetPkg, EXT_DL_DIALOG_ACTIVITY_CLASS,
+                ),
+            )
+            screen.appendChild(
+                createIntentPref(
+                    xml, "sbrowserx_external_downloader_images", "Also forward images to downloader",
+                    "Configure in SBrowserX", targetPkg, SETTINGS_ACTIVITY_CLASS,
+                ),
+            )
+        }
 
-            val intent = xml.createElement("intent")
-            intent.setAttributeNS(ANDROID_NS, "android:targetPackage", targetPkg)
-            intent.setAttributeNS(ANDROID_NS, "android:targetClass", EXT_DL_DIALOG_ACTIVITY_CLASS)
-            pref.appendChild(intent)
+        // 4. Dark Mode: AMOLED Black + Vivid Images + Adaptive Dark Mode for sites
+        document("res/xml/manage_dark_mode_preference.xml").use { xml ->
+            val screen = xml.documentElement ?: error("Missing PreferenceScreen in manage_dark_mode_preference.xml")
 
-            screen.appendChild(pref)
+            screen.appendChild(createCategory(xml, "sbrowserx_dark_category", "SBrowserX"))
+            screen.appendChild(
+                createIntentPref(
+                    xml, "sbrowserx_dark_amoled", "AMOLED Black Theme",
+                    "Pure #000000 surfaces in Dark mode", targetPkg, SETTINGS_ACTIVITY_CLASS,
+                ),
+            )
+            screen.appendChild(
+                createIntentPref(
+                    xml, "sbrowserx_dark_bright_images", "Vivid images in Dark Mode",
+                    "Disables NightDim grey veil & 50% dim filter", targetPkg, SETTINGS_ACTIVITY_CLASS,
+                ),
+            )
+            screen.appendChild(
+                createIntentPref(
+                    xml, "sbrowserx_dark_adaptive_sites", "Force adaptive dark mode for sites",
+                    "Darken websites adaptively even in Light UI", targetPkg, SETTINGS_ACTIVITY_CLASS,
+                ),
+            )
+        }
+
+        // 5. Layout & Menu: Panel & Address Bar Transparency / Blur
+        document("res/xml/layout_preferences.xml").use { xml ->
+            val screen = xml.documentElement ?: error("Missing PreferenceScreen in layout_preferences.xml")
+
+            screen.appendChild(createCategory(xml, "sbrowserx_layout_category", "SBrowserX"))
+            screen.appendChild(
+                createIntentPref(
+                    xml, "sbrowserx_layout_transparency", "Panel & address bar translucency",
+                    "Bottom bar, address bar, compact pill & side menu blur",
+                    targetPkg, SETTINGS_ACTIVITY_CLASS,
+                ),
+            )
+        }
+
+        // 6. Useful Features: Built-in Translator (SBrowserX)
+        document("res/xml/useful_feature_preferences.xml").use { xml ->
+            val screen = xml.documentElement ?: error("Missing PreferenceScreen in useful_feature_preferences.xml")
+
+            screen.appendChild(createCategory(xml, "sbrowserx_useful_category", "SBrowserX"))
+            screen.appendChild(
+                createIntentPref(
+                    xml, "sbrowserx_useful_translate", "Built-in Translator (SBrowserX)",
+                    "Google, Microsoft, DeepL, Gemini 2.5 Flash",
+                    targetPkg, TRANSLATE_SETTINGS_ACTIVITY_CLASS,
+                ),
+            )
         }
     }
 }
@@ -154,7 +238,7 @@ private fun ensureActivity(
 @Suppress("unused")
 val sbrowserXCorePatch = bytecodePatch(
     name = "SBrowserX Settings, Extensions & Privacy Core",
-    description = "Adds SBrowserX settings hub (15 languages, One UI blue switches, teal badges), native .crx/.zip installer, 6-extension pack, WebRTC card in Privacy, External Downloader in Sites & Downloads, reversible Hide Samsung Ad Blockers toggle, and fixes Extensions Manager launch.",
+    description = "Adds SBrowserX settings hub (15 languages, One UI blue switches, teal badges) and cleanly mirrors all settings into native Samsung Internet sections.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)
@@ -201,7 +285,6 @@ val sbrowserXCorePatch = bytecodePatch(
             parameterTypes = emptyList(),
             returnType = "I",
         ).returnConstantBoolean(false)
-
 
         findMethodOrThrow(
             classType = PREF_FRAGMENT_CUSTOM_CLASS,
