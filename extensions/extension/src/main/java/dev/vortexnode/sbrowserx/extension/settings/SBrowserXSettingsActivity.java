@@ -105,13 +105,7 @@ public final class SBrowserXSettingsActivity extends Activity {
         addActionRow(extCard, SBrowserXStrings.get(SBrowserXStrings.EXT_PACK_TITLE),
                 SBrowserXStrings.get(SBrowserXStrings.EXT_PACK_SUMMARY),
                 textPrimary, textSecondary, extPackDot, v -> showRecommendedPackDialog(dialogTheme));
-        extCard.addView(divider(night));
-        addActionRow(extCard, SBrowserXStrings.get(SBrowserXStrings.EXT_OPEN_MANAGER),
-                null, accent, textSecondary, null, v -> {
-                    if (SBrowserXHooks.openExtensionsManager(this)) {
-                        finish();
-                    }
-                });
+
         extCard.addView(divider(night));
         addActionRow(extCard, SBrowserXStrings.getOpenNativeExtensionsLabel(),
                 null, accent, textSecondary, null, v -> SBrowserXHooks.openNativeExtensionsActivity(this));

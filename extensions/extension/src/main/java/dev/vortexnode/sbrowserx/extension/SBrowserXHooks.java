@@ -347,6 +347,15 @@ public final class SBrowserXHooks {
                         .invoke(webrtc, SBrowserXStrings.webrtcLabel(SBrowserXPrefs.getWebRtcPolicy(ctx)));
             }
 
+            Object extPref = findPref.invoke(fragment, "sbrowserx_settings_extensions");
+            if (extPref != null) {
+                String lang = java.util.Locale.getDefault().getLanguage();
+                String extSum = "ru".equals(lang) ? "Управление расширениями и Chrome Web Store"
+                        : ("uk".equals(lang) ? "Керування розширеннями та Chrome Web Store"
+                        : "Manage extensions & Chrome Web Store");
+                extPref.getClass().getMethod("setSummary", CharSequence.class).invoke(extPref, extSum);
+            }
+
             Object hub = findPref.invoke(fragment, "sbrowserx_settings_hub");
             if (hub != null) {
                 String summary = SBrowserXStrings.get(SBrowserXStrings.CAT_EXTENSIONS) + ", WebRTC, "

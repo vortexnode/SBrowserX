@@ -65,7 +65,7 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
             val extPref = xml.createElement("com.sec.android.app.sbrowser.common.settings.PreferenceCustom")
             extPref.setAttributeNS(ANDROID_NS, "android:key", "sbrowserx_settings_extensions")
             extPref.setAttributeNS(ANDROID_NS, "android:title", "@string/extensions_title")
-            extPref.setAttributeNS(ANDROID_NS, "android:summary", "internet://extensions & Chrome Web Store")
+            extPref.setAttributeNS(ANDROID_NS, "android:summary", "Manage extensions & Chrome Web Store")
             val extIntent = xml.createElement("intent")
             extIntent.setAttributeNS(ANDROID_NS, "android:targetPackage", targetPkg)
             extIntent.setAttributeNS(ANDROID_NS, "android:targetClass", EXT_BRIDGE_ACTIVITY_CLASS)

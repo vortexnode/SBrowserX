@@ -1,7 +1,7 @@
 {
   "created_at": "2026-11-25T01:45:00",
-  "description": "SBrowserX v0.7.0 — единая полупрозрачная стеклянная Chrome-плашка перевода вместо самсунговской TransBar (внизу над адресной строкой в основном браузере и сверху в Telegram Custom Tabs, со свайпом и подменю), защита брендов (YouTube/Samsung/One UI), и 4 движка: Google Chrome NMT, Microsoft Edge NMT, DeepL API и Gemini 2.5 Flash с опциональным полем ключа.",
-  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v0.7.0/patches-0.7.0.mpp",
+  "description": "SBrowserX v0.7.1 — нативный One UI менеджер расширений показывает ВСЕ установленные расширения (включённые и выключенные) с главным тумблером ВКЛ/ВЫКЛ, пункт «Дополнения» в главных настройках ведёт напрямую в нативный менеджер, убрана лишняя ссылка internet://extensions из SBrowserX.",
+  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v0.7.1/patches-0.7.1.mpp",
   "signature_download_url": "",
-  "version": "0.7.0"
+  "version": "0.7.1"
 }
