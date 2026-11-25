@@ -824,7 +824,7 @@ public final class SBrowserXHooks {
             + "if(!root)return;"
             + "var st=document.getElementById(id);"
             + "if(!st){st=document.createElement('style');st.id=id;root.appendChild(st);}"
-            + "var css='img,picture,video,canvas,a:has(>img:only-child),div:has(>img:only-child),span:has(>img:only-child),[class*=emoji],[class*=smiley],[class*=emoticon]{color-scheme:only light !important;forced-color-adjust:none !important;filter:none !important;opacity:1 !important;}';"
+            + "var css='img,picture,video,canvas,a:has(>img:only-child),div:has(>img:only-child),span:has(>img:only-child),[class*=emoji],[class*=smiley],[class*=emoticon]{color-scheme:dark !important;forced-color-adjust:none !important;filter:none !important;opacity:1 !important;}';"
             + "var amoled=__AMOLED__;"
             + "if(amoled){"
             + "css+='html,body{background-color:#000000 !important;}';"
