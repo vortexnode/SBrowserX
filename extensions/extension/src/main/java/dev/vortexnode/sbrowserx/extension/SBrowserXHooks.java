@@ -506,4 +506,61 @@ public final class SBrowserXHooks {
         if (!isGoogleTranslateEnabled()) return;
         SBrowserXDomTranslator.maybeAutoTranslateOnLoad();
     }
+
+    private static final int CUSTOM_TAB_MENU_TRANSLATE_ID = 0x5B580001;
+    private static volatile WeakReference<Activity> sCustomTabActivityRef = new WeakReference<>(null);
+
+    public static void onCustomTabResume(Activity activity) {
+        if (activity != null) {
+            sCustomTabActivityRef = new WeakReference<>(activity);
+        }
+    }
+
+    public static void onCustomTabLoadFinished(Activity activity, String url) {
+        if (activity == null || !isGoogleTranslateEnabled()) return;
+        sCustomTabActivityRef = new WeakReference<>(activity);
+        SBrowserXDomTranslator.maybeAutoTranslateActivity(activity, true);
+    }
+
+    public static void onCustomTabMenuInitialized(Object toolbar) {
+        if (toolbar == null || !isGoogleTranslateEnabled()) return;
+        try {
+            Field f = toolbar.getClass().getDeclaredField("mMenuPopup");
+            f.setAccessible(true);
+            Object popup = f.get(toolbar);
+            if (popup == null) return;
+            android.view.Menu menu = (android.view.Menu) popup.getClass().getMethod("getMenu").invoke(popup);
+            if (menu == null || menu.findItem(CUSTOM_TAB_MENU_TRANSLATE_ID) != null) return;
+            String lang = java.util.Locale.getDefault().getLanguage();
+            String label = "ru".equals(lang) ? "Перевести..."
+                    : ("uk".equals(lang) ? "Перекласти..." : "Translate...");
+            menu.add(0, CUSTOM_TAB_MENU_TRANSLATE_ID, 2, label);
+        } catch (Throwable t) {
+            Log.e(TAG, "onCustomTabMenuInitialized failed", t);
+        }
+    }
+
+    public static boolean tryHandleCustomTabMenuItem(Object coordinator, android.view.MenuItem item) {
+        if (item == null || item.getItemId() != CUSTOM_TAB_MENU_TRANSLATE_ID) return false;
+        try {
+            Activity ct = null;
+            if (coordinator != null) {
+                try {
+                    Field f = coordinator.getClass().getDeclaredField("mActivity");
+                    f.setAccessible(true);
+                    Object a = f.get(coordinator);
+                    if (a instanceof Activity) ct = (Activity) a;
+                } catch (Throwable ignored) {}
+            }
+            if (ct == null) ct = sCustomTabActivityRef.get();
+            if (ct != null) {
+                String tl = SBrowserXPrefs.getTranslateTargetLang(ct);
+                SBrowserXDomTranslator.translateTab(ct, "auto", tl, true);
+            }
+            return true;
+        } catch (Throwable t) {
+            Log.e(TAG, "tryHandleCustomTabMenuItem failed", t);
+            return false;
+        }
+    }
 }

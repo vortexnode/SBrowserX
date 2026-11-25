@@ -2,6 +2,7 @@ package dev.vortexnode.sbrowserx.extension;
 
 import android.app.Activity;
 import android.content.Context;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -14,17 +15,18 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Fast, viewport-first, context-preserving DOM translator.
- * - Translates whole paragraphs/sentences with inline tags (<a>, <b>, <span>) preserved via short <x0>...</x0> tags
- *   so NMT keeps full sentence context and doesn't mangle brand/device names.
+ * Fast, viewport-first, context-preserving DOM translator (Chrome-grade grammar).
+ * - Preserves inline tags (<a>, <b>, <span>) using Chrome's native <a i=0>...</a> marker so Google NMT
+ *   produces accurate Russian/Slavic declensions and preserves brand/device names.
  * - Sends visible-screen blocks FIRST (~250-350ms to first visible translation) and remaining blocks in 4 parallel threads.
- * - Supports true Chrome-like auto-translate on page load respecting Never-translate languages.
+ * - Supports both SBrowserMainActivity (native TransBar) and CustomTabActivity (Telegram links + Chrome-style banner).
  */
 public final class SBrowserXDomTranslator {
     private static final String TAG = "SBrowserXDomTrans";
@@ -32,10 +34,6 @@ public final class SBrowserXDomTranslator {
     private static final AtomicInteger GENERATION = new AtomicInteger(0);
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
 
-    /**
-     * Collects whole sentence/block elements, sorts visible viewport blocks FIRST,
-     * preserves inline child elements (links/bold/spans with all attributes & event listeners!) via <x0>..</x0> placeholders.
-     */
     private static final String EXTRACT_BLOCKS_JS =
             "(function(){"
             + "var skip={SCRIPT:1,STYLE:1,NOSCRIPT:1,TEXTAREA:1,CODE:1,PRE:1,SVG:1,IFRAME:1,CANVAS:1,MATH:1};"
@@ -55,7 +53,7 @@ public final class SBrowserXDomTranslator {
             + "    else if(n.nodeType===1&&!skip[n.tagName]){"
             + "      if(inlineTags[n.tagName]){"
             + "        var idx=saved.length;saved.push(n);"
-            + "        out+='<x'+idx+'>'+serialize(n,saved)+'</x'+idx+'>';"
+            + "        out+='<a i='+idx+'>'+serialize(n,saved)+'</a>';"
             + "      }else{out+=' ';}"
             + "    }"
             + "  }"
@@ -87,7 +85,7 @@ public final class SBrowserXDomTranslator {
             + "}"
             + "var out=[];"
             + "for(var j=0;j<window.__sbxBlocks.length;j++){out.push(window.__sbxBlocks[j].markup);}"
-            + "return JSON.stringify({lang:(document.documentElement.lang||''),items:out});"
+            + "return JSON.stringify({lang:(document.documentElement.lang||''),host:(location.hostname||''),items:out});"
             + "})();";
 
     private static final String DETECT_SAMPLE_JS =
@@ -114,6 +112,10 @@ public final class SBrowserXDomTranslator {
     private SBrowserXDomTranslator() {}
 
     public static void translateCurrentTab(String sourceLang, String targetLang) {
+        translateTab(SBrowserXHooks.getMainActivity(), sourceLang, targetLang, false);
+    }
+
+    public static void translateTab(Activity targetActivity, String sourceLang, String targetLang, boolean showChromeBanner) {
         Context ctx = SBrowserXPrefs.getAppContext();
         if (ctx != null && !SBrowserXPrefs.isGoogleTranslateEnabled(ctx)) return;
 
@@ -128,7 +130,8 @@ public final class SBrowserXDomTranslator {
         final int gen = GENERATION.incrementAndGet();
 
         MAIN.post(() -> {
-            Object tab = getCurrentTab();
+            final Activity act = targetActivity != null ? targetActivity : SBrowserXHooks.getMainActivity();
+            Object tab = getTabFromActivity(act);
             if (tab == null) return;
             evalJs(tab, EXTRACT_BLOCKS_JS, rawJson -> {
                 if (gen != GENERATION.get()) return;
@@ -136,16 +139,18 @@ public final class SBrowserXDomTranslator {
                 try {
                     JSONObject obj = new JSONObject(unwrapJsString(rawJson));
                     JSONArray itemsArr = obj.optJSONArray("items");
+                    final String host = obj.optString("host", "");
+                    final String docLang = SBrowserXGoogleTranslator.normalizeLang(obj.optString("lang", ""));
                     if (itemsArr == null || itemsArr.length() == 0) return;
 
+                    final boolean[] bannerShown = new boolean[1];
                     int total = itemsArr.length();
-                    // Split into compact batches (viewport blocks are at index 0..N, so batch 0 is visible screen!)
                     List<int[]> ranges = new ArrayList<>();
                     int idx = 0;
                     while (idx < total) {
                         int start = idx;
                         int chars = 0;
-                        int maxItems = (start == 0) ? 12 : 20; // Smaller first batch = ultra-fast first paint (~250ms)
+                        int maxItems = (start == 0) ? 12 : 20;
                         while (idx < total && (idx - start) < maxItems && (idx == start || chars + itemsArr.optString(idx, "").length() < 2200)) {
                             chars += itemsArr.optString(idx, "").length();
                             idx++;
@@ -153,7 +158,6 @@ public final class SBrowserXDomTranslator {
                         ranges.add(new int[] {start, idx});
                     }
 
-                    // Dispatch all batches in parallel across 4 threads; each applies to DOM immediately upon completion!
                     for (int[] range : ranges) {
                         final int start = range[0];
                         final int end = range[1];
@@ -167,7 +171,13 @@ public final class SBrowserXDomTranslator {
                                 SBrowserXGoogleTranslator.BatchResult br =
                                         SBrowserXGoogleTranslator.translateBatchHtml(engine, sl, tl, slice);
                                 if (gen != GENERATION.get()) return;
-                                applyBatchToDom(start, br.translations, gen);
+                                applyBatchToDom(act, start, br.translations, gen);
+                                if (showChromeBanner && !bannerShown[0]) {
+                                    bannerShown[0] = true;
+                                    String detected = (br.detectedLang != null && !br.detectedLang.isEmpty())
+                                            ? br.detectedLang : (!docLang.isEmpty() ? docLang : sl);
+                                    SBrowserXChromeTranslateBanner.show(act, detected, tl, host);
+                                }
                             } catch (Throwable t) {
                                 Log.w(TAG, "Batch [" + start + ".." + end + "] failed", t);
                             }
@@ -180,16 +190,18 @@ public final class SBrowserXDomTranslator {
         });
     }
 
-    /**
-     * Chrome-like automatic page translation on load finished.
-     */
     public static void maybeAutoTranslateOnLoad() {
+        maybeAutoTranslateActivity(SBrowserXHooks.getMainActivity(), false);
+    }
+
+    public static void maybeAutoTranslateActivity(Activity targetActivity, boolean showChromeBanner) {
         Context ctx = SBrowserXPrefs.getAppContext();
         if (ctx == null || !SBrowserXPrefs.isGoogleTranslateEnabled(ctx) || !SBrowserXPrefs.isTranslateAutoEnabled(ctx)) {
             return;
         }
         MAIN.postDelayed(() -> {
-            Object tab = getCurrentTab();
+            final Activity act = targetActivity != null ? targetActivity : SBrowserXHooks.getMainActivity();
+            Object tab = getTabFromActivity(act);
             if (tab == null) return;
             evalJs(tab, DETECT_SAMPLE_JS, rawJson -> {
                 if (rawJson == null || rawJson.isEmpty() || "null".equals(rawJson)) return;
@@ -198,6 +210,13 @@ public final class SBrowserXDomTranslator {
                         JSONObject obj = new JSONObject(unwrapJsString(rawJson));
                         String url = obj.optString("url", "");
                         if (url.isEmpty() || !url.startsWith("http")) return;
+                        try {
+                            String host = Uri.parse(url).getHost();
+                            if (host != null && SBrowserXPrefs.getTranslateNeverSites(ctx).contains(host.toLowerCase(Locale.US))) {
+                                return;
+                            }
+                        } catch (Throwable ignored) {}
+
                         long now = System.currentTimeMillis();
                         if (url.equals(sLastAutoUrl) && (now - sLastAutoTime) < 4000L) return;
 
@@ -216,7 +235,7 @@ public final class SBrowserXDomTranslator {
 
                         sLastAutoUrl = url;
                         sLastAutoTime = now;
-                        translateCurrentTab(pageLang, targetLang);
+                        translateTab(act, pageLang, targetLang, showChromeBanner);
                     } catch (Throwable ignored) {}
                 });
             });
@@ -224,19 +243,20 @@ public final class SBrowserXDomTranslator {
     }
 
     public static void revertCurrentTab() {
+        revertTab(SBrowserXHooks.getMainActivity());
+    }
+
+    public static void revertTab(Activity targetActivity) {
         GENERATION.incrementAndGet();
         MAIN.post(() -> {
-            Object tab = getCurrentTab();
+            Object tab = getTabFromActivity(targetActivity != null ? targetActivity : SBrowserXHooks.getMainActivity());
             if (tab != null) {
                 evalJs(tab, REVERT_JS, null);
             }
         });
     }
 
-    /**
-     * Safely reconstructs translated HTML while preserving original inline DOM elements (links, attributes, event handlers).
-     */
-    private static void applyBatchToDom(int startIndex, String[] translatedSlice, int gen) {
+    private static void applyBatchToDom(Activity act, int startIndex, String[] translatedSlice, int gen) {
         JSONArray arr = new JSONArray();
         for (String s : translatedSlice) {
             arr.put(s != null ? s : "");
@@ -250,9 +270,9 @@ public final class SBrowserXDomTranslator {
                 + "    for(var n=src.firstChild;n;n=n.nextSibling){"
                 + "      if(n.nodeType===3){dst.appendChild(document.createTextNode(n.nodeValue));}"
                 + "      else if(n.nodeType===1){"
-                + "        var m=/^X(\\d+)$/.exec(n.tagName);"
-                + "        if(m){"
-                + "          var orig=saved[parseInt(m[1],10)];"
+                + "        var ai=(n.tagName==='A'&&n.getAttribute('i')!==null)?n.getAttribute('i'):null;"
+                + "        if(ai!==null){"
+                + "          var orig=saved[parseInt(ai,10)];"
                 + "          if(orig){"
                 + "            var clone=orig.cloneNode(false);"
                 + "            walk(n,clone);dst.appendChild(clone);"
@@ -272,7 +292,7 @@ public final class SBrowserXDomTranslator {
 
         MAIN.post(() -> {
             if (gen != GENERATION.get()) return;
-            Object tab = getCurrentTab();
+            Object tab = getTabFromActivity(act);
             if (tab != null) {
                 evalJs(tab, js, null);
             }
@@ -290,13 +310,12 @@ public final class SBrowserXDomTranslator {
         return s;
     }
 
-    private static Object getCurrentTab() {
+    private static Object getTabFromActivity(Activity act) {
         try {
-            Activity main = SBrowserXHooks.getMainActivity();
-            if (main == null || main.isFinishing() || main.isDestroyed()) return null;
-            return main.getClass().getMethod("getCurrentTab").invoke(main);
+            if (act == null || act.isFinishing() || act.isDestroyed()) return null;
+            return act.getClass().getMethod("getCurrentTab").invoke(act);
         } catch (Throwable t) {
-            Log.e(TAG, "getCurrentTab failed", t);
+            Log.e(TAG, "getTabFromActivity failed", t);
             return null;
         }
     }

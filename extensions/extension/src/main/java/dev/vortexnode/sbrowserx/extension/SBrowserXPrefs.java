@@ -25,6 +25,7 @@ public final class SBrowserXPrefs {
     public static final String KEY_TRANS_AUTO_TRANSLATE = "google_translate_auto_enabled";
     public static final String KEY_TRANS_NEVER_LANGS = "google_translate_never_langs";
     public static final String KEY_TRANS_ALWAYS_LANGS = "google_translate_always_langs";
+    public static final String KEY_TRANS_NEVER_SITES = "google_translate_never_sites";
     public static final String KEY_HIGHLIGHT_DAYS = "new_feature_highlight_days";
 
     public static final String WEBRTC_DEFAULT = "default";
@@ -214,12 +215,22 @@ public final class SBrowserXPrefs {
         markFeatureViewed(context, FEATURE_GOOGLE_TRANSLATE);
     }
 
+    public static Set<String> getTranslateNeverSites(Context context) {
+        Set<String> stored = prefs(context).getStringSet(KEY_TRANS_NEVER_SITES, Collections.emptySet());
+        return stored != null ? new HashSet<>(stored) : new HashSet<>();
+    }
+
+    public static void setTranslateNeverSites(Context context, Set<String> sites) {
+        prefs(context).edit().putStringSet(KEY_TRANS_NEVER_SITES, new HashSet<>(sites)).apply();
+    }
+
     public static void resetTranslateSettings(Context context) {
         prefs(context).edit()
                 .remove(KEY_TRANS_TARGET_LANG)
                 .remove(KEY_TRANS_AUTO_TRANSLATE)
                 .remove(KEY_TRANS_NEVER_LANGS)
                 .remove(KEY_TRANS_ALWAYS_LANGS)
+                .remove(KEY_TRANS_NEVER_SITES)
                 .putBoolean(KEY_GOOGLE_TRANSLATE, true)
                 .apply();
     }

@@ -26,6 +26,12 @@ private const val TRANS_BAR_LANG_HANDLER_CLASS =
     "Lcom/sec/android/app/sbrowser/trans_bar/TransBarLangServiceHandler;"
 private const val TRANS_BAR_INFO_CLASS =
     "Lcom/sec/android/app/sbrowser/trans_bar/TransBarInfo;"
+private const val CUSTOM_TAB_ACTIVITY_CLASS =
+    "Lcom/sec/android/app/sbrowser/customtabs/CustomTabActivity;"
+private const val CUSTOM_TAB_TOOLBAR_CLASS =
+    "Lcom/sec/android/app/sbrowser/customtabs/features/toolbar/CustomTabToolbar;"
+private const val CUSTOM_TAB_ROOT_UI_CLASS =
+    "Lcom/sec/android/app/sbrowser/customtabs/CustomTabRootUiCoordinator;"
 
 @Suppress("unused")
 val googleTranslatePatch = bytecodePatch(
@@ -459,6 +465,62 @@ val googleTranslatePatch = bytecodePatch(
         ).addInstructions(
             0,
             "invoke-static {}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onTransBarLoadFinished()V",
+        )
+
+        // 22. CustomTabActivity.onResume() & onLoadFinished(String) -> auto-translate in Telegram / Custom Tabs
+        findMethodOrThrow(
+            classType = CUSTOM_TAB_ACTIVITY_CLASS,
+            methodName = "onResume",
+            parameterTypes = emptyList(),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            "invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onCustomTabResume(Landroid/app/Activity;)V",
+        )
+
+        findMethodOrThrow(
+            classType = CUSTOM_TAB_ACTIVITY_CLASS,
+            methodName = "onLoadFinished",
+            parameterTypes = listOf("Ljava/lang/String;"),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            "invoke-static {p0, p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onCustomTabLoadFinished(Landroid/app/Activity;Ljava/lang/String;)V",
+        )
+
+        // 23. CustomTabToolbar.initializeMenuPopup() -> add "Translate..." item to Custom Tab 3-dot menu
+        val initMenu = findMethodOrThrow(
+            classType = CUSTOM_TAB_TOOLBAR_CLASS,
+            methodName = "initializeMenuPopup",
+            parameterTypes = emptyList(),
+            returnType = "V",
+        )
+        val initMenuInsns = initMenu.implementation?.instructions?.toList()
+            ?: error("Missing implementation in CustomTabToolbar.initializeMenuPopup")
+        val menuRetIdx = initMenuInsns.indexOfLast { it.opcode == com.android.tools.smali.dexlib2.Opcode.RETURN_VOID }
+        if (menuRetIdx < 0) error("Missing return-void in CustomTabToolbar.initializeMenuPopup")
+        initMenu.addInstructions(
+            menuRetIdx,
+            "invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onCustomTabMenuInitialized(Ljava/lang/Object;)V",
+        )
+
+        // 24. CustomTabRootUiCoordinator.runMenuItem(MenuItem)Z -> handle "Translate..." click in Custom Tab
+        findMethodOrThrow(
+            classType = CUSTOM_TAB_ROOT_UI_CLASS,
+            methodName = "runMenuItem",
+            parameterTypes = listOf("Landroid/view/MenuItem;"),
+            returnType = "Z",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {p0, p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->tryHandleCustomTabMenuItem(Ljava/lang/Object;Landroid/view/MenuItem;)Z
+                move-result v0
+                if-eqz v0, :sbrowserx_ct_menu_stock
+                const/4 v0, 0x1
+                return v0
+                :sbrowserx_ct_menu_stock
+                nop
+            """.trimIndent(),
         )
     }
 }
