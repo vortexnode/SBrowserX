@@ -438,5 +438,27 @@ val googleTranslatePatch = bytecodePatch(
             0,
             "invoke-static {}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onTransBarClose()V",
         )
+
+        // 20. TransBarContainerV2.onTranslate(Z)V -> trigger translation immediately on first tap from side menu
+        findMethodOrThrow(
+            classType = TRANS_BAR_CONTAINER_CLASS,
+            methodName = "onTranslate",
+            parameterTypes = listOf("Z"),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            "invoke-static {p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onTransBarTranslatePage(Z)V",
+        )
+
+        // 21. SixTransService.onLoadFinished(I)V -> true Chrome-like auto-translate on page load
+        findMethodOrThrow(
+            classType = SIX_TRANS_SERVICE_CLASS,
+            methodName = "onLoadFinished",
+            parameterTypes = listOf("I"),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            "invoke-static {}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onTransBarLoadFinished()V",
+        )
     }
 }

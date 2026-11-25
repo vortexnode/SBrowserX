@@ -1,7 +1,7 @@
 {
   "created_at": "2026-11-25T01:45:00",
-  "description": "SBrowserX v0.5.6 — прямой DOM-переводчик Google Translate (SBrowserXDomTranslator), вшитый напрямую в события родной панели перевода Samsung (TransBar): переводит любые страницы без CSP/CORS и без Samsung SCS, корректно переключает выбранный язык в панели и возвращает оригинал при закрытии.",
-  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v0.5.6/patches-0.5.6.mpp",
+  "description": "SBrowserX v0.6.0 — переводчик v2 уровня Chrome/Edge: нативный пакетный HTML API Google Chrome (dict-chrome-ex) + выбор движка Microsoft Translator (Edge NMT), перевод целыми предложениями с сохранением контекста и ссылок, приоритет видимого экрана в 4 параллельных потока (~300 мс), старт с первого тапа и настоящий автоперевод страниц.",
+  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v0.6.0/patches-0.6.0.mpp",
   "signature_download_url": "",
-  "version": "0.5.6"
+  "version": "0.6.0"
 }

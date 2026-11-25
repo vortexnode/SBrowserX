@@ -26,6 +26,7 @@ import dev.vortexnode.sbrowserx.extension.SBrowserXStrings;
 public final class SBrowserXTranslateSettingsActivity extends Activity {
     private static final int ONEUI_BLUE = 0xFF387AFF;
 
+    private TextView engineSummary;
     private TextView targetLangSummary;
     private TextView neverLangsSummary;
     private TextView alwaysLangsSummary;
@@ -101,6 +102,10 @@ public final class SBrowserXTranslateSettingsActivity extends Activity {
         LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) langCard.getLayoutParams();
         lp.topMargin = dp(16);
 
+        engineSummary = addActionRow(langCard,
+                isRu() ? "Движок перевода" : "Translation engine",
+                "", textPrimary, textSecondary, v -> showEnginePicker());
+        langCard.addView(divider(night));
         targetLangSummary = addActionRow(langCard,
                 SBrowserXStrings.get(SBrowserXStrings.GTRANS_TARGET_LANG),
                 "", textPrimary, textSecondary, v -> showTargetLangPicker());
@@ -130,6 +135,7 @@ public final class SBrowserXTranslateSettingsActivity extends Activity {
     private void refresh() {
         masterSwitch.setChecked(SBrowserXPrefs.isGoogleTranslateEnabled(this));
         autoSwitch.setChecked(SBrowserXPrefs.isTranslateAutoEnabled(this));
+        engineSummary.setText(getEngineLabel(SBrowserXPrefs.getTranslateEngine(this)));
         targetLangSummary.setText(SBrowserXGoogleTranslator.getLanguageDisplayName(
                 SBrowserXPrefs.getTranslateTargetLang(this)));
         neverLangsSummary.setText(formatLangSet(SBrowserXPrefs.getTranslateNeverLangs(this)));
@@ -299,5 +305,34 @@ public final class SBrowserXTranslateSettingsActivity extends Activity {
     private int dp(int value) {
         return Math.round(TypedValue.applyDimension(
                 TypedValue.COMPLEX_UNIT_DIP, value, getResources().getDisplayMetrics()));
+    }
+
+    private boolean isRu() {
+        String l = java.util.Locale.getDefault().getLanguage();
+        return "ru".equals(l) || "uk".equals(l);
+    }
+
+    private String getEngineLabel(String engine) {
+        return "microsoft".equalsIgnoreCase(engine)
+                ? "Microsoft Translator (Edge NMT)"
+                : "Google Translate (Chrome NMT)";
+    }
+
+    private void showEnginePicker() {
+        String[] labels = new String[] {
+                "Google Translate (Chrome NMT)",
+                "Microsoft Translator (Edge NMT)"
+        };
+        String[] values = new String[] {"google", "microsoft"};
+        int sel = "microsoft".equalsIgnoreCase(SBrowserXPrefs.getTranslateEngine(this)) ? 1 : 0;
+        new AlertDialog.Builder(this, dialogTheme)
+                .setTitle(isRu() ? "Движок перевода" : "Translation engine")
+                .setSingleChoiceItems(labels, sel, (dialog, which) -> {
+                    SBrowserXPrefs.setTranslateEngine(this, values[which]);
+                    refresh();
+                    dialog.dismiss();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 }

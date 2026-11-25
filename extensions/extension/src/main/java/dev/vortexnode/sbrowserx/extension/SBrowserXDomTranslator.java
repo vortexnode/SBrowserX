@@ -7,57 +7,109 @@ import android.os.Looper;
 import android.util.Log;
 
 import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Direct DOM page translator powered by Google Translate (via Java HTTP to bypass site CSP/CORS)
- * and hooked straight into Samsung Internet's native TransBar UI events.
+ * Fast, viewport-first, context-preserving DOM translator.
+ * - Translates whole paragraphs/sentences with inline tags (<a>, <b>, <span>) preserved via short <x0>...</x0> tags
+ *   so NMT keeps full sentence context and doesn't mangle brand/device names.
+ * - Sends visible-screen blocks FIRST (~250-350ms to first visible translation) and remaining blocks in 4 parallel threads.
+ * - Supports true Chrome-like auto-translate on page load respecting Never-translate languages.
  */
 public final class SBrowserXDomTranslator {
     private static final String TAG = "SBrowserXDomTrans";
-    private static final ExecutorService EXECUTOR = Executors.newFixedThreadPool(2);
+    private static final ExecutorService POOL = Executors.newFixedThreadPool(4);
     private static final AtomicInteger GENERATION = new AtomicInteger(0);
-    private static final String SEP = "\n<<<SBX_SEP>>>\n";
+    private static final Handler MAIN = new Handler(Looper.getMainLooper());
 
-    private static final String EXTRACT_JS =
+    /**
+     * Collects whole sentence/block elements, sorts visible viewport blocks FIRST,
+     * preserves inline child elements (links/bold/spans with all attributes & event listeners!) via <x0>..</x0> placeholders.
+     */
+    private static final String EXTRACT_BLOCKS_JS =
             "(function(){"
-            + "var skip={SCRIPT:1,STYLE:1,NOSCRIPT:1,TEXTAREA:1,CODE:1,PRE:1,SVG:1};"
-            + "if(!window.__sbxNodes||!window.__sbxOrig){"
-            + "  var nodes=[],orig=[];"
-            + "  var w=document.createTreeWalker(document.body||document.documentElement,NodeFilter.SHOW_TEXT,{"
-            + "    acceptNode:function(n){"
-            + "      var p=n.parentElement;"
-            + "      if(!p||skip[p.tagName])return NodeFilter.FILTER_REJECT;"
-            + "      var t=n.nodeValue;"
-            + "      if(!t||t.trim().length<2)return NodeFilter.FILTER_REJECT;"
-            + "      if(/^[\\d\\s.,:%$€£₽+\\-\\/()]+$/.test(t.trim()))return NodeFilter.FILTER_REJECT;"
-            + "      return NodeFilter.FILTER_ACCEPT;"
-            + "    }"
-            + "  });"
-            + "  var cur;"
-            + "  while((cur=w.nextNode())&&nodes.length<350){"
-            + "    nodes.push(cur);orig.push(cur.nodeValue);"
+            + "var skip={SCRIPT:1,STYLE:1,NOSCRIPT:1,TEXTAREA:1,CODE:1,PRE:1,SVG:1,IFRAME:1,CANVAS:1,MATH:1};"
+            + "var inlineTags={A:1,B:1,STRONG:1,I:1,EM:1,SPAN:1,SMALL:1,MARK:1,U:1,S:1,SUB:1,SUP:1,ABBR:1,TIME:1,CITE:1,Q:1};"
+            + "function hasBlockChild(el){"
+            + "  for(var c=el.firstElementChild;c;c=c.nextElementSibling){"
+            + "    if(!inlineTags[c.tagName]&&!skip[c.tagName])return true;"
+            + "    if(hasBlockChild(c))return true;"
             + "  }"
-            + "  window.__sbxNodes=nodes;window.__sbxOrig=orig;"
+            + "  return false;"
             + "}"
-            + "return JSON.stringify(window.__sbxOrig);"
+            + "function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}"
+            + "function serialize(el,saved){"
+            + "  var out='';"
+            + "  for(var n=el.firstChild;n;n=n.nextSibling){"
+            + "    if(n.nodeType===3){out+=esc(n.nodeValue);}"
+            + "    else if(n.nodeType===1&&!skip[n.tagName]){"
+            + "      if(inlineTags[n.tagName]){"
+            + "        var idx=saved.length;saved.push(n);"
+            + "        out+='<x'+idx+'>'+serialize(n,saved)+'</x'+idx+'>';"
+            + "      }else{out+=' ';}"
+            + "    }"
+            + "  }"
+            + "  return out;"
+            + "}"
+            + "if(!window.__sbxBlocks){"
+            + "  var all=document.querySelectorAll('h1,h2,h3,h4,h5,h6,p,li,blockquote,figcaption,dt,dd,td,th,a,button,label,div,span');"
+            + "  var vis=[],rest=[],seen=new Set();"
+            + "  var vh=window.innerHeight||800;"
+            + "  for(var i=0;i<all.length&&(vis.length+rest.length)<260;i++){"
+            + "    var el=all[i];"
+            + "    if(skip[el.tagName]||el.closest('script,style,code,pre,noscript,svg'))continue;"
+            + "    if(hasBlockChild(el))continue;"
+            + "    var ancestor=el.parentElement,dup=false;"
+            + "    while(ancestor){if(seen.has(ancestor)){dup=true;break;}ancestor=ancestor.parentElement;}"
+            + "    if(dup)continue;"
+            + "    var txt=(el.innerText||el.textContent||'').trim();"
+            + "    if(txt.length<2||txt.length>1500)continue;"
+            + "    if(/^[\\d\\s.,:%$€£₽+\\-\\/()•|]+$/.test(txt))continue;"
+            + "    var saved=[];"
+            + "    var markup=serialize(el,saved);"
+            + "    if(!markup||!markup.trim())continue;"
+            + "    seen.add(el);"
+            + "    var rec={el:el,origHtml:el.innerHTML,saved:saved,markup:markup};"
+            + "    var r=el.getBoundingClientRect();"
+            + "    if(r.width>0&&r.height>0&&r.bottom>=-80&&r.top<=vh+250){vis.push(rec);}else{rest.push(rec);}"
+            + "  }"
+            + "  window.__sbxBlocks=vis.concat(rest);"
+            + "}"
+            + "var out=[];"
+            + "for(var j=0;j<window.__sbxBlocks.length;j++){out.push(window.__sbxBlocks[j].markup);}"
+            + "return JSON.stringify({lang:(document.documentElement.lang||''),items:out});"
+            + "})();";
+
+    private static final String DETECT_SAMPLE_JS =
+            "(function(){"
+            + "var lang=(document.documentElement.lang||'').trim();"
+            + "var h=document.querySelector('h1,h2,p');"
+            + "var txt=h?(h.innerText||''):((document.body&&document.body.innerText)||'').slice(0,220);"
+            + "return JSON.stringify({lang:lang,sample:txt.trim().slice(0,220),url:location.href||''});"
             + "})();";
 
     private static final String REVERT_JS =
             "(function(){"
-            + "if(window.__sbxNodes&&window.__sbxOrig){"
-            + "  for(var i=0;i<window.__sbxNodes.length;i++){"
-            + "    try{window.__sbxNodes[i].nodeValue=window.__sbxOrig[i];}catch(e){}"
+            + "if(window.__sbxBlocks){"
+            + "  for(var i=0;i<window.__sbxBlocks.length;i++){"
+            + "    try{window.__sbxBlocks[i].el.innerHTML=window.__sbxBlocks[i].origHtml;}catch(e){}"
             + "  }"
             + "}"
-            + "window.__sbxNodes=null;window.__sbxOrig=null;"
+            + "window.__sbxBlocks=null;"
             + "})();";
+
+    private static volatile String sLastAutoUrl = "";
+    private static volatile long sLastAutoTime = 0L;
 
     private SBrowserXDomTranslator() {}
 
@@ -72,38 +124,108 @@ public final class SBrowserXDomTranslator {
             resolvedTl = SBrowserXPrefs.getTranslateTargetLang(ctx);
         }
         final String tl = (resolvedTl == null || resolvedTl.isEmpty()) ? "ru" : resolvedTl.replace('_', '-');
+        final String engine = ctx != null ? SBrowserXPrefs.getTranslateEngine(ctx) : "google";
         final int gen = GENERATION.incrementAndGet();
 
-        new Handler(Looper.getMainLooper()).post(() -> {
+        MAIN.post(() -> {
             Object tab = getCurrentTab();
             if (tab == null) return;
-            evalJs(tab, EXTRACT_JS, rawJson -> {
+            evalJs(tab, EXTRACT_BLOCKS_JS, rawJson -> {
                 if (gen != GENERATION.get()) return;
                 if (rawJson == null || rawJson.isEmpty() || "null".equals(rawJson)) return;
-                EXECUTOR.execute(() -> {
-                    try {
-                        String unwrapped = unwrapJsString(rawJson);
-                        JSONArray arr = new JSONArray(unwrapped);
-                        int n = arr.length();
-                        if (n == 0) return;
-                        String[] originals = new String[n];
-                        for (int i = 0; i < n; i++) {
-                            originals[i] = arr.optString(i, "");
+                try {
+                    JSONObject obj = new JSONObject(unwrapJsString(rawJson));
+                    JSONArray itemsArr = obj.optJSONArray("items");
+                    if (itemsArr == null || itemsArr.length() == 0) return;
+
+                    int total = itemsArr.length();
+                    // Split into compact batches (viewport blocks are at index 0..N, so batch 0 is visible screen!)
+                    List<int[]> ranges = new ArrayList<>();
+                    int idx = 0;
+                    while (idx < total) {
+                        int start = idx;
+                        int chars = 0;
+                        int maxItems = (start == 0) ? 12 : 20; // Smaller first batch = ultra-fast first paint (~250ms)
+                        while (idx < total && (idx - start) < maxItems && (idx == start || chars + itemsArr.optString(idx, "").length() < 2200)) {
+                            chars += itemsArr.optString(idx, "").length();
+                            idx++;
                         }
-                        String[] translated = translateBatchArray(sl, tl, originals, gen);
-                        if (gen != GENERATION.get()) return;
-                        applyTranslations(translated, gen);
-                    } catch (Throwable t) {
-                        Log.e(TAG, "DOM translation failed", t);
+                        ranges.add(new int[] {start, idx});
                     }
-                });
+
+                    // Dispatch all batches in parallel across 4 threads; each applies to DOM immediately upon completion!
+                    for (int[] range : ranges) {
+                        final int start = range[0];
+                        final int end = range[1];
+                        final String[] slice = new String[end - start];
+                        for (int k = 0; k < slice.length; k++) {
+                            slice[k] = itemsArr.optString(start + k, "");
+                        }
+                        POOL.execute(() -> {
+                            if (gen != GENERATION.get()) return;
+                            try {
+                                SBrowserXGoogleTranslator.BatchResult br =
+                                        SBrowserXGoogleTranslator.translateBatchHtml(engine, sl, tl, slice);
+                                if (gen != GENERATION.get()) return;
+                                applyBatchToDom(start, br.translations, gen);
+                            } catch (Throwable t) {
+                                Log.w(TAG, "Batch [" + start + ".." + end + "] failed", t);
+                            }
+                        });
+                    }
+                } catch (Throwable t) {
+                    Log.e(TAG, "Extract/dispatch failed", t);
+                }
             });
         });
     }
 
+    /**
+     * Chrome-like automatic page translation on load finished.
+     */
+    public static void maybeAutoTranslateOnLoad() {
+        Context ctx = SBrowserXPrefs.getAppContext();
+        if (ctx == null || !SBrowserXPrefs.isGoogleTranslateEnabled(ctx) || !SBrowserXPrefs.isTranslateAutoEnabled(ctx)) {
+            return;
+        }
+        MAIN.postDelayed(() -> {
+            Object tab = getCurrentTab();
+            if (tab == null) return;
+            evalJs(tab, DETECT_SAMPLE_JS, rawJson -> {
+                if (rawJson == null || rawJson.isEmpty() || "null".equals(rawJson)) return;
+                POOL.execute(() -> {
+                    try {
+                        JSONObject obj = new JSONObject(unwrapJsString(rawJson));
+                        String url = obj.optString("url", "");
+                        if (url.isEmpty() || !url.startsWith("http")) return;
+                        long now = System.currentTimeMillis();
+                        if (url.equals(sLastAutoUrl) && (now - sLastAutoTime) < 4000L) return;
+
+                        String targetLang = SBrowserXGoogleTranslator.normalizeLang(SBrowserXPrefs.getTranslateTargetLang(ctx));
+                        String pageLang = SBrowserXGoogleTranslator.normalizeLang(obj.optString("lang", ""));
+                        String sample = obj.optString("sample", "");
+
+                        if (pageLang.isEmpty() && sample.length() >= 15) {
+                            pageLang = SBrowserXGoogleTranslator.detectLanguageFast(sample);
+                        }
+                        if (pageLang.isEmpty() || pageLang.equalsIgnoreCase(targetLang)) return;
+
+                        Set<String> never = SBrowserXPrefs.getTranslateNeverLangs(ctx);
+                        Set<String> always = SBrowserXPrefs.getTranslateAlwaysLangs(ctx);
+                        if (never.contains(pageLang) && !always.contains(pageLang)) return;
+
+                        sLastAutoUrl = url;
+                        sLastAutoTime = now;
+                        translateCurrentTab(pageLang, targetLang);
+                    } catch (Throwable ignored) {}
+                });
+            });
+        }, 450L);
+    }
+
     public static void revertCurrentTab() {
         GENERATION.incrementAndGet();
-        new Handler(Looper.getMainLooper()).post(() -> {
+        MAIN.post(() -> {
             Object tab = getCurrentTab();
             if (tab != null) {
                 evalJs(tab, REVERT_JS, null);
@@ -111,63 +233,44 @@ public final class SBrowserXDomTranslator {
         });
     }
 
-    private static String[] translateBatchArray(String sl, String tl, String[] originals, int gen) {
-        String[] out = new String[originals.length];
-        int i = 0;
-        while (i < originals.length && gen == GENERATION.get()) {
-            StringBuilder batch = new StringBuilder();
-            int start = i;
-            int count = 0;
-            while (i < originals.length && (count == 0 || batch.length() + originals[i].length() < 1400)) {
-                if (count > 0) batch.append(SEP);
-                batch.append(originals[i]);
-                i++;
-                count++;
-            }
-            try {
-                String res = SBrowserXGoogleTranslator.translateTextSync(sl, tl, batch.toString());
-                String[] parts = res.split("\\s*<<<SBX_SEP>>>\\s*", -1);
-                if (parts.length == count) {
-                    for (int k = 0; k < count; k++) {
-                        out[start + k] = preserveEdgeWhitespace(originals[start + k], parts[k]);
-                    }
-                } else {
-                    for (int k = 0; k < count; k++) {
-                        String single = SBrowserXGoogleTranslator.translateTextSync(sl, tl, originals[start + k]);
-                        out[start + k] = preserveEdgeWhitespace(originals[start + k], single);
-                    }
-                }
-            } catch (Throwable t) {
-                Log.w(TAG, "Batch translate error", t);
-                for (int k = 0; k < count; k++) {
-                    out[start + k] = originals[start + k];
-                }
-            }
+    /**
+     * Safely reconstructs translated HTML while preserving original inline DOM elements (links, attributes, event handlers).
+     */
+    private static void applyBatchToDom(int startIndex, String[] translatedSlice, int gen) {
+        JSONArray arr = new JSONArray();
+        for (String s : translatedSlice) {
+            arr.put(s != null ? s : "");
         }
-        return out;
-    }
-
-    private static String preserveEdgeWhitespace(String orig, String trans) {
-        if (orig == null || trans == null) return trans != null ? trans : "";
-        String lead = orig.length() > 0 && Character.isWhitespace(orig.charAt(0)) ? " " : "";
-        String trail = orig.length() > 0 && Character.isWhitespace(orig.charAt(orig.length() - 1)) ? " " : "";
-        return lead + trans.trim() + trail;
-    }
-
-    private static void applyTranslations(String[] translated, int gen) {
-        JSONArray outArr = new JSONArray();
-        for (String s : translated) {
-            outArr.put(s != null ? s : "");
-        }
-        String js = "(function(arr){"
-                + "if(!window.__sbxNodes)return;"
-                + "var len=Math.min(window.__sbxNodes.length,arr.length);"
-                + "for(var i=0;i<len;i++){"
-                + "  if(arr[i]){try{window.__sbxNodes[i].nodeValue=arr[i];}catch(e){}}"
+        String js = "(function(start,arr){"
+                + "if(!window.__sbxBlocks)return;"
+                + "function rebuild(parent,html,saved){"
+                + "  var tmp=document.createElement('div');tmp.innerHTML=html;"
+                + "  var frag=document.createDocumentFragment();"
+                + "  function walk(src,dst){"
+                + "    for(var n=src.firstChild;n;n=n.nextSibling){"
+                + "      if(n.nodeType===3){dst.appendChild(document.createTextNode(n.nodeValue));}"
+                + "      else if(n.nodeType===1){"
+                + "        var m=/^X(\\d+)$/.exec(n.tagName);"
+                + "        if(m){"
+                + "          var orig=saved[parseInt(m[1],10)];"
+                + "          if(orig){"
+                + "            var clone=orig.cloneNode(false);"
+                + "            walk(n,clone);dst.appendChild(clone);"
+                + "          }else{walk(n,dst);}"
+                + "        }else{walk(n,dst);}"
+                + "      }"
+                + "    }"
+                + "  }"
+                + "  walk(tmp,frag);"
+                + "  parent.innerHTML='';parent.appendChild(frag);"
                 + "}"
-                + "})(" + outArr.toString() + ");";
+                + "for(var i=0;i<arr.length;i++){"
+                + "  var b=window.__sbxBlocks[start+i];"
+                + "  if(b&&arr[i]){try{rebuild(b.el,arr[i],b.saved);}catch(e){}}"
+                + "}"
+                + "})(" + startIndex + "," + arr.toString() + ");";
 
-        new Handler(Looper.getMainLooper()).post(() -> {
+        MAIN.post(() -> {
             if (gen != GENERATION.get()) return;
             Object tab = getCurrentTab();
             if (tab != null) {
@@ -180,7 +283,6 @@ public final class SBrowserXDomTranslator {
         String s = raw.trim();
         if (s.startsWith("\"") && s.endsWith("\"") && s.length() >= 2) {
             try {
-                // Chromium evaluateJavaScript returns JSON-encoded string literal
                 JSONArray wrapper = new JSONArray("[" + s + "]");
                 return wrapper.getString(0);
             } catch (Throwable ignored) {}

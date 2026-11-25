@@ -6,9 +6,11 @@ import android.os.Looper;
 import android.util.Log;
 
 import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -20,8 +22,14 @@ import java.util.concurrent.Executors;
 
 public final class SBrowserXGoogleTranslator {
     private static final String TAG = "SBrowserXTranslate";
-    private static final ExecutorService EXECUTOR = Executors.newFixedThreadPool(3);
-    private static final String SEP = "\n<<<SBX_SEP>>>\n";
+    private static final ExecutorService EXECUTOR = Executors.newFixedThreadPool(4);
+    private static final String CHROME_UA =
+            "Mozilla/5.0 (Linux; Android 16; SM-S901U1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Mobile Safari/537.36";
+    private static final String EDGE_UA =
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0";
+
+    private static volatile String sEdgeToken = null;
+    private static volatile long sEdgeTokenExpiryMs = 0L;
 
     public static final String[][] SUPPORTED_LANGUAGES = new String[][] {
             {"en", "English"},
@@ -66,6 +74,16 @@ public final class SBrowserXGoogleTranslator {
             {"sl", "Slovenščina (Slovenian)"}
     };
 
+    public static final class BatchResult {
+        public final String[] translations;
+        public final String detectedLang;
+
+        public BatchResult(String[] translations, String detectedLang) {
+            this.translations = translations;
+            this.detectedLang = detectedLang;
+        }
+    }
+
     private SBrowserXGoogleTranslator() {}
 
     public static String getLanguageDisplayName(String code) {
@@ -94,6 +112,191 @@ public final class SBrowserXGoogleTranslator {
             return true;
         }
     }
+
+    /**
+     * Native batch HTML translation using Google Chrome's dict-chrome-ex endpoint (or Microsoft Edge NMT),
+     * preserving sentence context and inline HTML tags without hacky text separators.
+     */
+    public static BatchResult translateBatchHtml(String engine, String sl, String tl, String[] items) throws Exception {
+        if (items == null || items.length == 0) {
+            return new BatchResult(new String[0], "");
+        }
+        String src = (sl == null || sl.isEmpty() || "auto".equalsIgnoreCase(sl) || "und".equalsIgnoreCase(sl))
+                ? "auto" : normalizeLang(sl);
+        String dst = (tl == null || tl.isEmpty()) ? "en" : normalizeLang(tl);
+
+        if ("microsoft".equalsIgnoreCase(engine)) {
+            try {
+                return translateBatchMicrosoft(src, dst, items);
+            } catch (Throwable t) {
+                Log.w(TAG, "Microsoft Translator failed, falling back to Google Chrome NMT", t);
+            }
+        }
+        return translateBatchGoogleChrome(src, dst, items);
+    }
+
+    private static BatchResult translateBatchGoogleChrome(String sl, String tl, String[] items) throws Exception {
+        String urlStr = "https://translate.googleapis.com/translate_a/t?client=dict-chrome-ex"
+                + "&sl=" + URLEncoder.encode(sl, "UTF-8")
+                + "&tl=" + URLEncoder.encode(tl, "UTF-8")
+                + "&format=html";
+
+        StringBuilder form = new StringBuilder();
+        for (int i = 0; i < items.length; i++) {
+            if (i > 0) form.append('&');
+            form.append("q=").append(URLEncoder.encode(items[i] != null ? items[i] : "", "UTF-8"));
+        }
+        byte[] bodyBytes = form.toString().getBytes(StandardCharsets.UTF_8);
+
+        HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
+        conn.setRequestMethod("POST");
+        conn.setDoOutput(true);
+        conn.setConnectTimeout(10000);
+        conn.setReadTimeout(15000);
+        conn.setRequestProperty("User-Agent", CHROME_UA);
+        conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
+        try {
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(bodyBytes);
+            }
+            int code = conn.getResponseCode();
+            if (code != 200) {
+                throw new IllegalStateException("Google dict-chrome-ex HTTP " + code);
+            }
+            String resp = readUtf8(conn.getInputStream());
+            JSONArray root = new JSONArray(resp);
+            String[] out = new String[items.length];
+            String detected = "";
+
+            // When sl="auto", dict-chrome-ex returns [["translated", "en"], ...]
+            // When sl is explicit, it returns ["translated1", "translated2", ...]
+            for (int i = 0; i < items.length; i++) {
+                if (i < root.length()) {
+                    Object el = root.get(i);
+                    if (el instanceof JSONArray) {
+                        JSONArray pair = (JSONArray) el;
+                        out[i] = pair.optString(0, items[i]);
+                        if (detected.isEmpty() && pair.length() > 1) {
+                            detected = normalizeLang(pair.optString(1, ""));
+                        }
+                    } else if (el instanceof String) {
+                        out[i] = (String) el;
+                    } else {
+                        out[i] = items[i];
+                    }
+                } else {
+                    out[i] = items[i];
+                }
+            }
+            return new BatchResult(out, detected);
+        } finally {
+            conn.disconnect();
+        }
+    }
+
+    private static synchronized String getEdgeAuthToken() throws Exception {
+        long now = System.currentTimeMillis();
+        if (sEdgeToken != null && now < sEdgeTokenExpiryMs) {
+            return sEdgeToken;
+        }
+        HttpURLConnection conn = (HttpURLConnection) new URL("https://edge.microsoft.com/translate/auth").openConnection();
+        conn.setConnectTimeout(8000);
+        conn.setReadTimeout(10000);
+        conn.setRequestProperty("User-Agent", EDGE_UA);
+        try {
+            if (conn.getResponseCode() != 200) {
+                throw new IllegalStateException("Edge auth HTTP " + conn.getResponseCode());
+            }
+            String tok = readUtf8(conn.getInputStream()).trim();
+            if (tok.length() < 20) throw new IllegalStateException("Empty Edge token");
+            sEdgeToken = tok;
+            sEdgeTokenExpiryMs = now + 8 * 60 * 1000L;
+            return tok;
+        } finally {
+            conn.disconnect();
+        }
+    }
+
+    private static BatchResult translateBatchMicrosoft(String sl, String tl, String[] items) throws Exception {
+        String token = getEdgeAuthToken();
+        String msTo = toMicrosoftLang(tl);
+        StringBuilder urlSb = new StringBuilder(
+                "https://api-edge.cognitive.microsofttranslator.com/translate?api-version=3.0&textType=html&to=")
+                .append(URLEncoder.encode(msTo, "UTF-8"));
+        if (!"auto".equals(sl)) {
+            urlSb.append("&from=").append(URLEncoder.encode(toMicrosoftLang(sl), "UTF-8"));
+        }
+
+        JSONArray reqArr = new JSONArray();
+        for (String item : items) {
+            JSONObject obj = new JSONObject();
+            obj.put("Text", item != null ? item : "");
+            reqArr.put(obj);
+        }
+        byte[] payload = reqArr.toString().getBytes(StandardCharsets.UTF_8);
+
+        HttpURLConnection conn = (HttpURLConnection) new URL(urlSb.toString()).openConnection();
+        conn.setRequestMethod("POST");
+        conn.setDoOutput(true);
+        conn.setConnectTimeout(10000);
+        conn.setReadTimeout(15000);
+        conn.setRequestProperty("User-Agent", EDGE_UA);
+        conn.setRequestProperty("Authorization", "Bearer " + token);
+        conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+        try {
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(payload);
+            }
+            int code = conn.getResponseCode();
+            if (code == 401) {
+                sEdgeToken = null;
+                sEdgeTokenExpiryMs = 0L;
+            }
+            if (code != 200) {
+                throw new IllegalStateException("Microsoft Translate HTTP " + code);
+            }
+            JSONArray root = new JSONArray(readUtf8(conn.getInputStream()));
+            String[] out = new String[items.length];
+            String detected = "";
+            for (int i = 0; i < items.length; i++) {
+                JSONObject entry = root.optJSONObject(i);
+                if (entry != null) {
+                    if (detected.isEmpty()) {
+                        JSONObject dl = entry.optJSONObject("detectedLanguage");
+                        if (dl != null) detected = normalizeLang(dl.optString("language", ""));
+                    }
+                    JSONArray trans = entry.optJSONArray("translations");
+                    if (trans != null && trans.length() > 0) {
+                        out[i] = trans.getJSONObject(0).optString("text", items[i]);
+                        continue;
+                    }
+                }
+                out[i] = items[i];
+            }
+            return new BatchResult(out, detected);
+        } finally {
+            conn.disconnect();
+        }
+    }
+
+    private static String toMicrosoftLang(String code) {
+        if ("zh-CN".equalsIgnoreCase(code)) return "zh-Hans";
+        if ("zh-TW".equalsIgnoreCase(code)) return "zh-Hant";
+        return code;
+    }
+
+    public static String detectLanguageFast(String sampleText) {
+        try {
+            if (sampleText == null || sampleText.trim().length() < 12) return "";
+            String cut = sampleText.length() > 220 ? sampleText.substring(0, 220) : sampleText;
+            BatchResult br = translateBatchGoogleChrome("auto", "en", new String[] {cut});
+            return br.detectedLang != null ? br.detectedLang : "";
+        } catch (Throwable t) {
+            return "";
+        }
+    }
+
+    // --- SixTransService lifecycle callbacks ---
 
     public static boolean handleGetSupport(Object service, long cb) {
         if (service == null || !isEnabled()) return false;
@@ -157,29 +360,8 @@ public final class SBrowserXGoogleTranslator {
     public static boolean handleDetectionLang(Object service, String text, long cb) {
         if (service == null || !isEnabled()) return false;
         EXECUTOR.execute(() -> {
-            String detected = "en";
-            try {
-                String sample = text != null && text.length() > 300 ? text.substring(0, 300) : (text != null ? text : "");
-                if (!sample.trim().isEmpty()) {
-                    String urlStr = "https://translate.googleapis.com/translate_a/single?client=gtx"
-                            + "&sl=auto&tl=en&dt=t&q=" + URLEncoder.encode(sample, "UTF-8");
-                    HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
-                    conn.setConnectTimeout(8000);
-                    conn.setReadTimeout(10000);
-                    conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/145.0.0.0 Mobile Safari/537.36");
-                    try {
-                        if (conn.getResponseCode() == 200) {
-                            JSONArray root = new JSONArray(readUtf8(conn.getInputStream()));
-                            String lang = root.optString(2, "en");
-                            if (lang != null && !lang.isEmpty()) detected = normalizeLang(lang);
-                        }
-                    } finally {
-                        conn.disconnect();
-                    }
-                }
-            } catch (Throwable t) {
-                Log.e(TAG, "detectLang failed", t);
-            }
+            String detected = detectLanguageFast(text);
+            if (detected.isEmpty()) detected = "en";
             boolean v2 = isTranslateV2();
             String[] res = v2 ? new String[] {detected} : new String[] {"Success", detected};
             deliverArray(service, "detectionLangResult", cb, res);
@@ -206,8 +388,8 @@ public final class SBrowserXGoogleTranslator {
         }
         final String tl = (resolvedTarget == null || resolvedTarget.isEmpty())
                 ? "en" : normalizeLang(resolvedTarget);
+        final String engine = ctx != null ? SBrowserXPrefs.getTranslateEngine(ctx) : "google";
 
-        // Respect "Never translate languages" when source language is explicitly known and equals a never-translate entry
         if (ctx != null && !"auto".equals(sl) && !sl.equalsIgnoreCase(tl)) {
             Set<String> never = SBrowserXPrefs.getTranslateNeverLangs(ctx);
             Set<String> always = SBrowserXPrefs.getTranslateAlwaysLangs(ctx);
@@ -218,42 +400,13 @@ public final class SBrowserXGoogleTranslator {
         }
 
         EXECUTOR.execute(() -> {
-            String[] results = new String[textList.length];
             try {
-                int i = 0;
-                while (i < textList.length) {
-                    StringBuilder batch = new StringBuilder();
-                    int start = i;
-                    int count = 0;
-                    while (i < textList.length && (count == 0 || batch.length() + safeLen(textList[i]) < 1600)) {
-                        if (count > 0) batch.append(SEP);
-                        batch.append(textList[i] != null ? textList[i] : "");
-                        i++;
-                        count++;
-                    }
-                    String translatedBatch = translateSingle(sl, tl, batch.toString());
-                    String[] parts = translatedBatch.split("\\s*<<<SBX_SEP>>>\\s*", -1);
-                    if (parts.length == count) {
-                        for (int k = 0; k < count; k++) {
-                            results[start + k] = parts[k];
-                        }
-                    } else {
-                        for (int k = 0; k < count; k++) {
-                            String item = textList[start + k];
-                            results[start + k] = (item == null || item.trim().isEmpty())
-                                    ? (item != null ? item : "")
-                                    : translateSingle(sl, tl, item);
-                        }
-                    }
-                }
+                BatchResult br = translateBatchHtml(engine, sl, tl, textList);
+                deliverTranslatePayload(sixTransService, nativeCallback, br.translations);
             } catch (Throwable t) {
-                Log.e(TAG, "Google Translate failed", t);
-                for (int k = 0; k < textList.length; k++) {
-                    if (results[k] == null) results[k] = textList[k] != null ? textList[k] : "";
-                }
+                Log.e(TAG, "handleTranslate failed", t);
+                deliverTranslatePayload(sixTransService, nativeCallback, textList);
             }
-
-            deliverTranslatePayload(sixTransService, nativeCallback, results);
         });
         return true;
     }
@@ -270,51 +423,13 @@ public final class SBrowserXGoogleTranslator {
         }
     }
 
-    private static int safeLen(String s) {
-        return s == null ? 0 : s.length();
-    }
-
-    private static String normalizeLang(String code) {
+    public static String normalizeLang(String code) {
+        if (code == null || code.isEmpty()) return "";
         String c = code.trim().replace('_', '-');
         if (c.equalsIgnoreCase("zh-cn") || c.equalsIgnoreCase("zh-hans")) return "zh-CN";
         if (c.equalsIgnoreCase("zh-tw") || c.equalsIgnoreCase("zh-hant")) return "zh-TW";
         int dash = c.indexOf('-');
         return dash > 0 ? c.substring(0, dash).toLowerCase() : c.toLowerCase();
-    }
-
-    public static String translateTextSync(String sl, String tl, String text) throws Exception {
-        return translateSingle(sl, tl, text);
-    }
-
-    private static String translateSingle(String sl, String tl, String text) throws Exception {
-        if (text == null || text.trim().isEmpty()) return text != null ? text : "";
-        String urlStr = "https://translate.googleapis.com/translate_a/single?client=gtx"
-                + "&sl=" + URLEncoder.encode(sl, "UTF-8")
-                + "&tl=" + URLEncoder.encode(tl, "UTF-8")
-                + "&dt=t&q=" + URLEncoder.encode(text, "UTF-8");
-        HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
-        conn.setConnectTimeout(10000);
-        conn.setReadTimeout(15000);
-        conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/145.0.0.0 Mobile Safari/537.36");
-        try {
-            if (conn.getResponseCode() != 200) {
-                return text;
-            }
-            String body = readUtf8(conn.getInputStream());
-            JSONArray root = new JSONArray(body);
-            JSONArray sentences = root.optJSONArray(0);
-            if (sentences == null) return text;
-            StringBuilder out = new StringBuilder();
-            for (int j = 0; j < sentences.length(); j++) {
-                JSONArray seg = sentences.optJSONArray(j);
-                if (seg != null && !seg.isNull(0)) {
-                    out.append(seg.optString(0, ""));
-                }
-            }
-            return out.length() > 0 ? out.toString() : text;
-        } finally {
-            conn.disconnect();
-        }
     }
 
     private static void deliverArray(Object service, String methodName, long cb, String[] payload) {

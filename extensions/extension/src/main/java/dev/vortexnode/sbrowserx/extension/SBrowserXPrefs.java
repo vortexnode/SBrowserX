@@ -21,6 +21,7 @@ public final class SBrowserXPrefs {
     public static final String KEY_AUTO_CLOSE_1DAY = "auto_close_tabs_1day_enabled";
     public static final String KEY_GOOGLE_TRANSLATE = "google_translate_backend_enabled";
     public static final String KEY_TRANS_TARGET_LANG = "google_translate_target_lang";
+    public static final String KEY_TRANS_ENGINE = "google_translate_engine";
     public static final String KEY_TRANS_AUTO_TRANSLATE = "google_translate_auto_enabled";
     public static final String KEY_TRANS_NEVER_LANGS = "google_translate_never_langs";
     public static final String KEY_TRANS_ALWAYS_LANGS = "google_translate_always_langs";
@@ -165,6 +166,15 @@ public final class SBrowserXPrefs {
 
     public static void setTranslateTargetLang(Context context, String langCode) {
         prefs(context).edit().putString(KEY_TRANS_TARGET_LANG, langCode).apply();
+        markFeatureViewed(context, FEATURE_GOOGLE_TRANSLATE);
+    }
+
+    public static String getTranslateEngine(Context context) {
+        return prefs(context).getString(KEY_TRANS_ENGINE, "google");
+    }
+
+    public static void setTranslateEngine(Context context, String engine) {
+        prefs(context).edit().putString(KEY_TRANS_ENGINE, engine != null ? engine : "google").apply();
         markFeatureViewed(context, FEATURE_GOOGLE_TRANSLATE);
     }
 

@@ -501,4 +501,9 @@ public final class SBrowserXHooks {
         if (!isGoogleTranslateEnabled()) return;
         SBrowserXDomTranslator.revertCurrentTab();
     }
+
+    public static void onTransBarLoadFinished() {
+        if (!isGoogleTranslateEnabled()) return;
+        SBrowserXDomTranslator.maybeAutoTranslateOnLoad();
+    }
 }
