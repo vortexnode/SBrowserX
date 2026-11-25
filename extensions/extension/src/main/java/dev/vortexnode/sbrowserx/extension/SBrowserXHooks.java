@@ -612,7 +612,7 @@ public final class SBrowserXHooks {
             + "for(var i=0;i<lim;i++){"
             + "var el=els[i];var cs=getComputedStyle(el);var bg=cs.backgroundColor;"
             + "if(!bg||bg==='transparent'||bg==='rgba(0, 0, 0, 0)')continue;"
-            + "var m=bg.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);"
+            + "var m=bg.match(/^rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/);"
             + "if(!m)continue;"
             + "var r=+m[1],g=+m[2],b=+m[3];"
             + "var mx=Math.max(r,g,b),mn=Math.min(r,g,b);"
