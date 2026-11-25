@@ -182,11 +182,6 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
                 xml, "sbrowserx_privacy_fingerprint", "Fingerprint protection",
                 "Native WebAudio & Screen anti-fingerprinting", true,
             )
-            val hideAdsPref = createSwitchPref(
-                xml, "sbrowserx_privacy_hide_adblockers", "Hide Samsung Ad Blockers",
-                "Hide built-in Ad Blockers menu item", false,
-            )
-
             val nodes = screen.childNodes
             var inserted = false
             for (i in 0 until nodes.length) {
@@ -195,7 +190,6 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
                     screen.insertBefore(cat, node)
                     screen.insertBefore(webrtcPref, node)
                     screen.insertBefore(fpPref, node)
-                    screen.insertBefore(hideAdsPref, node)
                     inserted = true
                     break
                 }
@@ -204,7 +198,6 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
                 screen.appendChild(cat)
                 screen.appendChild(webrtcPref)
                 screen.appendChild(fpPref)
-                screen.appendChild(hideAdsPref)
             }
         }
 
@@ -363,6 +356,19 @@ val sbrowserXCorePatch = bytecodePatch(
             returnType = "I",
         ).returnConstantBoolean(false)
 
+        val setScreenMethod = findMethodOrThrow(
+            classType = PREF_FRAGMENT_CUSTOM_CLASS,
+            methodName = "setPreferenceScreen",
+            parameterTypes = listOf("Landroidx/preference/PreferenceScreen;"),
+            returnType = "V",
+        )
+        val setScreenInsns = setScreenMethod.implementation?.instructions
+            ?: error("Missing instructions in PreferenceFragmentCustom.setPreferenceScreen")
+        setScreenMethod.addInstruction(
+            setScreenInsns.size - 1,
+            "invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->localizeCustomPreferences(Ljava/lang/Object;)V",
+        )
+
         findMethodOrThrow(
             classType = PREF_FRAGMENT_CUSTOM_CLASS,
             methodName = "onViewCreated",
@@ -383,23 +389,13 @@ val sbrowserXCorePatch = bytecodePatch(
             "invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->localizeCustomPreferences(Ljava/lang/Object;)V",
         )
 
+        // Permanently disable Samsung's built-in Ad Blockers menu & partner recommendations
         findMethodOrThrow(
             classType = DEBUG_SETTINGS_CLASS,
             methodName = "isContentBlockerSupported",
             parameterTypes = emptyList(),
             returnType = "Z",
-        ).addInstructions(
-            0,
-            """
-                invoke-static {}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->isHideSamsungAdBlockersEnabled()Z
-                move-result v0
-                if-eqz v0, :sbrowserx_cb_stock
-                const/4 v0, 0x0
-                return v0
-                :sbrowserx_cb_stock
-                nop
-            """.trimIndent(),
-        )
+        ).returnConstantBoolean(false)
 
         // Intercept More Menu -> "Browsing assist" click to launch Gemini 2.5 Flash AI Page Summary
         findMethodOrThrow(

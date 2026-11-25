@@ -193,7 +193,8 @@ public final class SBrowserXBackupActivity extends Activity {
         // 1. Try native Google Drive "Save to Drive" upload sheet directly (with account & Drive folder picker)
         try {
             String json = SBrowserXBackupManager.exportToJson(this);
-            java.io.File dir = new java.io.File(getCacheDir(), "sbrowserx_backup");
+            // Must use a root explicitly declared in Samsung Internet's res/xml/file_paths.xml (<files-path name="Download" path="Download/" />)
+            java.io.File dir = new java.io.File(getFilesDir(), "Download");
             if (!dir.exists()) dir.mkdirs();
             java.io.File outFile = new java.io.File(dir, SBrowserXBackupManager.suggestedFileName());
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(outFile)) {
@@ -240,6 +241,18 @@ public final class SBrowserXBackupActivity extends Activity {
     }
 
     private void launchImport(int reqCode, boolean preferGoogleDrive) {
+        if (preferGoogleDrive) {
+            try {
+                Intent gd = new Intent(Intent.ACTION_GET_CONTENT);
+                gd.addCategory(Intent.CATEGORY_OPENABLE);
+                gd.setType("*/*");
+                gd.setPackage("com.google.android.apps.docs");
+                if (gd.resolveActivity(getPackageManager()) != null) {
+                    startActivityForResult(gd, reqCode);
+                    return;
+                }
+            } catch (Throwable ignored) {}
+        }
         Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         i.addCategory(Intent.CATEGORY_OPENABLE);
         i.setType("*/*");

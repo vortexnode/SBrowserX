@@ -123,15 +123,7 @@ public final class SBrowserXSettingsActivity extends Activity {
                     SBrowserXWebRtcManager.applyToProfile(this);
                     refreshDynamicViews();
                 });
-        privacyCard.addView(divider(night));
-        hideAdsDot = createTealDot();
-        addSwitchRow(privacyCard, SBrowserXStrings.get(SBrowserXStrings.HIDE_ADBLOCKERS_TITLE),
-                SBrowserXStrings.get(SBrowserXStrings.HIDE_ADBLOCKERS_SUMMARY),
-                SBrowserXPrefs.isHideSamsungAdBlockersEnabled(this), night, textPrimary, textSecondary, hideAdsDot,
-                (btn, checked) -> {
-                    SBrowserXPrefs.setHideSamsungAdBlockersEnabled(this, checked);
-                    refreshDynamicViews();
-                });
+
         root.addView(privacyCard);
 
         // --- Card A: Assistant & Translate ---
