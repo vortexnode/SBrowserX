@@ -43,6 +43,8 @@ private const val AI_SUMMARY_ACTIVITY_CLASS =
     "dev.vortexnode.sbrowserx.extension.settings.SBrowserXAiSummaryActivity"
 private const val APP_MENU_HANDLER_CLASS =
     "Lcom/sec/android/app/sbrowser/main_view/menu/AppMenuHandler;"
+private const val PRIVACY_PREF_FRAGMENT_CLASS =
+    "Lcom/sec/android/app/sbrowser/settings/security_panel/PrivacyPreferenceFragment;"
 
 private fun createIntentPref(
     xml: Document,
@@ -396,6 +398,25 @@ val sbrowserXCorePatch = bytecodePatch(
             parameterTypes = emptyList(),
             returnType = "Z",
         ).returnConstantBoolean(false)
+
+        // Hook PrivacyPreferenceFragment.showPreferenceOnReady()V so Russian localization applies
+        // immediately when privacy_preferences.xml is inflated asynchronously (zero English flash!)
+        val showReadyMethod = findMethodOrThrow(
+            classType = PRIVACY_PREF_FRAGMENT_CLASS,
+            methodName = "showPreferenceOnReady",
+            parameterTypes = emptyList(),
+            returnType = "V",
+        )
+        showReadyMethod.addInstruction(
+            0,
+            "invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->recordPrivacyFragment(Ljava/lang/Object;)V",
+        )
+        val showReadyInsns = showReadyMethod.implementation?.instructions
+            ?: error("Missing instructions in PrivacyPreferenceFragment.showPreferenceOnReady")
+        showReadyMethod.addInstruction(
+            showReadyInsns.size - 1,
+            "invoke-static {}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->localizePrivacyFragmentFromTL()V",
+        )
 
         // Intercept More Menu -> "Browsing assist" click to launch Gemini 2.5 Flash AI Page Summary
         findMethodOrThrow(

@@ -385,6 +385,18 @@ public final class SBrowserXHooks {
         } catch (Throwable ignored) {}
     }
 
+    public static void recordPrivacyFragment(Object fragment) {
+        sPrivacyFragmentTL.set(fragment);
+    }
+
+    public static void localizePrivacyFragmentFromTL() {
+        Object fragment = sPrivacyFragmentTL.get();
+        sPrivacyFragmentTL.remove();
+        if (fragment != null) {
+            localizeCustomPreferences(fragment);
+        }
+    }
+
     public static boolean handleBrowsingAssistClick(Object appMenuHandler) {
         try {
             Activity act = sMainActivityRef.get();
@@ -399,50 +411,62 @@ public final class SBrowserXHooks {
                 return true;
             }
 
-            Object tab = null;
+            Object terrace = null;
+            String pageUrl = "";
             if (appMenuHandler != null) {
                 try {
                     Field fTd = appMenuHandler.getClass().getDeclaredField("mTabDelegate");
                     fTd.setAccessible(true);
                     Object td = fTd.get(appMenuHandler);
                     if (td != null) {
-                        tab = td.getClass().getMethod("getCurrentTab").invoke(td);
+                        terrace = td.getClass().getMethod("getTerrace").invoke(td);
+                        try {
+                            Object u = td.getClass().getMethod("getCurrentUrl").invoke(td);
+                            if (u != null) pageUrl = String.valueOf(u);
+                        } catch (Throwable ignored) {}
                     }
                 } catch (Throwable ignored) {}
             }
-            if (tab != null) {
-                final String title = String.valueOf(tab.getClass().getMethod("getTitle").invoke(tab));
-                final String url = String.valueOf(tab.getClass().getMethod("getUrl").invoke(tab));
+
+            if (terrace != null) {
+                String pageTitle = "";
+                try {
+                    Object tObj = terrace.getClass().getMethod("getTitle").invoke(terrace);
+                    if (tObj != null) pageTitle = String.valueOf(tObj);
+                } catch (Throwable ignored) {}
+
+                final String fTitle = pageTitle;
+                final String fUrl = pageUrl;
                 final Context launchCtx = ctx;
-                android.webkit.ValueCallback<String> cb = jsonText -> {
-                    String extracted = "";
-                    try {
-                        if (jsonText != null && !jsonText.isEmpty() && !"null".equals(jsonText)) {
-                            extracted = new org.json.JSONArray("[" + jsonText + "]").optString(0, "");
-                        }
-                    } catch (Throwable ignored) {
-                        extracted = jsonText != null ? jsonText : "";
-                    }
-                    Intent i = new Intent(launchCtx, dev.vortexnode.sbrowserx.extension.settings.SBrowserXAiSummaryActivity.class);
-                    i.putExtra(dev.vortexnode.sbrowserx.extension.settings.SBrowserXAiSummaryActivity.EXTRA_PAGE_TITLE, title);
-                    i.putExtra(dev.vortexnode.sbrowserx.extension.settings.SBrowserXAiSummaryActivity.EXTRA_PAGE_URL, url);
-                    i.putExtra(dev.vortexnode.sbrowserx.extension.settings.SBrowserXAiSummaryActivity.EXTRA_PAGE_TEXT, extracted);
-                    if (!(launchCtx instanceof Activity)) i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    launchCtx.startActivity(i);
-                };
+                Class<?> cbCls = Class.forName("com.sec.terrace.TerraceJavaScriptCallback");
+                Object proxyCb = Proxy.newProxyInstance(
+                        cbCls.getClassLoader(),
+                        new Class<?>[] { cbCls },
+                        (proxy, method, args) -> {
+                            if (args != null && args.length == 1) {
+                                String jsonText = args[0] != null ? String.valueOf(args[0]) : "";
+                                String extracted = "";
+                                try {
+                                    if (!jsonText.isEmpty() && !"null".equals(jsonText)) {
+                                        extracted = new org.json.JSONArray("[" + jsonText + "]").optString(0, "");
+                                    }
+                                } catch (Throwable ignored) {
+                                    extracted = jsonText;
+                                }
+                                Intent i = new Intent(launchCtx, dev.vortexnode.sbrowserx.extension.settings.SBrowserXAiSummaryActivity.class);
+                                i.putExtra(dev.vortexnode.sbrowserx.extension.settings.SBrowserXAiSummaryActivity.EXTRA_PAGE_TITLE, fTitle);
+                                i.putExtra(dev.vortexnode.sbrowserx.extension.settings.SBrowserXAiSummaryActivity.EXTRA_PAGE_URL, fUrl);
+                                i.putExtra(dev.vortexnode.sbrowserx.extension.settings.SBrowserXAiSummaryActivity.EXTRA_PAGE_TEXT, extracted);
+                                if (!(launchCtx instanceof Activity)) i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                                launchCtx.startActivity(i);
+                            }
+                            return null;
+                        });
                 String js = "(function(){var el=document.querySelector('article,main')||document.body;return el?(el.innerText||'').slice(0,14000):'';})()";
-                Method evalM = null;
-                for (Method m : tab.getClass().getMethods()) {
-                    if ("evaluateJavaScript".equals(m.getName()) && m.getParameterTypes().length == 2) {
-                        evalM = m;
-                        break;
-                    }
-                }
-                if (evalM != null) {
-                    evalM.invoke(tab, js, cb);
-                    return true;
-                }
+                terrace.getClass().getMethod("evaluateJavaScript", String.class, cbCls).invoke(terrace, js, proxyCb);
+                return true;
             }
+
             Intent i = new Intent(ctx, dev.vortexnode.sbrowserx.extension.settings.SBrowserXBrowsingAssistActivity.class);
             if (!(ctx instanceof Activity)) i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             ctx.startActivity(i);
@@ -710,6 +734,7 @@ public final class SBrowserXHooks {
 
     private static final ThreadLocal<Object> sCustomizeMenuModelTL = new ThreadLocal<>();
     private static final ThreadLocal<Object> sDarkModeFragmentTL = new ThreadLocal<>();
+    private static final ThreadLocal<Object> sPrivacyFragmentTL = new ThreadLocal<>();
 
     // --- Fix #1, #2, #4: Unified Dark Mode + True Colors + Pure AMOLED Websites ---
 
