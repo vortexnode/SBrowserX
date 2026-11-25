@@ -173,9 +173,13 @@ public final class SBrowserXHooks {
                 appendSwitch.invoke(null, "enable-zero-copy");
                 appendSwitch.invoke(null, "enable-smooth-scrolling");
             } catch (Throwable ignored) {}
-            boolean useChromiumDark = SBrowserXPrefs.isDarkBrightImagesEnabled(ctx);
+            boolean pureCssDark = SBrowserXPrefs.isPureCssDarkEnabled(ctx);
+            boolean useChromiumDark = !pureCssDark && SBrowserXPrefs.isDarkBrightImagesEnabled(ctx);
             boolean darkActive = isBrowserNightMode(ctx) || SBrowserXPrefs.isForceAdaptiveDarkEnabled(ctx);
-            if (useChromiumDark && darkActive) {
+            if (pureCssDark) {
+                syncChromiumForceDarkSwitches(false);
+                Log.i(TAG, "Pure CSS Dark Mode active: Blink force-dark-mode disabled");
+            } else if (useChromiumDark && darkActive) {
                 syncChromiumForceDarkSwitches(true);
                 Log.i(TAG, "Enabled native Chromium Blink force-dark-mode (CIELAB)");
             }
@@ -869,6 +873,10 @@ public final class SBrowserXHooks {
     public static boolean adjustTerraceNightMode(boolean requested) {
         try {
             Context ctx = SBrowserXPrefs.getAppContext();
+            if (ctx != null && SBrowserXPrefs.isPureCssDarkEnabled(ctx)) {
+                syncChromiumForceDarkSwitches(false);
+                return false;
+            }
             if (ctx != null && SBrowserXPrefs.isDarkBrightImagesEnabled(ctx)) {
                 boolean darkActive = requested || SBrowserXPrefs.isForceAdaptiveDarkEnabled(ctx);
                 syncChromiumForceDarkSwitches(darkActive);
@@ -934,6 +942,117 @@ public final class SBrowserXHooks {
             + "st.textContent=css;"
             + "})();";
 
+    private static final String SBROWSERX_PURE_DARK_JS =
+            "(function(){"
+            + "var id='sbrowserx-amoled-css';"
+            + "var root=document.head||document.documentElement;"
+            + "if(!root)return;"
+            + "var st=document.getElementById(id);"
+            + "if(!st){st=document.createElement('style');st.id=id;root.appendChild(st);}"
+            + "var amoled=__AMOLED__;"
+            + "var BG=amoled?'#000000':'#121212';"
+            + "var SURF=amoled?'#0D0D10':'#1D1F24';"
+            + "var BDR=amoled?'#1C1E24':'#2A2D35';"
+            + "var TXT='#E8EAED',MUTED='#A8B0BC',LNK='#6BA6FF';"
+            + "var parseRgb=function(c){"
+            + "if(!c||c==='transparent'||c==='rgba(0, 0, 0, 0)')return null;"
+            + "var m=c.match(/^rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)(?:,\\s*([\\d.]+))?/);"
+            + "if(!m)return null;"
+            + "var a=m[4]!==undefined?parseFloat(m[4]):1;"
+            + "return {r:+m[1],g:+m[2],b:+m[3],a:a};"
+            + "};"
+            + "var getLum=function(o){return 0.299*o.r+0.587*o.g+0.114*o.b;};"
+            + "var isNativeDark=function(){"
+            + "try{"
+            + "var mc=document.querySelector('meta[name=color-scheme]');"
+            + "if(mc&&/dark/i.test(mc.content||'')&&!/light/i.test(mc.content||''))return true;"
+            + "var b=document.body;"
+            + "if(b&&!b.getAttribute('data-sbx-pd')){"
+            + "var bc=parseRgb(getComputedStyle(b).backgroundColor);"
+            + "if(bc&&bc.a>=0.7&&getLum(bc)<92)return true;"
+            + "}"
+            + "var hc=document.documentElement&&!document.documentElement.getAttribute('data-sbx-pd')?parseRgb(getComputedStyle(document.documentElement).backgroundColor):null;"
+            + "if(hc&&hc.a>=0.7&&getLum(hc)<92)return true;"
+            + "}catch(e){}"
+            + "return false;"
+            + "};"
+            + "if(window.__sbxNativeDark===undefined&&document.body){window.__sbxNativeDark=isNativeDark();}"
+            + "var baseCss='html{color-scheme:dark;background-color:'+BG+';}';"
+            + "if(!window.__sbxNativeDark){"
+            + "baseCss+='html,body{background-color:'+BG+' !important;color:'+TXT+' !important;}';"
+            + "baseCss+='input,textarea,select{background-color:'+SURF+' !important;color:'+TXT+' !important;border-color:'+BDR+' !important;}';"
+            + "baseCss+='hr{border-color:'+BDR+' !important;}';"
+            + "}else if(amoled){"
+            + "baseCss+='html,body{background-color:#000000 !important;}';"
+            + "}"
+            + "st.textContent=baseCss;"
+            + "var paint=function(){"
+            + "try{"
+            + "if(!document.body)return;"
+            + "if(window.__sbxNativeDark===undefined){"
+            + "window.__sbxNativeDark=isNativeDark();"
+            + "if(window.__sbxNativeDark){st.textContent=amoled?'html,body{background-color:#000000 !important;}':'';}"
+            + "}"
+            + "var nat=!!window.__sbxNativeDark;"
+            + "var sel=nat?'body,main,article,section,header,footer,nav,aside,ul,li,div':'body,main,article,section,header,footer,nav,aside,ul,ol,li,div,table,thead,tbody,tr,td,th,form,dl,dd,dt,blockquote,pre,code,p,span,a,h1,h2,h3,h4,h5,h6,label,small,strong,b,em,i,button';"
+            + "var els=document.querySelectorAll(sel);"
+            + "var lim=Math.min(els.length,2400);"
+            + "for(var i=0;i<lim;i++){"
+            + "var el=els[i];"
+            + "if(el.getAttribute('data-sbx-pd'))continue;"
+            + "el.setAttribute('data-sbx-pd','1');"
+            + "var tn=el.tagName;"
+            + "if(tn==='IMG'||tn==='PICTURE'||tn==='VIDEO'||tn==='CANVAS'||tn==='SVG')continue;"
+            + "var cs=getComputedStyle(el);"
+            + "var bg=parseRgb(cs.backgroundColor);"
+            + "var hasBgImg=cs.backgroundImage&&cs.backgroundImage!=='none';"
+            + "if(bg&&bg.a>=0.65&&!hasBgImg){"
+            + "var mx=Math.max(bg.r,bg.g,bg.b),mn=Math.min(bg.r,bg.g,bg.b),sat=mx-mn,lum=getLum(bg);"
+            + "if(sat>28){"
+            + "el.setAttribute('data-sbx-brand','1');"
+            + "continue;"
+            + "}"
+            + "if(nat){"
+            + "if(amoled&&lum<=58&&sat<=18){el.setAttribute('data-sbx-amoled','1');el.style.setProperty('background-color','#000000','important');}"
+            + "continue;"
+            + "}"
+            + "if(lum>=165&&sat<=28){"
+            + "var useSurf=(tn==='PRE'||tn==='CODE'||tn==='BLOCKQUOTE'||tn==='TH'||tn==='BUTTON');"
+            + "el.setAttribute('data-sbx-amoled','1');"
+            + "el.style.setProperty('background-color',useSurf?SURF:BG,'important');"
+            + "}else if(amoled&&lum<=58&&sat<=18){"
+            + "el.setAttribute('data-sbx-amoled','1');"
+            + "el.style.setProperty('background-color','#000000','important');"
+            + "}"
+            + "}"
+            + "if(nat)continue;"
+            + "if(el.closest&&el.closest('[data-sbx-brand]'))continue;"
+            + "var bc=parseRgb(cs.borderBottomColor);"
+            + "if(bc&&bc.a>=0.5&&getLum(bc)>=175&&(Math.max(bc.r,bc.g,bc.b)-Math.min(bc.r,bc.g,bc.b))<=25){"
+            + "el.style.setProperty('border-color',BDR,'important');"
+            + "}"
+            + "var fg=parseRgb(cs.color);"
+            + "if(fg&&fg.a>=0.5){"
+            + "var fmx=Math.max(fg.r,fg.g,fg.b),fmn=Math.min(fg.r,fg.g,fg.b),fsat=fmx-fmn,flum=getLum(fg);"
+            + "if(flum<125){"
+            + "if(tn==='A'&&fg.b>fg.r+18){el.style.setProperty('color',LNK,'important');}"
+            + "else if(fsat<=34){el.style.setProperty('color',flum<70?TXT:MUTED,'important');}"
+            + "else if(flum<100){el.style.setProperty('color','rgb('+Math.min(255,fg.r+90)+','+Math.min(255,fg.g+90)+','+Math.min(255,fg.b+90)+')','important');}"
+            + "}"
+            + "}"
+            + "}"
+            + "}catch(e){}};"
+            + "paint();"
+            + "if(!window.__sbxPureObs){"
+            + "window.__sbxPureObs=1;"
+            + "if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',paint,{once:true});}"
+            + "window.addEventListener('load',paint,{once:true});"
+            + "setTimeout(paint,300);setTimeout(paint,1000);"
+            + "var tm=null;var mo=new MutationObserver(function(){if(tm)return;tm=setTimeout(function(){tm=null;paint();},160);});"
+            + "if(document.documentElement)mo.observe(document.documentElement,{childList:true,subtree:true});"
+            + "}"
+            + "})();";
+
     private static final String SBROWSERX_REMOVE_AMOLED_JS =
             "(function(){var st=document.getElementById('sbrowserx-amoled-css');if(st&&st.parentNode)st.parentNode.removeChild(st);try{var prev=document.querySelectorAll('[data-sbx-amoled]');for(var j=0;j<prev.length;j++){prev[j].style.removeProperty('background-color');prev[j].removeAttribute('data-sbx-amoled');}}catch(e){}})();";
 
@@ -947,7 +1066,9 @@ public final class SBrowserXHooks {
                 return;
             }
             boolean amoled = isAmoledBlackEnabled();
-            String js = SBROWSERX_AMOLED_JS.replace("__AMOLED__", amoled ? "true" : "false");
+            boolean pureCss = ctx != null && SBrowserXPrefs.isPureCssDarkEnabled(ctx);
+            String template = pureCss ? SBROWSERX_PURE_DARK_JS : SBROWSERX_AMOLED_JS;
+            String js = template.replace("__AMOLED__", amoled ? "true" : "false");
             Method evalM = sMethodWebDarkEvalJs;
             if (evalM == null) {
                 evalM = webDarkHandler.getClass().getMethod("evaluateJavaScript", String.class);

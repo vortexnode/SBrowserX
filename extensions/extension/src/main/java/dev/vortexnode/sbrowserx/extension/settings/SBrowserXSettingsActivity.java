@@ -195,6 +195,15 @@ public final class SBrowserXSettingsActivity extends Activity {
                     refreshDynamicViews();
                 });
         appearanceCard.addView(divider(night));
+        addSwitchRow(appearanceCard, SBrowserXStrings.get(SBrowserXStrings.PURE_CSS_DARK_TITLE),
+                SBrowserXStrings.get(SBrowserXStrings.PURE_CSS_DARK_SUMMARY),
+                SBrowserXPrefs.isPureCssDarkEnabled(this), night, textPrimary, textSecondary, null,
+                (btn, checked) -> {
+                    SBrowserXPrefs.setPureCssDarkEnabled(this, checked);
+                    Toast.makeText(this, SBrowserXStrings.get(SBrowserXStrings.PURE_CSS_DARK_TOAST), Toast.LENGTH_SHORT).show();
+                    refreshDynamicViews();
+                });
+        appearanceCard.addView(divider(night));
         forceDarkDot = createTealDot();
         forceDarkSwitch = addSwitchRow(appearanceCard, SBrowserXStrings.get(SBrowserXStrings.FORCE_DARK_TITLE),
                 SBrowserXStrings.get(SBrowserXStrings.FORCE_DARK_SUMMARY),

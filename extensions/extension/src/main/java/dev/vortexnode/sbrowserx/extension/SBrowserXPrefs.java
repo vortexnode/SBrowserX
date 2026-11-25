@@ -33,6 +33,7 @@ public final class SBrowserXPrefs {
     public static final String KEY_AMOLED_BLACK = "amoled_black_enabled";
     public static final String KEY_FORCE_ADAPTIVE_DARK = "force_adaptive_dark_enabled";
     public static final String KEY_DARK_BRIGHT_IMAGES = "dark_bright_images_enabled";
+    public static final String KEY_PURE_CSS_DARK = "pure_css_dark_enabled";
     public static final String KEY_EXTERNAL_DOWNLOADER = "external_downloader_enabled";
     public static final String KEY_EXTERNAL_DOWNLOADER_PKG = "external_downloader_package";
     public static final String KEY_EXTERNAL_DOWNLOADER_IMAGES = "external_downloader_images_enabled";
@@ -218,6 +219,14 @@ public final class SBrowserXPrefs {
     public static void setDarkBrightImagesEnabled(Context context, boolean enabled) {
         prefs(context).edit().putBoolean(KEY_DARK_BRIGHT_IMAGES, enabled).apply();
         markFeatureViewed(context, FEATURE_FORCE_DARK);
+    }
+
+    public static boolean isPureCssDarkEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_PURE_CSS_DARK, false);
+    }
+
+    public static void setPureCssDarkEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_PURE_CSS_DARK, enabled).apply();
     }
 
     public static String getCompactAiButton(Context context) {
