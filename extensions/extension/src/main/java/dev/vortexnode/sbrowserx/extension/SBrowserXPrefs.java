@@ -10,6 +10,9 @@ public final class SBrowserXPrefs {
     public static final String KEY_FINGERPRINT_PROTECTION = "fingerprint_protection_enabled";
     public static final String KEY_BOTTOM_BAR_BLUR = "bottom_bar_blur_enabled";
     public static final String KEY_AMOLED_BLACK = "amoled_black_enabled";
+    public static final String KEY_EXTERNAL_DOWNLOADER = "external_downloader_enabled";
+    public static final String KEY_AUTO_CLOSE_1DAY = "auto_close_tabs_1day_enabled";
+    public static final String KEY_GOOGLE_TRANSLATE = "google_translate_backend_enabled";
     public static final String KEY_HIGHLIGHT_DAYS = "new_feature_highlight_days";
 
     public static final String WEBRTC_DEFAULT = "default";
@@ -23,6 +26,9 @@ public final class SBrowserXPrefs {
     public static final String FEATURE_EXT_INSTALLER = "feat_ext_installer_030";
     public static final String FEATURE_EXT_PACK = "feat_ext_pack_030";
     public static final String FEATURE_FINGERPRINT = "feat_fingerprint_030";
+    public static final String FEATURE_EXT_DOWNLOADER = "feat_ext_downloader_040";
+    public static final String FEATURE_AUTO_CLOSE_1DAY = "feat_autoclose_1day_040";
+    public static final String FEATURE_GOOGLE_TRANSLATE = "feat_google_translate_040";
 
     private static final String[] ALL_FEATURES = new String[] {
             FEATURE_WEBRTC,
@@ -30,7 +36,10 @@ public final class SBrowserXPrefs {
             FEATURE_BOTTOM_BLUR,
             FEATURE_EXT_INSTALLER,
             FEATURE_EXT_PACK,
-            FEATURE_FINGERPRINT
+            FEATURE_FINGERPRINT,
+            FEATURE_EXT_DOWNLOADER,
+            FEATURE_AUTO_CLOSE_1DAY,
+            FEATURE_GOOGLE_TRANSLATE
     };
 
     private static volatile Context sAppContext;
@@ -87,6 +96,33 @@ public final class SBrowserXPrefs {
     public static void setAmoledBlackEnabled(Context context, boolean enabled) {
         prefs(context).edit().putBoolean(KEY_AMOLED_BLACK, enabled).apply();
         markFeatureViewed(context, FEATURE_AMOLED);
+    }
+
+    public static boolean isExternalDownloaderEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_EXTERNAL_DOWNLOADER, false);
+    }
+
+    public static void setExternalDownloaderEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_EXTERNAL_DOWNLOADER, enabled).apply();
+        markFeatureViewed(context, FEATURE_EXT_DOWNLOADER);
+    }
+
+    public static boolean isAutoClose1DayEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_AUTO_CLOSE_1DAY, false);
+    }
+
+    public static void setAutoClose1DayEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_AUTO_CLOSE_1DAY, enabled).apply();
+        markFeatureViewed(context, FEATURE_AUTO_CLOSE_1DAY);
+    }
+
+    public static boolean isGoogleTranslateEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_GOOGLE_TRANSLATE, true);
+    }
+
+    public static void setGoogleTranslateEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_GOOGLE_TRANSLATE, enabled).apply();
+        markFeatureViewed(context, FEATURE_GOOGLE_TRANSLATE);
     }
 
     public static int getHighlightDays(Context context) {

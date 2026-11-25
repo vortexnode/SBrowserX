@@ -7,17 +7,19 @@ import dev.vortexnode.sbrowserx.patches.branding.SBrowserPackageRenameTarget
 import dev.vortexnode.sbrowserx.shared.Constants.ANDROID_NS
 import dev.vortexnode.sbrowserx.shared.Constants.COMPATIBILITY_SBROWSER
 import dev.vortexnode.sbrowserx.shared.findMethodOrThrow
+import dev.vortexnode.sbrowserx.shared.returnConstantBoolean
 import org.w3c.dom.Element
 
 private const val SBROWSER_APP_CLASS = "Lcom/sec/android/app/sbrowser/SBrowserApplication;"
 private const val SBROWSER_CMDLINE_CLASS = "Lcom/sec/android/app/sbrowser/init/SBrowserCommandLine;"
+private const val BADGE_MANAGER_CLASS = "Lcom/sec/android/app/sbrowser/toolbar/BadgeManager;"
 private const val SETTINGS_ACTIVITY_CLASS =
     "dev.vortexnode.sbrowserx.extension.settings.SBrowserXSettingsActivity"
 private const val WEBRTC_DIALOG_ACTIVITY_CLASS =
     "dev.vortexnode.sbrowserx.extension.settings.SBrowserXWebRtcDialogActivity"
 
 internal val sbrowserXCoreResourcePatch = resourcePatch(
-    description = "Registers SBrowserX activities in AndroidManifest.xml and injects SBrowserX Hub & WebRTC entry into Settings and Privacy screens.",
+    description = "Registers SBrowserX activities in AndroidManifest.xml, adds SBrowserX & Extensions to Settings, and puts WebRTC in its own card inside Privacy.",
 ) {
     finalize {
         val targetPkg = SBrowserPackageRenameTarget.packageName
@@ -54,26 +56,43 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
 
         document("res/xml/settings_fragment.xml").use { xml ->
             val screen = xml.documentElement ?: error("Missing PreferenceScreen in settings_fragment.xml")
-            val pref = xml.createElement("com.sec.android.app.sbrowser.common.settings.PreferenceCustom")
-            pref.setAttributeNS(ANDROID_NS, "android:key", "sbrowserx_settings_hub")
-            pref.setAttributeNS(ANDROID_NS, "android:title", "SBrowserX  \u25CF")
-            pref.setAttributeNS(ANDROID_NS, "android:summary", "Extensions (.crx/.zip), WebRTC, Fingerprint & AMOLED")
 
-            val intent = xml.createElement("intent")
-            intent.setAttributeNS(ANDROID_NS, "android:targetPackage", targetPkg)
-            intent.setAttributeNS(ANDROID_NS, "android:targetClass", SETTINGS_ACTIVITY_CLASS)
-            pref.appendChild(intent)
+            val hubPref = xml.createElement("com.sec.android.app.sbrowser.common.settings.PreferenceCustom")
+            hubPref.setAttributeNS(ANDROID_NS, "android:key", "sbrowserx_settings_hub")
+            hubPref.setAttributeNS(ANDROID_NS, "android:title", "SBrowserX  \u25CF")
+            hubPref.setAttributeNS(ANDROID_NS, "android:summary", "Extensions, WebRTC, Translate, Downloads & AMOLED")
+            val hubIntent = xml.createElement("intent")
+            hubIntent.setAttributeNS(ANDROID_NS, "android:targetPackage", targetPkg)
+            hubIntent.setAttributeNS(ANDROID_NS, "android:targetClass", SETTINGS_ACTIVITY_CLASS)
+            hubPref.appendChild(hubIntent)
+
+            val extPref = xml.createElement("com.sec.android.app.sbrowser.common.settings.PreferenceCustom")
+            extPref.setAttributeNS(ANDROID_NS, "android:key", "sbrowserx_settings_extensions")
+            extPref.setAttributeNS(ANDROID_NS, "android:title", "@string/extensions")
+            extPref.setAttributeNS(ANDROID_NS, "android:summary", "internet://extensions & Chrome Web Store")
+            val extIntent = xml.createElement("intent")
+            extIntent.setAttributeNS(ANDROID_NS, "android:action", "android.intent.action.VIEW")
+            extIntent.setAttributeNS(ANDROID_NS, "android:data", "internet://extensions")
+            extIntent.setAttributeNS(ANDROID_NS, "android:targetPackage", targetPkg)
+            extPref.appendChild(extIntent)
 
             val firstChild = screen.firstChild
             if (firstChild != null) {
-                screen.insertBefore(pref, firstChild)
+                screen.insertBefore(hubPref, firstChild)
+                screen.insertBefore(extPref, firstChild)
             } else {
-                screen.appendChild(pref)
+                screen.appendChild(hubPref)
+                screen.appendChild(extPref)
             }
         }
 
         document("res/xml/privacy_preferences.xml").use { xml ->
             val screen = xml.documentElement ?: error("Missing PreferenceScreen in privacy_preferences.xml")
+
+            val cat = xml.createElement("androidx.preference.PreferenceCategory")
+            cat.setAttributeNS(ANDROID_NS, "android:selectable", "false")
+            cat.setAttributeNS(ANDROID_NS, "android:key", "sbrowserx_webrtc_card_category")
+
             val pref = xml.createElement("com.sec.android.app.sbrowser.common.settings.PreferenceCustom")
             pref.setAttributeNS(ANDROID_NS, "android:key", "sbrowserx_privacy_webrtc")
             pref.setAttributeNS(ANDROID_NS, "android:title", "WebRTC IP handling policy")
@@ -88,18 +107,15 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
             var inserted = false
             for (i in 0 until nodes.length) {
                 val node = nodes.item(i) as? Element ?: continue
-                if (node.getAttributeNS(ANDROID_NS, "key") == "anti_tracking_level") {
-                    val next = node.nextSibling
-                    if (next != null) {
-                        screen.insertBefore(pref, next)
-                    } else {
-                        screen.appendChild(pref)
-                    }
+                if (node.getAttributeNS(ANDROID_NS, "key") == "enhanced_clean_category") {
+                    screen.insertBefore(cat, node)
+                    screen.insertBefore(pref, node)
                     inserted = true
                     break
                 }
             }
             if (!inserted) {
+                screen.appendChild(cat)
                 screen.appendChild(pref)
             }
         }
@@ -118,7 +134,7 @@ private fun hasActivity(application: Element, className: String): Boolean {
 @Suppress("unused")
 val sbrowserXCorePatch = bytecodePatch(
     name = "SBrowserX Settings, Extensions & Privacy Core",
-    description = "Adds the SBrowserX settings hub (15 languages, teal new-feature badges), native .crx/.zip extension installer, recommended 5-extension pack, WebRTC IP leak protection, and native anti-fingerprint protection.",
+    description = "Adds SBrowserX settings hub (15 languages, high-contrast switches, teal badges), native .crx/.zip installer, 6-extension pack (+Bitwarden), separate WebRTC card in Privacy, native anti-fingerprint protection, and removes stuck orange Extensions badge.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)
@@ -126,7 +142,6 @@ val sbrowserXCorePatch = bytecodePatch(
     dependsOn(sbrowserXCoreResourcePatch)
 
     execute {
-        // 1. Hook SBrowserApplication.onCreate() before Terrace/Chromium reads Default/Preferences
         findMethodOrThrow(
             classType = SBROWSER_APP_CLASS,
             methodName = "onCreate",
@@ -137,7 +152,6 @@ val sbrowserXCorePatch = bytecodePatch(
             "invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onApplicationCreate(Landroid/app/Application;)V",
         )
 
-        // 2. Hook SBrowserCommandLine.setCustomFeatures() right before return-void for native anti-fingerprint flags
         val cmdMethod = findMethodOrThrow(
             classType = SBROWSER_CMDLINE_CLASS,
             methodName = "setCustomFeatures",
@@ -150,5 +164,12 @@ val sbrowserXCorePatch = bytecodePatch(
             cmdInsns.size - 1,
             "invoke-static {}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onCommandLineCustomFeatures()V",
         )
+
+        findMethodOrThrow(
+            classType = BADGE_MANAGER_CLASS,
+            methodName = "getNewExtensionCount",
+            parameterTypes = emptyList(),
+            returnType = "I",
+        ).returnConstantBoolean(false)
     }
 }

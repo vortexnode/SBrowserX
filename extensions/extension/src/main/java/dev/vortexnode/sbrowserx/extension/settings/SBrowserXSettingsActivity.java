@@ -3,6 +3,7 @@ package dev.vortexnode.sbrowserx.extension.settings;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.content.res.ColorStateList;
 import android.content.res.Configuration;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -35,6 +36,9 @@ public final class SBrowserXSettingsActivity extends Activity {
     private View extPackDot;
     private View webrtcDot;
     private View fingerprintDot;
+    private View gtransDot;
+    private View extDlDot;
+    private View autoClose1dDot;
     private View amoledDot;
     private View blurDot;
     private TextView daysValueView;
@@ -75,10 +79,10 @@ public final class SBrowserXSettingsActivity extends Activity {
         boolean amoled = night && SBrowserXPrefs.isAmoledBlackEnabled(this);
 
         int bgColor = amoled ? 0xFF000000 : (night ? 0xFF010101 : 0xFFF6F6F8);
-        int cardColor = amoled ? 0xFF121212 : (night ? 0xFF1C1C1E : 0xFFFFFFFF);
+        int cardColor = amoled ? 0xFF141416 : (night ? 0xFF1C1C1E : 0xFFFFFFFF);
         int textPrimary = night ? 0xFFF5F5F7 : 0xFF111113;
-        int textSecondary = night ? 0xFFA0A0A8 : 0xFF636368;
-        int accent = 0xFF6250FF;
+        int textSecondary = night ? 0xFFA8A8B2 : 0xFF636368;
+        int accent = 0xFF7B6BFF;
         int dialogTheme = night
                 ? android.R.style.Theme_DeviceDefault_Dialog_Alert
                 : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert;
@@ -94,7 +98,6 @@ public final class SBrowserXSettingsActivity extends Activity {
         root.setPadding(dp(16), dp(20), dp(16), dp(32));
         scroll.addView(root);
 
-        // Header bar
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
@@ -120,111 +123,93 @@ public final class SBrowserXSettingsActivity extends Activity {
         root.addView(sectionHeader(SBrowserXStrings.get(SBrowserXStrings.CAT_EXTENSIONS), textSecondary));
         LinearLayout extCard = card(cardColor);
         extInstallDot = createTealDot();
-        addActionRow(
-                extCard,
-                SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALL_FILE),
+        addActionRow(extCard, SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALL_FILE),
                 SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALL_FILE_SUMMARY),
-                textPrimary,
-                textSecondary,
-                extInstallDot,
-                v -> launchFilePicker()
-        );
+                textPrimary, textSecondary, extInstallDot, v -> launchFilePicker());
         extCard.addView(divider(night));
         extPackDot = createTealDot();
-        addActionRow(
-                extCard,
-                SBrowserXStrings.get(SBrowserXStrings.EXT_PACK_TITLE),
+        addActionRow(extCard, SBrowserXStrings.get(SBrowserXStrings.EXT_PACK_TITLE),
                 SBrowserXStrings.get(SBrowserXStrings.EXT_PACK_SUMMARY),
-                textPrimary,
-                textSecondary,
-                extPackDot,
-                v -> showRecommendedPackDialog(dialogTheme)
-        );
+                textPrimary, textSecondary, extPackDot, v -> showRecommendedPackDialog(dialogTheme));
         extCard.addView(divider(night));
-        addActionRow(
-                extCard,
-                SBrowserXStrings.get(SBrowserXStrings.EXT_OPEN_MANAGER),
-                null,
-                accent,
-                textSecondary,
-                null,
-                v -> openUrlInSelf("internet://extensions")
-        );
+        addActionRow(extCard, SBrowserXStrings.get(SBrowserXStrings.EXT_OPEN_MANAGER),
+                null, accent, textSecondary, null, v -> openUrlInSelf("internet://extensions"));
         extCard.addView(divider(night));
-        addActionRow(
-                extCard,
-                SBrowserXStrings.get(SBrowserXStrings.EXT_OPEN_CWS),
-                null,
-                accent,
-                textSecondary,
-                null,
-                v -> openUrlInSelf("https://chromewebstore.google.com/category/extensions")
-        );
+        addActionRow(extCard, SBrowserXStrings.get(SBrowserXStrings.EXT_OPEN_CWS),
+                null, accent, textSecondary, null, v -> openUrlInSelf("https://chromewebstore.google.com/category/extensions"));
         root.addView(extCard);
 
         // --- Privacy & Security ---
         root.addView(sectionHeader(SBrowserXStrings.get(SBrowserXStrings.CAT_PRIVACY), textSecondary));
         LinearLayout privacyCard = card(cardColor);
         webrtcDot = createTealDot();
-        webrtcSummaryView = addActionRow(
-                privacyCard,
-                SBrowserXStrings.get(SBrowserXStrings.WEBRTC_TITLE),
+        webrtcSummaryView = addActionRow(privacyCard, SBrowserXStrings.get(SBrowserXStrings.WEBRTC_TITLE),
                 SBrowserXStrings.webrtcLabel(SBrowserXPrefs.getWebRtcPolicy(this)),
-                textPrimary,
-                textSecondary,
-                webrtcDot,
-                v -> startActivity(new Intent(this, SBrowserXWebRtcDialogActivity.class))
-        );
+                textPrimary, textSecondary, webrtcDot,
+                v -> startActivity(new Intent(this, SBrowserXWebRtcDialogActivity.class)));
         privacyCard.addView(divider(night));
         fingerprintDot = createTealDot();
-        addSwitchRow(
-                privacyCard,
-                SBrowserXStrings.get(SBrowserXStrings.FINGERPRINT_TITLE),
+        addSwitchRow(privacyCard, SBrowserXStrings.get(SBrowserXStrings.FINGERPRINT_TITLE),
                 SBrowserXStrings.get(SBrowserXStrings.FINGERPRINT_SUMMARY),
-                SBrowserXPrefs.isFingerprintProtectionEnabled(this),
-                textPrimary,
-                textSecondary,
-                fingerprintDot,
+                SBrowserXPrefs.isFingerprintProtectionEnabled(this), night, textPrimary, textSecondary, fingerprintDot,
                 (btn, checked) -> {
                     SBrowserXPrefs.setFingerprintProtectionEnabled(this, checked);
                     SBrowserXWebRtcManager.applyToProfile(this);
                     refreshDynamicViews();
-                }
-        );
+                });
         root.addView(privacyCard);
+
+        // --- Features & Downloads ---
+        root.addView(sectionHeader(SBrowserXStrings.get(SBrowserXStrings.CAT_FEATURES), textSecondary));
+        LinearLayout featCard = card(cardColor);
+        gtransDot = createTealDot();
+        addSwitchRow(featCard, SBrowserXStrings.get(SBrowserXStrings.GTRANS_TITLE),
+                SBrowserXStrings.get(SBrowserXStrings.GTRANS_SUMMARY),
+                SBrowserXPrefs.isGoogleTranslateEnabled(this), night, textPrimary, textSecondary, gtransDot,
+                (btn, checked) -> {
+                    SBrowserXPrefs.setGoogleTranslateEnabled(this, checked);
+                    refreshDynamicViews();
+                });
+        featCard.addView(divider(night));
+        extDlDot = createTealDot();
+        addSwitchRow(featCard, SBrowserXStrings.get(SBrowserXStrings.EXT_DL_TITLE),
+                SBrowserXStrings.get(SBrowserXStrings.EXT_DL_SUMMARY),
+                SBrowserXPrefs.isExternalDownloaderEnabled(this), night, textPrimary, textSecondary, extDlDot,
+                (btn, checked) -> {
+                    SBrowserXPrefs.setExternalDownloaderEnabled(this, checked);
+                    refreshDynamicViews();
+                });
+        featCard.addView(divider(night));
+        autoClose1dDot = createTealDot();
+        addSwitchRow(featCard, SBrowserXStrings.get(SBrowserXStrings.AUTOCLOSE_1D_TITLE),
+                SBrowserXStrings.get(SBrowserXStrings.AUTOCLOSE_1D_SUMMARY),
+                SBrowserXPrefs.isAutoClose1DayEnabled(this), night, textPrimary, textSecondary, autoClose1dDot,
+                (btn, checked) -> {
+                    SBrowserXPrefs.setAutoClose1DayEnabled(this, checked);
+                    refreshDynamicViews();
+                });
+        root.addView(featCard);
 
         // --- Appearance & UI ---
         root.addView(sectionHeader(SBrowserXStrings.get(SBrowserXStrings.CAT_APPEARANCE), textSecondary));
         LinearLayout appearanceCard = card(cardColor);
         amoledDot = createTealDot();
-        addSwitchRow(
-                appearanceCard,
-                SBrowserXStrings.get(SBrowserXStrings.AMOLED_TITLE),
+        addSwitchRow(appearanceCard, SBrowserXStrings.get(SBrowserXStrings.AMOLED_TITLE),
                 SBrowserXStrings.get(SBrowserXStrings.AMOLED_SUMMARY),
-                SBrowserXPrefs.isAmoledBlackEnabled(this),
-                textPrimary,
-                textSecondary,
-                amoledDot,
+                SBrowserXPrefs.isAmoledBlackEnabled(this), night, textPrimary, textSecondary, amoledDot,
                 (btn, checked) -> {
                     SBrowserXPrefs.setAmoledBlackEnabled(this, checked);
                     refreshDynamicViews();
-                }
-        );
+                });
         appearanceCard.addView(divider(night));
         blurDot = createTealDot();
-        addSwitchRow(
-                appearanceCard,
-                SBrowserXStrings.get(SBrowserXStrings.BOTTOM_BLUR_TITLE),
+        addSwitchRow(appearanceCard, SBrowserXStrings.get(SBrowserXStrings.BOTTOM_BLUR_TITLE),
                 SBrowserXStrings.get(SBrowserXStrings.BOTTOM_BLUR_SUMMARY),
-                SBrowserXPrefs.isBottomBarBlurEnabled(this),
-                textPrimary,
-                textSecondary,
-                blurDot,
+                SBrowserXPrefs.isBottomBarBlurEnabled(this), night, textPrimary, textSecondary, blurDot,
                 (btn, checked) -> {
                     SBrowserXPrefs.setBottomBarBlurEnabled(this, checked);
                     refreshDynamicViews();
-                }
-        );
+                });
         root.addView(appearanceCard);
 
         // --- New Features Highlight ---
@@ -232,34 +217,21 @@ public final class SBrowserXSettingsActivity extends Activity {
         LinearLayout highlightCard = card(cardColor);
         addDaysSliderRow(highlightCard, textPrimary, textSecondary);
         highlightCard.addView(divider(night));
-        addActionRow(
-                highlightCard,
-                SBrowserXStrings.get(SBrowserXStrings.MARK_ALL_VIEWED),
-                null,
-                accent,
-                textSecondary,
-                null,
-                v -> {
+        addActionRow(highlightCard, SBrowserXStrings.get(SBrowserXStrings.MARK_ALL_VIEWED),
+                null, accent, textSecondary, null, v -> {
                     SBrowserXPrefs.markAllViewed(this);
                     refreshDynamicViews();
                     Toast.makeText(this, SBrowserXStrings.get(SBrowserXStrings.MARK_ALL_VIEWED_DONE), Toast.LENGTH_SHORT).show();
-                }
-        );
+                });
         root.addView(highlightCard);
 
         // --- Restart Browser ---
         LinearLayout restartCard = card(cardColor);
         LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) restartCard.getLayoutParams();
         lp.topMargin = dp(16);
-        addActionRow(
-                restartCard,
-                SBrowserXStrings.get(SBrowserXStrings.RESTART_TITLE),
+        addActionRow(restartCard, SBrowserXStrings.get(SBrowserXStrings.RESTART_TITLE),
                 SBrowserXStrings.get(SBrowserXStrings.RESTART_SUMMARY),
-                accent,
-                textSecondary,
-                null,
-                v -> SBrowserXWebRtcDialogActivity.restartBrowser(this)
-        );
+                accent, textSecondary, null, v -> SBrowserXWebRtcDialogActivity.restartBrowser(this));
         root.addView(restartCard);
 
         setContentView(scroll);
@@ -326,6 +298,9 @@ public final class SBrowserXSettingsActivity extends Activity {
         setDot(extPackDot, SBrowserXPrefs.FEATURE_EXT_PACK);
         setDot(webrtcDot, SBrowserXPrefs.FEATURE_WEBRTC);
         setDot(fingerprintDot, SBrowserXPrefs.FEATURE_FINGERPRINT);
+        setDot(gtransDot, SBrowserXPrefs.FEATURE_GOOGLE_TRANSLATE);
+        setDot(extDlDot, SBrowserXPrefs.FEATURE_EXT_DOWNLOADER);
+        setDot(autoClose1dDot, SBrowserXPrefs.FEATURE_AUTO_CLOSE_1DAY);
         setDot(amoledDot, SBrowserXPrefs.FEATURE_AMOLED);
         setDot(blurDot, SBrowserXPrefs.FEATURE_BOTTOM_BLUR);
         if (daysValueView != null) {
@@ -389,13 +364,8 @@ public final class SBrowserXSettingsActivity extends Activity {
     }
 
     private TextView addActionRow(
-            LinearLayout parent,
-            String title,
-            String summary,
-            int titleColor,
-            int summaryColor,
-            View badgeDot,
-            View.OnClickListener listener
+            LinearLayout parent, String title, String summary,
+            int titleColor, int summaryColor, View badgeDot, View.OnClickListener listener
     ) {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.VERTICAL);
@@ -430,13 +400,8 @@ public final class SBrowserXSettingsActivity extends Activity {
     }
 
     private void addSwitchRow(
-            LinearLayout parent,
-            String title,
-            String summary,
-            boolean initialValue,
-            int titleColor,
-            int summaryColor,
-            View badgeDot,
+            LinearLayout parent, String title, String summary, boolean initialValue, boolean night,
+            int titleColor, int summaryColor, View badgeDot,
             android.widget.CompoundButton.OnCheckedChangeListener listener
     ) {
         LinearLayout row = new LinearLayout(this);
@@ -470,6 +435,7 @@ public final class SBrowserXSettingsActivity extends Activity {
         textCol.addView(tvSummary);
 
         Switch sw = new Switch(this);
+        styleHighContrastSwitch(sw, night);
         sw.setChecked(initialValue);
         sw.setOnCheckedChangeListener(listener);
 
@@ -477,6 +443,23 @@ public final class SBrowserXSettingsActivity extends Activity {
         row.addView(sw);
         row.setOnClickListener(v -> sw.toggle());
         parent.addView(row);
+    }
+
+    private void styleHighContrastSwitch(Switch sw, boolean night) {
+        int[][] states = new int[][] {
+                new int[] { android.R.attr.state_checked },
+                new int[] {}
+        };
+        int[] thumbColors = new int[] {
+                0xFFFFFFFF,
+                night ? 0xFFD0D0DA : 0xFFFFFFFF
+        };
+        int[] trackColors = new int[] {
+                0xFF6C5CE7,
+                night ? 0xFF52525E : 0xFFB8B8C4
+        };
+        sw.setThumbTintList(new ColorStateList(states, thumbColors));
+        sw.setTrackTintList(new ColorStateList(states, trackColors));
     }
 
     private void addDaysSliderRow(LinearLayout parent, int titleColor, int summaryColor) {

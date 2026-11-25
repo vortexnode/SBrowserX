@@ -1,14 +1,19 @@
 package dev.vortexnode.sbrowserx.extension;
 
+import android.app.Activity;
 import android.app.Application;
 import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Process;
 import android.util.Log;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
 public final class SBrowserXHooks {
     private static final String TAG = "SBrowserXHooks";
+    private static volatile Object sActiveTransService;
 
     private SBrowserXHooks() {}
 
@@ -70,10 +75,6 @@ public final class SBrowserXHooks {
         }
     }
 
-    /**
-     * Preserves stock #D9 blur translucency (0xD9000000) when bottom bar blur is ON,
-     * and returns solid #FF000000 only when blur is OFF.
-     */
     public static int getAmoledBottomBarColor() {
         try {
             Context ctx = SBrowserXPrefs.getAppContext();
@@ -82,5 +83,66 @@ public final class SBrowserXHooks {
         } catch (Throwable t) {
             return 0xD9000000;
         }
+    }
+
+    public static long getAutoClose7DayOverride() {
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            if (ctx != null && SBrowserXPrefs.isAutoClose1DayEnabled(ctx)) {
+                return 1L;
+            }
+        } catch (Throwable ignored) {}
+        return 7L;
+    }
+
+    public static boolean tryHandOffDownload(Object downloadHandler, Activity activity) {
+        if (downloadHandler == null || activity == null) return false;
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            if (ctx == null || !SBrowserXPrefs.isExternalDownloaderEnabled(ctx)) return false;
+
+            Field f = downloadHandler.getClass().getDeclaredField("mPreDownloadInfo");
+            f.setAccessible(true);
+            Object info = f.get(downloadHandler);
+            if (info == null) return false;
+
+            String url = (String) info.getClass().getMethod("getUrl").invoke(info);
+            if (url == null || !(url.startsWith("http://") || url.startsWith("https://"))) {
+                return false;
+            }
+            String mime = (String) info.getClass().getMethod("getMimetype").invoke(info);
+            String filename = (String) info.getClass().getMethod("getFilename").invoke(info);
+
+            Intent viewIntent = new Intent(Intent.ACTION_VIEW);
+            if (mime != null && !mime.isEmpty() && !mime.equals("application/octet-stream")) {
+                viewIntent.setDataAndType(Uri.parse(url), mime);
+            } else {
+                viewIntent.setData(Uri.parse(url));
+            }
+            if (filename != null && !filename.isEmpty()) {
+                viewIntent.putExtra(Intent.EXTRA_TITLE, filename);
+            }
+            Intent chooser = Intent.createChooser(viewIntent, SBrowserXStrings.get(SBrowserXStrings.EXT_DL_CHOOSER));
+            chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            activity.startActivity(chooser);
+            return true;
+        } catch (Throwable t) {
+            Log.e(TAG, "tryHandOffDownload failed, falling back to stock downloader", t);
+            return false;
+        }
+    }
+
+    public static void setActiveTransService(Object sixTransService) {
+        sActiveTransService = sixTransService;
+    }
+
+    public static boolean tryGoogleTranslate(
+            String sourceLang,
+            String targetLang,
+            String[] textList,
+            long nativeCallback
+    ) {
+        return SBrowserXGoogleTranslator.handleTranslate(
+                sActiveTransService, sourceLang, targetLang, textList, nativeCallback);
     }
 }

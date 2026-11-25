@@ -38,6 +38,7 @@ public final class SBrowserXCrxInstaller {
             {"dnioaagdjgpcokckfpokpndoblenmfcg", "VOT — Voice Over Translation"},
             {"meojnmfhjkahlfcecpdcdgjclcilmaij", "All Fingerprint Defender"},
             {"bgnkhhnnamicmpeenaelnjfhikgbkllg", "AdGuard AdBlocker"}
+            {"nngceckbapebfimnlniiiahkandclblb", "Bitwarden Password Manager"}
     };
 
     public interface Callback {
