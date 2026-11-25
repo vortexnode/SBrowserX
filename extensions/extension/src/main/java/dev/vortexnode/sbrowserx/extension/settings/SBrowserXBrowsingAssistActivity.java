@@ -156,7 +156,7 @@ public final class SBrowserXBrowsingAssistActivity extends Activity {
         EditText input = new EditText(this);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
         input.setSingleLine(true);
-        input.setHint("AIza...");
+        input.setHint("AQ... / AIza...");
         input.setText(SBrowserXPrefs.getTranslateApiKey(this));
         int pad = dp(20);
         LinearLayout wrap = new LinearLayout(this);

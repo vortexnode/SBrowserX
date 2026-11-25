@@ -98,7 +98,7 @@ public final class SBrowserXAiSummaryActivity extends Activity {
         EditText input = new EditText(this);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
         input.setSingleLine(true);
-        input.setHint("AIza...");
+        input.setHint("AQ... / AIza...");
         LinearLayout wrap = new LinearLayout(this);
         wrap.setOrientation(LinearLayout.VERTICAL);
         wrap.setPadding(dp(20), dp(8), dp(20), dp(4));
@@ -146,16 +146,11 @@ public final class SBrowserXAiSummaryActivity extends Activity {
                 JSONObject content = new JSONObject().put("parts", new JSONArray().put(part));
                 JSONObject reqBody = new JSONObject().put("contents", new JSONArray().put(content));
 
-                String encodedKey = Uri.encode(apiKey);
-                String[] endpoints = apiKey.startsWith("AQ.")
-                        ? new String[] {
-                            "https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash:generateContent?key=" + encodedKey,
-                            "https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash-lite:generateContent?key=" + encodedKey
-                        }
-                        : new String[] {
-                            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + encodedKey,
-                            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + encodedKey
-                        };
+                String[] endpoints = new String[] {
+                        "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent",
+                        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+                        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent"
+                };
 
                 StringBuilder sb = new StringBuilder();
                 int lastCode = 0;
@@ -168,6 +163,7 @@ public final class SBrowserXAiSummaryActivity extends Activity {
                     conn.setReadTimeout(25000);
                     conn.setDoOutput(true);
                     conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                    conn.setRequestProperty("X-goog-api-key", apiKey);
                     try (OutputStream os = conn.getOutputStream()) {
                         os.write(reqBody.toString().getBytes(StandardCharsets.UTF_8));
                     }

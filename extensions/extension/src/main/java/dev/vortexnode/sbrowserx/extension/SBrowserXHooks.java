@@ -792,39 +792,60 @@ public final class SBrowserXHooks {
     private static final String SBROWSERX_AMOLED_JS =
             "(function(){"
             + "var id='sbrowserx-amoled-css';"
+            + "var root=document.head||document.documentElement;"
+            + "if(!root)return;"
             + "var st=document.getElementById(id);"
-            + "if(!st){st=document.createElement('style');st.id=id;(document.head||document.documentElement).appendChild(st);}"
-            + "var css='img,video,picture,canvas,svg{filter:none !important;opacity:1 !important;}';"
+            + "if(!st){st=document.createElement('style');st.id=id;root.appendChild(st);}"
+            + "var css='img,picture,video,canvas{color-scheme:only light !important;filter:none !important;opacity:1 !important;}';"
             + "var amoled=__AMOLED__;"
             + "if(amoled){"
             + "css+='html,body{background-color:#000000 !important;}';"
             + "var paint=function(){"
             + "try{"
-            + "var els=document.querySelectorAll('body,main,article,section,header,footer,nav,aside,ul,li,div');"
-            + "var lim=Math.min(els.length,400);"
+            + "var els=document.querySelectorAll('body,main,article,section,header,footer,nav,aside,ul,li,div,table,tr,td,th');"
+            + "var lim=Math.min(els.length,600);"
             + "for(var i=0;i<lim;i++){"
-            + "var el=els[i];var cs=getComputedStyle(el);var bg=cs.backgroundColor;"
+            + "var el=els[i];"
+            + "if(el.getAttribute('data-sbx-amoled'))continue;"
+            + "var cs=getComputedStyle(el);"
+            + "if(cs.backgroundImage&&cs.backgroundImage!=='none')continue;"
+            + "var bg=cs.backgroundColor;"
             + "if(!bg||bg==='transparent'||bg==='rgba(0, 0, 0, 0)')continue;"
-            + "var m=bg.match(/^rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/);"
+            + "var m=bg.match(/^rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)(?:,\\s*([\\d.]+))?/);"
             + "if(!m)continue;"
+            + "if(m[4]!==undefined&&parseFloat(m[4])<0.7)continue;"
             + "var r=+m[1],g=+m[2],b=+m[3];"
-            + "var mx=Math.max(r,g,b),mn=Math.min(r,g,b);"
-            + "if(mx<=54 && (mx-mn)<=14){el.style.setProperty('background-color','#000000','important');}"
+            + "var mx=Math.max(r,g,b),mn=Math.min(r,g,b),sat=mx-mn;"
+            + "var isDarkNeutral=(mx<=58&&sat<=16);"
+            + "var isLightNeutral=(mn>=210&&sat<=18);"
+            + "if(!isDarkNeutral&&!isLightNeutral)continue;"
+            + "if(isLightNeutral){"
+            + "var tn=el.tagName;"
+            + "if(tn==='BUTTON'||tn==='INPUT'||tn==='SELECT'||tn==='TEXTAREA'||el.getAttribute('role')==='button')continue;"
+            + "if(el.offsetWidth>0&&el.offsetHeight>0&&(el.offsetWidth<48||el.offsetHeight<32))continue;"
+            + "}"
+            + "el.setAttribute('data-sbx-amoled','1');"
+            + "el.style.setProperty('background-color','#000000','important');"
             + "}"
             + "}catch(e){}};"
             + "paint();"
             + "if(!window.__sbxAmoledObs){"
             + "window.__sbxAmoledObs=1;"
-            + "var tm=null;var mo=new MutationObserver(function(){if(tm)return;tm=setTimeout(function(){tm=null;paint();},250);});"
-            + "if(document.body)mo.observe(document.body,{childList:true,subtree:true});"
-            + "setTimeout(function(){try{mo.disconnect();}catch(e){}},4000);"
+            + "if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',paint,{once:true});}"
+            + "window.addEventListener('load',paint,{once:true});"
+            + "setTimeout(paint,350);setTimeout(paint,1200);"
+            + "var tm=null;var mo=new MutationObserver(function(){if(tm)return;tm=setTimeout(function(){tm=null;paint();},200);});"
+            + "if(document.documentElement)mo.observe(document.documentElement,{childList:true,subtree:true});"
+            + "setTimeout(function(){try{mo.disconnect();}catch(e){}},6000);"
             + "}"
+            + "}else{"
+            + "try{var prev=document.querySelectorAll('[data-sbx-amoled]');for(var j=0;j<prev.length;j++){prev[j].style.removeProperty('background-color');prev[j].removeAttribute('data-sbx-amoled');}}catch(e){}"
             + "}"
             + "st.textContent=css;"
             + "})();";
 
     private static final String SBROWSERX_REMOVE_AMOLED_JS =
-            "(function(){var st=document.getElementById('sbrowserx-amoled-css');if(st&&st.parentNode)st.parentNode.removeChild(st);})();";
+            "(function(){var st=document.getElementById('sbrowserx-amoled-css');if(st&&st.parentNode)st.parentNode.removeChild(st);try{var prev=document.querySelectorAll('[data-sbx-amoled]');for(var j=0;j<prev.length;j++){prev[j].style.removeProperty('background-color');prev[j].removeAttribute('data-sbx-amoled');}}catch(e){}})();";
 
     public static void applyAmoledAndColorFixCss(Object webDarkHandler) {
         if (webDarkHandler == null) return;
@@ -836,7 +857,6 @@ public final class SBrowserXHooks {
                 return;
             }
             boolean amoled = isAmoledBlackEnabled();
-            if (!amoled && !isDarkBrightImagesEnabled()) return;
             String js = SBROWSERX_AMOLED_JS.replace("__AMOLED__", amoled ? "true" : "false");
             webDarkHandler.getClass().getMethod("evaluateJavaScript", String.class).invoke(webDarkHandler, js);
         } catch (Throwable ignored) {}
