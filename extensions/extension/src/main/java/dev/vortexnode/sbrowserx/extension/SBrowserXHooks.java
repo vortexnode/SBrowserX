@@ -769,14 +769,9 @@ public final class SBrowserXHooks {
                 tcl.getMethod("appendSwitch", String.class).invoke(null, "force-dark-mode");
                 tcl.getMethod("appendSwitchWithValue", String.class, String.class)
                         .invoke(null, "blink-settings", "forceDarkModeEnabled=true");
-                // InversionAlgorithm=4 (CIELAB lightness inversion, preserves true brand hues),
-                // ImagePolicy=1 (kFilterNone: never invert raster images or small app icons!)
-                tcl.getMethod("appendSwitchWithValue", String.class, String.class)
-                        .invoke(null, "dark-mode-settings", "InversionAlgorithm=4,ImagePolicy=1");
             } else {
                 tcl.getMethod("removeSwitch", String.class).invoke(null, "force-dark-mode");
                 tcl.getMethod("removeSwitch", String.class).invoke(null, "blink-settings");
-                tcl.getMethod("removeSwitch", String.class).invoke(null, "dark-mode-settings");
             }
         } catch (Throwable ignored) {}
     }
@@ -824,14 +819,14 @@ public final class SBrowserXHooks {
             + "if(!root)return;"
             + "var st=document.getElementById(id);"
             + "if(!st){st=document.createElement('style');st.id=id;root.appendChild(st);}"
-            + "var css='img,picture,video,canvas{color-scheme:only light !important;filter:none !important;opacity:1 !important;}';"
+            + "var css='img,picture,video,canvas,[class*=emoji],[class*=smiley],[class*=emoticon]{color-scheme:only light !important;filter:none !important;opacity:1 !important;}';"
             + "var amoled=__AMOLED__;"
             + "if(amoled){"
             + "css+='html,body{background-color:#000000 !important;}';"
             + "var paint=function(){"
             + "try{"
             + "var els=document.querySelectorAll('body,main,article,section,header,footer,nav,aside,ul,li,div,table,tr,td,th');"
-            + "var lim=Math.min(els.length,600);"
+            + "var lim=Math.min(els.length,1200);"
             + "for(var i=0;i<lim;i++){"
             + "var el=els[i];"
             + "if(el.getAttribute('data-sbx-amoled'))continue;"
@@ -893,6 +888,14 @@ public final class SBrowserXHooks {
     public static void removeAmoledAndColorFixCss(Object webDarkHandler) {
         if (webDarkHandler == null) return;
         try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            // Never strip icon-protection / AMOLED CSS while browser Dark Mode is still active
+            // (WebDarkCustomHandler.updateCustomCss(4) calls removeCustomCss() on tab switch when
+            // "Use website dark theme" is ON, which previously deleted our <style> right away).
+            if (isBrowserNightMode(ctx) || isForceAdaptiveDarkEnabled()) {
+                applyAmoledAndColorFixCss(webDarkHandler);
+                return;
+            }
             webDarkHandler.getClass().getMethod("evaluateJavaScript", String.class)
                     .invoke(webDarkHandler, SBROWSERX_REMOVE_AMOLED_JS);
         } catch (Throwable ignored) {}
