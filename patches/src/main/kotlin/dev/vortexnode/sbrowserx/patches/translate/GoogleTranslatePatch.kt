@@ -32,6 +32,8 @@ private const val CUSTOM_TAB_TOOLBAR_CLASS =
     "Lcom/sec/android/app/sbrowser/customtabs/features/toolbar/CustomTabToolbar;"
 private const val CUSTOM_TAB_ROOT_UI_CLASS =
     "Lcom/sec/android/app/sbrowser/customtabs/CustomTabRootUiCoordinator;"
+private const val MENU_SETTINGS_HELPER_CLASS =
+    "Lcom/sec/android/app/sbrowser/main_view/menu/MenuSettingsHelper;"
 
 @Suppress("unused")
 val googleTranslatePatch = bytecodePatch(
@@ -519,6 +521,29 @@ val googleTranslatePatch = bytecodePatch(
                 const/4 v0, 0x1
                 return v0
                 :sbrowserx_ct_menu_stock
+                nop
+            """.trimIndent(),
+        )
+
+        // 25. MenuSettingsHelper.handleDefaultExtensionClicked -> launch our One UI Glass Chrome pill instead of Samsung TransBar
+        findMethodOrThrow(
+            classType = MENU_SETTINGS_HELPER_CLASS,
+            methodName = "handleDefaultExtensionClicked",
+            parameterTypes = listOf(
+                "Lcom/sec/terrace/browser/extensions/TerraceExtensionsManager\$ExtensionActionItem;",
+                "Landroid/view/View;",
+                "Lcom/sec/android/app/sbrowser/main_view/menu/MenuSettingsHelper\$Delegate;",
+                "Lcom/sec/android/app/sbrowser/main_view/main_interface/MainViewInterface;",
+            ),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {p0, p3}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->tryHandleMainTranslateClick(Ljava/lang/Object;Ljava/lang/Object;)Z
+                move-result v0
+                if-eqz v0, :sbrowserx_def_ext_stock
+                return-void
+                :sbrowserx_def_ext_stock
                 nop
             """.trimIndent(),
         )

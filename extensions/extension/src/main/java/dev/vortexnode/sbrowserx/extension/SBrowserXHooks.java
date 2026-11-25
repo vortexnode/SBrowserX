@@ -563,4 +563,32 @@ public final class SBrowserXHooks {
             return false;
         }
     }
+
+    public static boolean tryHandleMainTranslateClick(Object menuHelper, Object delegate) {
+        if (!isGoogleTranslateEnabled()) return false;
+        try {
+            if (delegate != null) {
+                try {
+                    delegate.getClass().getMethod("closeOptionsMenu").invoke(delegate);
+                } catch (Throwable ignored) {}
+            }
+            Activity main = sMainActivityRef.get();
+            if (main == null && menuHelper != null) {
+                try {
+                    Field f = menuHelper.getClass().getDeclaredField("mActivity");
+                    f.setAccessible(true);
+                    Object a = f.get(menuHelper);
+                    if (a instanceof Activity) main = (Activity) a;
+                } catch (Throwable ignored) {}
+            }
+            if (main != null) {
+                String tl = SBrowserXPrefs.getTranslateTargetLang(main);
+                SBrowserXDomTranslator.translateTab(main, "auto", tl, true);
+                return true;
+            }
+        } catch (Throwable t) {
+            Log.e(TAG, "tryHandleMainTranslateClick failed", t);
+        }
+        return false;
+    }
 }

@@ -73,6 +73,7 @@ public final class SBrowserXDomTranslator {
             + "    var txt=(el.innerText||el.textContent||'').trim();"
             + "    if(txt.length<2||txt.length>1500)continue;"
             + "    if(/^[\\d\\s.,:%$€£₽+\\-\\/()•|]+$/.test(txt))continue;"
+            + "    if(/^(youtube|google|telegram|github|reddit|samsung|one ui|galaxy|android|ios|chrome|safari|windows|linux|wi-fi|wifi|usb-c|amoled|webrtc|nfc|bluetooth|discord|spotify|netflix|tiktok|instagram|whatsapp|paypal|play store|app store|sammobile|ebay|amazon|apple|nvidia|amd|intel|qualcomm|snapdragon)$/i.test(txt))continue;"
             + "    var saved=[];"
             + "    var markup=serialize(el,saved);"
             + "    if(!markup||!markup.trim())continue;"
@@ -112,7 +113,7 @@ public final class SBrowserXDomTranslator {
     private SBrowserXDomTranslator() {}
 
     public static void translateCurrentTab(String sourceLang, String targetLang) {
-        translateTab(SBrowserXHooks.getMainActivity(), sourceLang, targetLang, false);
+        translateTab(SBrowserXHooks.getMainActivity(), sourceLang, targetLang, true);
     }
 
     public static void translateTab(Activity targetActivity, String sourceLang, String targetLang, boolean showChromeBanner) {
@@ -191,7 +192,7 @@ public final class SBrowserXDomTranslator {
     }
 
     public static void maybeAutoTranslateOnLoad() {
-        maybeAutoTranslateActivity(SBrowserXHooks.getMainActivity(), false);
+        maybeAutoTranslateActivity(SBrowserXHooks.getMainActivity(), true);
     }
 
     public static void maybeAutoTranslateActivity(Activity targetActivity, boolean showChromeBanner) {

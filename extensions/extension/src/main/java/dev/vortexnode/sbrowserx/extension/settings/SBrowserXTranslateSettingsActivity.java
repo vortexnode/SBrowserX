@@ -27,6 +27,7 @@ public final class SBrowserXTranslateSettingsActivity extends Activity {
     private static final int ONEUI_BLUE = 0xFF387AFF;
 
     private TextView engineSummary;
+    private TextView apiKeySummary;
     private TextView targetLangSummary;
     private TextView neverLangsSummary;
     private TextView alwaysLangsSummary;
@@ -106,6 +107,10 @@ public final class SBrowserXTranslateSettingsActivity extends Activity {
                 isRu() ? "Движок перевода" : "Translation engine",
                 "", textPrimary, textSecondary, v -> showEnginePicker());
         langCard.addView(divider(night));
+        apiKeySummary = addActionRow(langCard,
+                isRu() ? "API-ключ (DeepL / Gemini, опционально)" : "API Key (DeepL / Gemini, optional)",
+                "", textPrimary, textSecondary, v -> showApiKeyDialog());
+        langCard.addView(divider(night));
         targetLangSummary = addActionRow(langCard,
                 SBrowserXStrings.get(SBrowserXStrings.GTRANS_TARGET_LANG),
                 "", textPrimary, textSecondary, v -> showTargetLangPicker());
@@ -136,6 +141,7 @@ public final class SBrowserXTranslateSettingsActivity extends Activity {
         masterSwitch.setChecked(SBrowserXPrefs.isGoogleTranslateEnabled(this));
         autoSwitch.setChecked(SBrowserXPrefs.isTranslateAutoEnabled(this));
         engineSummary.setText(getEngineLabel(SBrowserXPrefs.getTranslateEngine(this)));
+        apiKeySummary.setText(formatApiKeySummary(SBrowserXPrefs.getTranslateApiKey(this)));
         targetLangSummary.setText(SBrowserXGoogleTranslator.getLanguageDisplayName(
                 SBrowserXPrefs.getTranslateTargetLang(this)));
         neverLangsSummary.setText(formatLangSet(SBrowserXPrefs.getTranslateNeverLangs(this)));
@@ -313,24 +319,65 @@ public final class SBrowserXTranslateSettingsActivity extends Activity {
     }
 
     private String getEngineLabel(String engine) {
-        return "microsoft".equalsIgnoreCase(engine)
-                ? "Microsoft Translator (Edge NMT)"
-                : "Google Translate (Chrome NMT)";
+        if ("microsoft".equalsIgnoreCase(engine)) return "Microsoft Translator (Edge NMT)";
+        if ("deepl".equalsIgnoreCase(engine)) return "DeepL API (Free / Pro)";
+        if ("gemini".equalsIgnoreCase(engine)) return "Gemini 2.5 Flash (AI)";
+        return "Google Translate (Chrome NMT)";
+    }
+
+    private String formatApiKeySummary(String key) {
+        if (key == null || key.isEmpty()) {
+            return isRu() ? "Не задан (нужен только для DeepL / Gemini)" : "Not set (only needed for DeepL / Gemini)";
+        }
+        int len = key.length();
+        String tail = len > 4 ? key.substring(len - 4) : key;
+        return (isRu() ? "Установлен ••••" : "Configured ••••") + tail;
     }
 
     private void showEnginePicker() {
         String[] labels = new String[] {
                 "Google Translate (Chrome NMT)",
-                "Microsoft Translator (Edge NMT)"
+                "Microsoft Translator (Edge NMT)",
+                "DeepL API (Free / Pro)",
+                "Gemini 2.5 Flash (AI)"
         };
-        String[] values = new String[] {"google", "microsoft"};
-        int sel = "microsoft".equalsIgnoreCase(SBrowserXPrefs.getTranslateEngine(this)) ? 1 : 0;
+        String[] values = new String[] {"google", "microsoft", "deepl", "gemini"};
+        String cur = SBrowserXPrefs.getTranslateEngine(this);
+        int sel = 0;
+        for (int i = 0; i < values.length; i++) {
+            if (values[i].equalsIgnoreCase(cur)) sel = i;
+        }
         new AlertDialog.Builder(this, dialogTheme)
                 .setTitle(isRu() ? "Движок перевода" : "Translation engine")
                 .setSingleChoiceItems(labels, sel, (dialog, which) -> {
                     SBrowserXPrefs.setTranslateEngine(this, values[which]);
                     refresh();
                     dialog.dismiss();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void showApiKeyDialog() {
+        android.widget.EditText input = new android.widget.EditText(this);
+        input.setSingleLine(true);
+        input.setText(SBrowserXPrefs.getTranslateApiKey(this));
+        input.setHint(isRu() ? "Вставьте ключ DeepL или Gemini AI Studio" : "Paste DeepL or Gemini AI Studio API key");
+        int pad = dp(18);
+        LinearLayout wrap = new LinearLayout(this);
+        wrap.setPadding(pad, dp(8), pad, 0);
+        wrap.addView(input, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        new AlertDialog.Builder(this, dialogTheme)
+                .setTitle(isRu() ? "API-ключ (опционально)" : "API Key (optional)")
+                .setView(wrap)
+                .setPositiveButton(android.R.string.ok, (d, w) -> {
+                    SBrowserXPrefs.setTranslateApiKey(this, input.getText().toString());
+                    refresh();
+                })
+                .setNeutralButton(isRu() ? "Очистить" : "Clear", (d, w) -> {
+                    SBrowserXPrefs.setTranslateApiKey(this, "");
+                    refresh();
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
