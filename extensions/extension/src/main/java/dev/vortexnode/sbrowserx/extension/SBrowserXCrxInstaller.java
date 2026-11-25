@@ -37,7 +37,7 @@ public final class SBrowserXCrxInstaller {
             {"mnjggcdmjocbbbhaepdhchncahnbgone", "SponsorBlock for YouTube"},
             {"dnioaagdjgpcokckfpokpndoblenmfcg", "VOT — Voice Over Translation"},
             {"meojnmfhjkahlfcecpdcdgjclcilmaij", "All Fingerprint Defender"},
-            {"bgnkhhnnamicmpeenaelnjfhikgbkllg", "AdGuard AdBlocker"}
+            {"bgnkhhnnamicmpeenaelnjfhikgbkllg", "AdGuard AdBlocker"},
             {"nngceckbapebfimnlniiiahkandclblb", "Bitwarden Password Manager"}
     };
 
