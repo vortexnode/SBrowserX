@@ -20,6 +20,7 @@ public final class SBrowserXPrefs {
     public static final String KEY_URL_BAR_TRANSPARENCY = "url_bar_transparency_percent";
     public static final String KEY_COMPACT_BAR_BLUR = "compact_bar_blur_enabled";
     public static final String KEY_COMPACT_BAR_TRANSPARENCY = "compact_bar_transparency_percent";
+    public static final String KEY_COMPACT_AI_BUTTON = "compact_ai_slot_button";
     public static final String KEY_AMOLED_BLACK = "amoled_black_enabled";
     public static final String KEY_FORCE_ADAPTIVE_DARK = "force_adaptive_dark_enabled";
     public static final String KEY_DARK_BRIGHT_IMAGES = "dark_bright_images_enabled";
@@ -41,6 +42,14 @@ public final class SBrowserXPrefs {
     public static final String WEBRTC_PUBLIC_AND_PRIVATE = "default_public_and_private_interfaces";
     public static final String WEBRTC_PUBLIC_ONLY = "default_public_interface_only";
     public static final String WEBRTC_DISABLE_NON_PROXIED_UDP = "disable_non_proxied_udp";
+
+    public static final String COMPACT_BTN_NEW_TAB = "new_tab";
+    public static final String COMPACT_BTN_BOOKMARKS = "bookmarks";
+    public static final String COMPACT_BTN_SHARE = "share";
+    public static final String COMPACT_BTN_DOWNLOADS = "downloads";
+    public static final String COMPACT_BTN_HISTORY = "history";
+    public static final String COMPACT_BTN_HOME = "home";
+    public static final String COMPACT_BTN_HIDE = "hide";
 
     public static final String FEATURE_WEBRTC = "feat_webrtc_020";
     public static final String FEATURE_AMOLED = "feat_amoled_020";
@@ -189,7 +198,11 @@ public final class SBrowserXPrefs {
     }
 
     public static void setForceAdaptiveDarkEnabled(Context context, boolean enabled) {
-        prefs(context).edit().putBoolean(KEY_FORCE_ADAPTIVE_DARK, enabled).apply();
+        SharedPreferences.Editor ed = prefs(context).edit().putBoolean(KEY_FORCE_ADAPTIVE_DARK, enabled);
+        if (enabled) {
+            ed.putBoolean(KEY_DARK_BRIGHT_IMAGES, false);
+        }
+        ed.apply();
         markFeatureViewed(context, FEATURE_FORCE_DARK);
     }
 
@@ -198,8 +211,20 @@ public final class SBrowserXPrefs {
     }
 
     public static void setDarkBrightImagesEnabled(Context context, boolean enabled) {
-        prefs(context).edit().putBoolean(KEY_DARK_BRIGHT_IMAGES, enabled).apply();
+        SharedPreferences.Editor ed = prefs(context).edit().putBoolean(KEY_DARK_BRIGHT_IMAGES, enabled);
+        if (enabled) {
+            ed.putBoolean(KEY_FORCE_ADAPTIVE_DARK, false);
+        }
+        ed.apply();
         markFeatureViewed(context, FEATURE_FORCE_DARK);
+    }
+
+    public static String getCompactAiButton(Context context) {
+        return prefs(context).getString(KEY_COMPACT_AI_BUTTON, COMPACT_BTN_NEW_TAB);
+    }
+
+    public static void setCompactAiButton(Context context, String value) {
+        prefs(context).edit().putString(KEY_COMPACT_AI_BUTTON, value != null ? value : COMPACT_BTN_NEW_TAB).apply();
     }
 
     public static boolean isExternalDownloaderEnabled(Context context) {

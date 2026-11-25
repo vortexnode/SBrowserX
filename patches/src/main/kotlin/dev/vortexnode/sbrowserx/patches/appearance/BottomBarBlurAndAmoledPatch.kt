@@ -18,6 +18,8 @@ private const val TOOLBAR_BG_DRAWABLE_CLASS =
     "Lcom/sec/android/app/sbrowser/toolbar/ToolbarBackgroundDrawable;"
 private const val MORE_MENU_HANDLER_CLASS =
     "Lcom/sec/android/app/sbrowser/toolbar/MoreMenuHandler;"
+private const val MORE_MENU_ADAPTER_CLASS =
+    "Lcom/sec/android/app/sbrowser/toolbar/MoreMenuRecyclerAdapter;"
 private const val GRADIENT_DRAWABLE_FACTORY_CLASS =
     "Lcom/sec/android/app/sbrowser/toolbar/blur/GradientDrawableFactory;"
 private const val GRADIENT_BITMAP_FACTORY_CLASS =
@@ -227,6 +229,23 @@ val bottomBarBlurAndAmoledPatch = bytecodePatch(
             moreMenuInsns.size - 1,
             """
                 invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->applyMoreMenuGlassStyle(Landroid/app/Dialog;)V
+            """.trimIndent(),
+        )
+
+        // 11. MoreMenuRecyclerAdapter.onBindViewHolder(Landroidx/recyclerview/widget/p1;I)V
+        // Enhances menu text/icon crispness (sans-serif-medium & pure high-contrast tint) to match the address bar.
+        val menuBindMethod = findMethodOrThrow(
+            classType = MORE_MENU_ADAPTER_CLASS,
+            methodName = "onBindViewHolder",
+            parameterTypes = listOf("Landroidx/recyclerview/widget/p1;", "I"),
+            returnType = "V",
+        )
+        val menuBindInsns = menuBindMethod.implementation?.instructions
+            ?: error("Missing instructions in MoreMenuRecyclerAdapter.onBindViewHolder")
+        menuBindMethod.addInstructions(
+            menuBindInsns.size - 1,
+            """
+                invoke-static {p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->enhanceMoreMenuItemCrispness(Ljava/lang/Object;)V
             """.trimIndent(),
         )
     }

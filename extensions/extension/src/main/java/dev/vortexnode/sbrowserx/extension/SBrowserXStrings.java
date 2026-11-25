@@ -80,6 +80,8 @@ public final class SBrowserXStrings {
     public static final String EXT_DL_IMAGES_SUMMARY = "ext_dl_images_summary";
     public static final String DARK_BRIGHT_IMG_TITLE = "dark_bright_img_title";
     public static final String DARK_BRIGHT_IMG_SUMMARY = "dark_bright_img_summary";
+    public static final String LAYOUT_TRANSPARENCY_TITLE = "layout_transparency_title";
+    public static final String COMPACT_AI_BTN_TITLE = "compact_ai_btn_title";
 
     private static final Map<String, Map<String, String>> CATALOG = new HashMap<>();
 
@@ -379,9 +381,9 @@ public final class SBrowserXStrings {
             putOne(lang, COMPACT_BAR_BLUR_LEVEL_TITLE, "Compact bar transparency");
         }
         putOne("en", FORCE_DARK_TITLE, "Force adaptive dark mode for sites");
-        putOne("en", FORCE_DARK_SUMMARY, "Darken all websites adaptively (respects native site dark themes, works even in Light UI)");
+        putOne("en", FORCE_DARK_SUMMARY, "Forces Chrome CIELAB dark mode on websites even in Light UI (enabling turns off Vivid Images)");
         putOne("ru", FORCE_DARK_TITLE, "Адаптивная тёмная тема для сайтов");
-        putOne("ru", FORCE_DARK_SUMMARY, "Принудительно затемняет сайты (учитывает родную тёмную тему сайта, работает даже в светлом режиме)");
+        putOne("ru", FORCE_DARK_SUMMARY, "Красит все сайты в тёмный даже в светлом режиме интерфейса через Chrome CIELAB (включение выключает «Яркие картинки»)");
         putOne("uk", FORCE_DARK_TITLE, "Адаптивна темна тема для сайтів");
         putOne("uk", FORCE_DARK_SUMMARY, "Примусово затемнює сайти (враховує рідну темну тему сайту, працює навіть у світлому режимі)");
         for (String lang : new String[] {"es", "pt", "de", "fr", "it", "pl", "tr", "ar", "hi", "zh", "ja", "ko"}) {
@@ -391,11 +393,11 @@ public final class SBrowserXStrings {
         putOne("en", EXT_DL_IMAGES_TITLE, "Also forward images to downloader");
         putOne("en", EXT_DL_IMAGES_SUMMARY, "ON: images, videos & files go to external downloader. OFF: browser saves images natively");
         putOne("en", DARK_BRIGHT_IMG_TITLE, "Vivid images in Dark Mode");
-        putOne("en", DARK_BRIGHT_IMG_SUMMARY, "Disables Samsung NightDim grey veil & 50% dim filter so photos stay bright and crisp");
+        putOne("en", DARK_BRIGHT_IMG_SUMMARY, "Disables NightDim & 50% dim veil, preserves site colors & vivid photos (enabling turns off Force Day Dark)");
         putOne("ru", EXT_DL_IMAGES_TITLE, "Скачивать и картинки через менеджер");
         putOne("ru", EXT_DL_IMAGES_SUMMARY, "ВКЛ: всё (включая картинки) идёт в сторонний менеджер. ВЫКЛ: картинки сохраняет сам браузер");
         putOne("ru", DARK_BRIGHT_IMG_TITLE, "Яркие картинки в тёмной теме");
-        putOne("ru", DARK_BRIGHT_IMG_SUMMARY, "Отключает серое затемнение NightDim и 50%-фильтр Samsung — фото и картинки остаются сочными");
+        putOne("ru", DARK_BRIGHT_IMG_SUMMARY, "Отключает NightDim и 50%-фильтр, сохраняет цвета сайтов и яркость фото (включение выключает «Принудительную тёмную тему днём»)");
         putOne("uk", EXT_DL_IMAGES_TITLE, "Завантажувати й картинки через менеджер");
         putOne("uk", EXT_DL_IMAGES_SUMMARY, "УВІМК: усе (включно з картинками) йде у сторонній менеджер. ВИМК: картинки зберігає браузер");
         putOne("uk", DARK_BRIGHT_IMG_TITLE, "Яскраві картинки у темній темі");
@@ -404,7 +406,17 @@ public final class SBrowserXStrings {
             putOne(lang, EXT_DL_IMAGES_TITLE, "Also forward images to downloader");
             putOne(lang, EXT_DL_IMAGES_SUMMARY, "ON: images, videos & files go to external downloader. OFF: browser saves images natively");
             putOne(lang, DARK_BRIGHT_IMG_TITLE, "Vivid images in Dark Mode");
-            putOne(lang, DARK_BRIGHT_IMG_SUMMARY, "Disables Samsung NightDim grey veil & 50% dim filter so photos stay bright and crisp");
+            putOne(lang, DARK_BRIGHT_IMG_SUMMARY, "Disables NightDim & 50% dim veil, preserves site colors & vivid photos (enabling turns off Force Day Dark)");
+        }
+        putOne("en", LAYOUT_TRANSPARENCY_TITLE, "Panel & address bar translucency");
+        putOne("en", COMPACT_AI_BTN_TITLE, "Compact bar button (replaces Samsung AI)");
+        putOne("ru", LAYOUT_TRANSPARENCY_TITLE, "Прозрачность и размытие панелей");
+        putOne("ru", COMPACT_AI_BTN_TITLE, "Кнопка компактной панели (вместо Samsung AI)");
+        putOne("uk", LAYOUT_TRANSPARENCY_TITLE, "Прозорість і розмиття панелей");
+        putOne("uk", COMPACT_AI_BTN_TITLE, "Кнопка компактної панелі (замість Samsung AI)");
+        for (String lang : new String[] {"es", "pt", "de", "fr", "it", "pl", "tr", "ar", "hi", "zh", "ja", "ko"}) {
+            putOne(lang, LAYOUT_TRANSPARENCY_TITLE, "Panel & address bar translucency");
+            putOne(lang, COMPACT_AI_BTN_TITLE, "Compact bar button (replaces Samsung AI)");
         }
     }
 
@@ -447,5 +459,18 @@ public final class SBrowserXStrings {
         if ("ja".equals(lang)) return "Samsungネイティブ拡張機能一覧（軽量）";
         if ("ko".equals(lang)) return "삼성 기본 확장 프로그램 목록 (빠름)";
         return "Native Samsung Extensions list (fast, no lag)";
+    }
+
+    public static String compactButtonLabel(String code) {
+        String lang = Locale.getDefault().getLanguage();
+        boolean ru = "ru".equals(lang);
+        boolean uk = "uk".equals(lang);
+        if (SBrowserXPrefs.COMPACT_BTN_BOOKMARKS.equals(code)) return ru ? "Закладки" : (uk ? "Закладки" : "Bookmarks");
+        if (SBrowserXPrefs.COMPACT_BTN_SHARE.equals(code)) return ru ? "Поделиться" : (uk ? "Поділитися" : "Share");
+        if (SBrowserXPrefs.COMPACT_BTN_DOWNLOADS.equals(code)) return ru ? "Загрузки" : (uk ? "Завантаження" : "Downloads");
+        if (SBrowserXPrefs.COMPACT_BTN_HISTORY.equals(code)) return ru ? "История" : (uk ? "Історія" : "History");
+        if (SBrowserXPrefs.COMPACT_BTN_HOME.equals(code)) return ru ? "Домой" : (uk ? "Додому" : "Home");
+        if (SBrowserXPrefs.COMPACT_BTN_HIDE.equals(code)) return ru ? "Скрыть кнопку" : (uk ? "Сховати кнопку" : "Hide button");
+        return ru ? "Новая вкладка" : (uk ? "Нова вкладка" : "New tab");
     }
 }

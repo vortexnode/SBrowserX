@@ -31,6 +31,10 @@ private const val EXT_BRIDGE_ACTIVITY_CLASS =
     "dev.vortexnode.sbrowserx.extension.settings.SBrowserXExtensionsBridgeActivity"
 private const val EXT_DL_DIALOG_ACTIVITY_CLASS =
     "dev.vortexnode.sbrowserx.extension.settings.SBrowserXExternalDownloaderDialogActivity"
+private const val TRANSPARENCY_DIALOG_ACTIVITY_CLASS =
+    "dev.vortexnode.sbrowserx.extension.settings.SBrowserXTransparencyDialogActivity"
+private const val COMPACT_BTN_DIALOG_ACTIVITY_CLASS =
+    "dev.vortexnode.sbrowserx.extension.settings.SBrowserXCompactButtonDialogActivity"
 
 private fun createIntentPref(
     xml: Document,
@@ -51,6 +55,22 @@ private fun createIntentPref(
     return pref
 }
 
+private fun createSwitchPref(
+    xml: Document,
+    key: String,
+    title: String,
+    summary: String,
+    defaultValue: Boolean,
+): Element {
+    val pref = xml.createElement("com.sec.android.app.sbrowser.common.settings.SwitchPreferenceCustom")
+    pref.setAttributeNS(ANDROID_NS, "android:key", key)
+    pref.setAttributeNS(ANDROID_NS, "android:title", title)
+    pref.setAttributeNS(ANDROID_NS, "android:summary", summary)
+    pref.setAttributeNS(ANDROID_NS, "android:defaultValue", defaultValue.toString())
+    pref.setAttributeNS(ANDROID_NS, "android:persistent", "false")
+    return pref
+}
+
 private fun createCategory(xml: Document, key: String, title: String = "SBrowserX"): Element {
     val cat = xml.createElement("androidx.preference.PreferenceCategory")
     cat.setAttributeNS(ANDROID_NS, "android:selectable", "false")
@@ -62,7 +82,7 @@ private fun createCategory(xml: Document, key: String, title: String = "SBrowser
 }
 
 internal val sbrowserXCoreResourcePatch = resourcePatch(
-    description = "Registers SBrowserX activities and mirrors all SBrowserX settings cleanly into their matching native Samsung Internet settings sections (Main, Privacy, Sites & Downloads, Dark Mode, Layout & Menu, Useful Features).",
+    description = "Registers SBrowserX activities/dialogs and mirrors all SBrowserX toggles as native in-place switches & dialogs inside Samsung Internet's own settings sections (zero redirects to SBrowserX hub).",
 ) {
     finalize {
         val targetPkg = SBrowserPackageRenameTarget.packageName
@@ -78,6 +98,8 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
             ensureActivity(manifest, application, WEBRTC_DIALOG_ACTIVITY_CLASS, "@android:style/Theme.Translucent.NoTitleBar")
             ensureActivity(manifest, application, EXT_BRIDGE_ACTIVITY_CLASS, "@android:style/Theme.Translucent.NoTitleBar")
             ensureActivity(manifest, application, EXT_DL_DIALOG_ACTIVITY_CLASS, "@android:style/Theme.Translucent.NoTitleBar")
+            ensureActivity(manifest, application, TRANSPARENCY_DIALOG_ACTIVITY_CLASS, "@android:style/Theme.Translucent.NoTitleBar")
+            ensureActivity(manifest, application, COMPACT_BTN_DIALOG_ACTIVITY_CLASS, "@android:style/Theme.Translucent.NoTitleBar")
         }
 
         // 1. Main Settings: SBrowserX hub + native Extensions manager
@@ -105,7 +127,7 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
             }
         }
 
-        // 2. Privacy & Security: WebRTC + Fingerprint protection + Hide Samsung Ad Blockers
+        // 2. Privacy & Security: WebRTC in-place dialog + native in-place switches
         document("res/xml/privacy_preferences.xml").use { xml ->
             val screen = xml.documentElement ?: error("Missing PreferenceScreen in privacy_preferences.xml")
 
@@ -114,13 +136,13 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
                 xml, "sbrowserx_privacy_webrtc", "WebRTC IP handling policy",
                 "WebRTC leak protection", targetPkg, WEBRTC_DIALOG_ACTIVITY_CLASS,
             )
-            val fpPref = createIntentPref(
+            val fpPref = createSwitchPref(
                 xml, "sbrowserx_privacy_fingerprint", "Fingerprint protection",
-                "Native WebAudio & Screen anti-fingerprinting", targetPkg, SETTINGS_ACTIVITY_CLASS,
+                "Native WebAudio & Screen anti-fingerprinting", true,
             )
-            val hideAdsPref = createIntentPref(
+            val hideAdsPref = createSwitchPref(
                 xml, "sbrowserx_privacy_hide_adblockers", "Hide Samsung Ad Blockers",
-                "Hide built-in Ad Blockers menu item", targetPkg, SETTINGS_ACTIVITY_CLASS,
+                "Hide built-in Ad Blockers menu item", false,
             )
 
             val nodes = screen.childNodes
@@ -144,7 +166,7 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
             }
         }
 
-        // 3. Sites & Downloads: External downloader + Images toggle
+        // 3. Sites & Downloads: External downloader dialog + native in-place switch for images
         document("res/xml/sites_content_preferences.xml").use { xml ->
             val screen = xml.documentElement ?: error("Missing PreferenceScreen in sites_content_preferences.xml")
 
@@ -155,39 +177,39 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
                 ),
             )
             screen.appendChild(
-                createIntentPref(
+                createSwitchPref(
                     xml, "sbrowserx_external_downloader_images", "Also forward images to downloader",
-                    "Configure in SBrowserX", targetPkg, SETTINGS_ACTIVITY_CLASS,
+                    "ON: all files & images. OFF: browser saves images natively", false,
                 ),
             )
         }
 
-        // 4. Dark Mode: AMOLED Black + Vivid Images + Adaptive Dark Mode for sites
+        // 4. Dark Mode: Native in-place switches (AMOLED, Vivid Images, Force Day Dark)
         document("res/xml/manage_dark_mode_preference.xml").use { xml ->
             val screen = xml.documentElement ?: error("Missing PreferenceScreen in manage_dark_mode_preference.xml")
 
             screen.appendChild(createCategory(xml, "sbrowserx_dark_category", "SBrowserX"))
             screen.appendChild(
-                createIntentPref(
+                createSwitchPref(
                     xml, "sbrowserx_dark_amoled", "AMOLED Black Theme",
-                    "Pure #000000 surfaces in Dark mode", targetPkg, SETTINGS_ACTIVITY_CLASS,
+                    "Pure #000000 for browser UI and darkened websites", false,
                 ),
             )
             screen.appendChild(
-                createIntentPref(
+                createSwitchPref(
                     xml, "sbrowserx_dark_bright_images", "Vivid images in Dark Mode",
-                    "Disables NightDim grey veil & 50% dim filter", targetPkg, SETTINGS_ACTIVITY_CLASS,
+                    "Disables NightDim & 50% dim filter (disables Force Day Dark)", true,
                 ),
             )
             screen.appendChild(
-                createIntentPref(
-                    xml, "sbrowserx_dark_adaptive_sites", "Force adaptive dark mode for sites",
-                    "Darken websites adaptively even in Light UI", targetPkg, SETTINGS_ACTIVITY_CLASS,
+                createSwitchPref(
+                    xml, "sbrowserx_dark_adaptive_sites", "Force dark mode on sites even in Light UI",
+                    "Forces Chromium CIELAB dark mode during daytime (disables Vivid Images)", false,
                 ),
             )
         }
 
-        // 5. Layout & Menu: Panel & Address Bar Transparency / Blur
+        // 5. Layout & Menu: In-place One UI dialogs for Panel Transparency & Compact AI-slot button
         document("res/xml/layout_preferences.xml").use { xml ->
             val screen = xml.documentElement ?: error("Missing PreferenceScreen in layout_preferences.xml")
 
@@ -196,12 +218,19 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
                 createIntentPref(
                     xml, "sbrowserx_layout_transparency", "Panel & address bar translucency",
                     "Bottom bar, address bar, compact pill & side menu blur",
-                    targetPkg, SETTINGS_ACTIVITY_CLASS,
+                    targetPkg, TRANSPARENCY_DIALOG_ACTIVITY_CLASS,
+                ),
+            )
+            screen.appendChild(
+                createIntentPref(
+                    xml, "sbrowserx_layout_compact_button", "Compact bar custom button (replaces AI)",
+                    "New tab",
+                    targetPkg, COMPACT_BTN_DIALOG_ACTIVITY_CLASS,
                 ),
             )
         }
 
-        // 6. Useful Features: Built-in Translator (SBrowserX)
+        // 6. Useful Features: Built-in Translator settings screen
         document("res/xml/useful_feature_preferences.xml").use { xml ->
             val screen = xml.documentElement ?: error("Missing PreferenceScreen in useful_feature_preferences.xml")
 
@@ -238,7 +267,7 @@ private fun ensureActivity(
 @Suppress("unused")
 val sbrowserXCorePatch = bytecodePatch(
     name = "SBrowserX Settings, Extensions & Privacy Core",
-    description = "Adds SBrowserX settings hub (15 languages, One UI blue switches, teal badges) and cleanly mirrors all settings into native Samsung Internet sections.",
+    description = "Adds SBrowserX settings hub and mirrors all toggles natively in-place across Samsung Internet's settings sections.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)

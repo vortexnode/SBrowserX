@@ -39,6 +39,9 @@ public final class SBrowserXSettingsActivity extends Activity {
     private TextView gtransSummaryView;
     private TextView extDlSummaryView;
     private Switch extDlImagesSwitch;
+    private Switch darkBrightSwitch;
+    private Switch forceDarkSwitch;
+    private TextView compactBtnSummaryView;
     private TextView daysValueView;
     private TextView blurLevelValueView;
     private LinearLayout blurLevelRow;
@@ -185,22 +188,28 @@ public final class SBrowserXSettingsActivity extends Activity {
                     refreshDynamicViews();
                 });
         appearanceCard.addView(divider(night));
-        addSwitchRow(appearanceCard, SBrowserXStrings.get(SBrowserXStrings.DARK_BRIGHT_IMG_TITLE),
+        darkBrightSwitch = addSwitchRow(appearanceCard, SBrowserXStrings.get(SBrowserXStrings.DARK_BRIGHT_IMG_TITLE),
                 SBrowserXStrings.get(SBrowserXStrings.DARK_BRIGHT_IMG_SUMMARY),
                 SBrowserXPrefs.isDarkBrightImagesEnabled(this), night, textPrimary, textSecondary, null,
                 (btn, checked) -> {
                     SBrowserXPrefs.setDarkBrightImagesEnabled(this, checked);
                     SBrowserXHooks.applyDarkBrightImagesNow(checked);
+                    if (checked && forceDarkSwitch != null && forceDarkSwitch.isChecked()) {
+                        forceDarkSwitch.setChecked(false);
+                    }
                     refreshDynamicViews();
                 });
         appearanceCard.addView(divider(night));
         forceDarkDot = createTealDot();
-        addSwitchRow(appearanceCard, SBrowserXStrings.get(SBrowserXStrings.FORCE_DARK_TITLE),
+        forceDarkSwitch = addSwitchRow(appearanceCard, SBrowserXStrings.get(SBrowserXStrings.FORCE_DARK_TITLE),
                 SBrowserXStrings.get(SBrowserXStrings.FORCE_DARK_SUMMARY),
                 SBrowserXPrefs.isForceAdaptiveDarkEnabled(this), night, textPrimary, textSecondary, forceDarkDot,
                 (btn, checked) -> {
                     SBrowserXPrefs.setForceAdaptiveDarkEnabled(this, checked);
                     SBrowserXHooks.applyForceAdaptiveDarkNow(checked);
+                    if (checked && darkBrightSwitch != null && darkBrightSwitch.isChecked()) {
+                        darkBrightSwitch.setChecked(false);
+                    }
                     refreshDynamicViews();
                 });
         appearanceCard.addView(divider(night));
@@ -234,6 +243,11 @@ public final class SBrowserXSettingsActivity extends Activity {
                 });
         appearanceCard.addView(divider(night));
         addCompactBarTransparencySliderRow(appearanceCard, textPrimary);
+        appearanceCard.addView(divider(night));
+        compactBtnSummaryView = addActionRow(appearanceCard, SBrowserXStrings.get(SBrowserXStrings.COMPACT_AI_BTN_TITLE),
+                SBrowserXStrings.compactButtonLabel(SBrowserXPrefs.getCompactAiButton(this)),
+                textPrimary, textSecondary, null,
+                v -> startActivity(new Intent(this, SBrowserXCompactButtonDialogActivity.class)));
         root.addView(appearanceCard);
 
         // --- New Features Highlight ---
@@ -355,6 +369,9 @@ public final class SBrowserXSettingsActivity extends Activity {
         }
         if (extDlSummaryView != null) {
             extDlSummaryView.setText(SBrowserXHooks.getExternalDownloaderSummary(this));
+        }
+        if (compactBtnSummaryView != null) {
+            compactBtnSummaryView.setText(SBrowserXStrings.compactButtonLabel(SBrowserXPrefs.getCompactAiButton(this)));
         }
         if (extDlImagesSwitch != null && extDlImagesSwitch.getParent() instanceof View) {
             boolean extOn = SBrowserXPrefs.isExternalDownloaderEnabled(this);

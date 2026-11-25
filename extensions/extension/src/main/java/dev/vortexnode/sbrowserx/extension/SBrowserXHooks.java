@@ -8,6 +8,13 @@ import android.content.Intent;
 import android.net.Uri;
 import android.graphics.drawable.GradientDrawable;
 import android.view.View;
+import java.lang.reflect.Proxy;
+import android.widget.TextView;
+import android.widget.ImageView;
+import android.view.ViewGroup;
+import android.view.MenuItem;
+import android.view.Menu;
+import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.content.res.Configuration;
 import android.graphics.Shader;
@@ -327,7 +334,7 @@ public final class SBrowserXHooks {
             }
             int transparency = ctx != null ? SBrowserXPrefs.getCompactBarTransparency(ctx) : 50;
             int opacity = 100 - transparency; // 15..85
-            int alpha = clampByte(Math.round(255f * opacity / 100f));
+            int alpha = clampByte(Math.round(255f * opacity / 100f) + 28);
             return withAlpha(rgb, alpha);
         } catch (Throwable t) {
             return stockColor;
@@ -558,6 +565,223 @@ public final class SBrowserXHooks {
             }
         } catch (Throwable t) {
             Log.w(TAG, "applyMoreMenuGlassStyle failed", t);
+        }
+    }
+
+
+    private static final ThreadLocal<Object> sCustomizeMenuModelTL = new ThreadLocal<>();
+
+    // --- Fix #1, #2, #4: Unified Dark Mode + True Colors + Pure AMOLED Websites ---
+
+    /**
+     * Returns:
+     *   1 -> force web content dark mode ON
+     *   0 -> force web content dark mode OFF
+     *  -1 -> fall back to stock DarkModeUtils
+     * Unified logic: whenever the browser itself is in Dark Mode (system OR manual),
+     * websites follow Dark Mode; whenever browser is in Light Mode, websites stay Light
+     * (unless Force Day Dark is explicitly turned ON).
+     */
+    public static int resolveContentDarkModeOverride(Object darkModeUtils) {
+        try {
+            if (isForceAdaptiveDarkEnabled()) return 1;
+            if (darkModeUtils != null) {
+                boolean browserNight = Boolean.TRUE.equals(
+                        darkModeUtils.getClass().getMethod("isNightModeEnabled").invoke(darkModeUtils));
+                boolean highContrast = Boolean.TRUE.equals(
+                        darkModeUtils.getClass().getMethod("isHighContrastModeEnabled").invoke(darkModeUtils));
+                if (highContrast) return 0;
+                return browserNight ? 1 : 0;
+            }
+        } catch (Throwable ignored) {}
+        return -1;
+    }
+
+    private static final String SBROWSERX_AMOLED_JS =
+            "(function(){"
+            + "var id='sbrowserx-amoled-css';"
+            + "var st=document.getElementById(id);"
+            + "if(!st){st=document.createElement('style');st.id=id;(document.head||document.documentElement).appendChild(st);}"
+            + "var css='img,video,picture,canvas,svg{filter:none !important;opacity:1 !important;}';"
+            + "var amoled=__AMOLED__;"
+            + "if(amoled){"
+            + "css+='html,body{background-color:#000000 !important;}';"
+            + "try{"
+            + "var els=document.querySelectorAll('body,main,article,section,header,footer,nav,div');"
+            + "var lim=Math.min(els.length,220);"
+            + "for(var i=0;i<lim;i++){"
+            + "var el=els[i];var cs=getComputedStyle(el);var bg=cs.backgroundColor;"
+            + "if(!bg||bg==='transparent'||bg==='rgba(0, 0, 0, 0)')continue;"
+            + "var m=bg.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);"
+            + "if(!m)continue;"
+            + "var r=+m[1],g=+m[2],b=+m[3];"
+            + "var mx=Math.max(r,g,b),mn=Math.min(r,g,b);"
+            + "if(mx<=48 && (mx-mn)<=14){el.style.setProperty('background-color','#000000','important');}"
+            + "}"
+            + "}catch(e){}"
+            + "}"
+            + "st.textContent=css;"
+            + "})();";
+
+    private static final String SBROWSERX_REMOVE_AMOLED_JS =
+            "(function(){var st=document.getElementById('sbrowserx-amoled-css');if(st&&st.parentNode)st.parentNode.removeChild(st);})();";
+
+    public static void applyAmoledAndColorFixCss(Object webDarkHandler) {
+        if (webDarkHandler == null) return;
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            boolean darkActive = isBrowserNightMode(ctx) || isForceAdaptiveDarkEnabled();
+            if (!darkActive) {
+                removeAmoledAndColorFixCss(webDarkHandler);
+                return;
+            }
+            boolean amoled = isAmoledBlackEnabled();
+            if (!amoled && !isDarkBrightImagesEnabled()) return;
+            String js = SBROWSERX_AMOLED_JS.replace("__AMOLED__", amoled ? "true" : "false");
+            webDarkHandler.getClass().getMethod("evaluateJavaScript", String.class).invoke(webDarkHandler, js);
+        } catch (Throwable ignored) {}
+    }
+
+    public static void removeAmoledAndColorFixCss(Object webDarkHandler) {
+        if (webDarkHandler == null) return;
+        try {
+            webDarkHandler.getClass().getMethod("evaluateJavaScript", String.class)
+                    .invoke(webDarkHandler, SBROWSERX_REMOVE_AMOLED_JS);
+        } catch (Throwable ignored) {}
+    }
+
+    // --- Fix #3: Stabilize Compact Bar on Refresh/Load + Replace Galaxy AI Icon ---
+
+    public static boolean shouldStabilizeCompactBarOnLoad(Object handler, Object tabDelegate) {
+        if (handler == null || tabDelegate == null) return false;
+        try {
+            boolean loading = Boolean.TRUE.equals(
+                    tabDelegate.getClass().getMethod("isLoading").invoke(tabDelegate));
+            if (!loading) return false;
+            // While page is refreshing/loading, keep Compact pill steady at 1.0f scale & alpha (no 0.85x jitter)
+            Class<?> baseCls = handler.getClass().getSuperclass();
+            if (baseCls != null) {
+                Field fTop = baseCls.getDeclaredField("mTopBar");
+                fTop.setAccessible(true);
+                Object topBar = fTop.get(handler);
+                if (topBar != null) {
+                    topBar.getClass().getMethod("setAlpha", float.class).invoke(topBar, 1.0f);
+                    topBar.getClass().getMethod("setScaleX", float.class).invoke(topBar, 1.0f);
+                    topBar.getClass().getMethod("setScaleY", float.class).invoke(topBar, 1.0f);
+                }
+            }
+            return true;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    public static void recordCustomizeMenuModel(Object model) {
+        sCustomizeMenuModelTL.set(model);
+    }
+
+    @SuppressWarnings("unchecked")
+    public static List<MenuItem> replaceCompactAiButton(List<MenuItem> items) {
+        Object model = sCustomizeMenuModelTL.get();
+        sCustomizeMenuModelTL.remove();
+        if (items == null || items.isEmpty() || !isCompactLayoutActive()) return items;
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            if (ctx == null) return items;
+            String pkg = ctx.getPackageName();
+            android.content.res.Resources res = ctx.getResources();
+            int aiId = res.getIdentifier("action_browsing_assist", "id", pkg);
+            if (aiId == 0) return items;
+
+            int aiIdx = -1;
+            for (int i = 0; i < items.size(); i++) {
+                MenuItem mi = items.get(i);
+                if (mi != null && mi.getItemId() == aiId) {
+                    aiIdx = i;
+                    break;
+                }
+            }
+            if (aiIdx < 0) return items;
+
+            String choice = SBrowserXPrefs.getCompactAiButton(ctx);
+            List<MenuItem> copy = new ArrayList<>(items);
+            if (SBrowserXPrefs.COMPACT_BTN_HIDE.equals(choice)) {
+                copy.remove(aiIdx);
+                return copy;
+            }
+
+            String targetResName;
+            if (SBrowserXPrefs.COMPACT_BTN_BOOKMARKS.equals(choice)) targetResName = "action_bookmarks";
+            else if (SBrowserXPrefs.COMPACT_BTN_SHARE.equals(choice)) targetResName = "action_share";
+            else if (SBrowserXPrefs.COMPACT_BTN_DOWNLOADS.equals(choice)) targetResName = "action_downloads";
+            else if (SBrowserXPrefs.COMPACT_BTN_HISTORY.equals(choice)) targetResName = "action_history";
+            else if (SBrowserXPrefs.COMPACT_BTN_HOME.equals(choice)) targetResName = "action_home";
+            else targetResName = "action_new_tab";
+
+            int targetId = res.getIdentifier(targetResName, "id", pkg);
+            if (targetId == 0 || model == null) {
+                copy.remove(aiIdx);
+                return copy;
+            }
+
+            // Avoid duplicate if already present in toolbar
+            for (MenuItem mi : copy) {
+                if (mi != null && mi.getItemId() == targetId) {
+                    copy.remove(aiIdx);
+                    return copy;
+                }
+            }
+
+            Field fMenu = model.getClass().getDeclaredField("mMenu");
+            fMenu.setAccessible(true);
+            Menu menu = (Menu) fMenu.get(model);
+            MenuItem replacement = menu != null ? menu.findItem(targetId) : null;
+            if (replacement != null) {
+                replacement.setVisible(true);
+                copy.set(aiIdx, replacement);
+            } else {
+                copy.remove(aiIdx);
+            }
+            return copy;
+        } catch (Throwable t) {
+            Log.w(TAG, "replaceCompactAiButton failed", t);
+            return items;
+        }
+    }
+
+    // --- Fix #5: Crisp, High-Contrast Typography & Icons in Side More Menu ---
+
+    public static void enhanceMoreMenuItemCrispness(Object viewHolder) {
+        if (viewHolder == null) return;
+        try {
+            Field fItemView = viewHolder.getClass().getField("itemView");
+            View root = (View) fItemView.get(viewHolder);
+            if (root == null) return;
+            boolean night = isBrowserNightMode(root.getContext());
+            boolean enabled = root.isEnabled();
+            int activeColor = night ? 0xFFFFFFFF : 0xFF000000;
+            int disabledColor = night ? 0x99FFFFFF : 0x8A000000;
+            int targetColor = enabled ? activeColor : disabledColor;
+            Typeface mediumTf = Typeface.create("sans-serif-medium", Typeface.NORMAL);
+            applyCrispMenuRecursive(root, targetColor, mediumTf);
+        } catch (Throwable ignored) {}
+    }
+
+    private static void applyCrispMenuRecursive(View v, int color, Typeface tf) {
+        if (v instanceof TextView) {
+            TextView tv = (TextView) v;
+            tv.setTypeface(tf);
+            tv.setTextColor(color);
+        } else if (v instanceof ImageView) {
+            ImageView iv = (ImageView) v;
+            if (iv.getDrawable() != null) {
+                iv.setColorFilter(color, android.graphics.PorterDuff.Mode.SRC_IN);
+            }
+        } else if (v instanceof ViewGroup) {
+            ViewGroup vg = (ViewGroup) v;
+            for (int i = 0; i < vg.getChildCount(); i++) {
+                applyCrispMenuRecursive(vg.getChildAt(i), color, tf);
+            }
         }
     }
 
@@ -1010,31 +1234,60 @@ public final class SBrowserXHooks {
             String onLbl = SBrowserXStrings.get(SBrowserXStrings.BTN_ENABLE);
             String offLbl = SBrowserXStrings.get(SBrowserXStrings.BTN_DISABLE);
 
-            setNativePref(findPref, fragment, "sbrowserx_privacy_fingerprint",
+            bindNativeSwitch(findPref, fragment, "sbrowserx_privacy_fingerprint",
                     SBrowserXStrings.get(SBrowserXStrings.FINGERPRINT_TITLE),
-                    SBrowserXPrefs.isFingerprintProtectionEnabled(ctx) ? onLbl : offLbl);
-            setNativePref(findPref, fragment, "sbrowserx_privacy_hide_adblockers",
+                    SBrowserXStrings.get(SBrowserXStrings.FINGERPRINT_SUMMARY),
+                    SBrowserXPrefs.isFingerprintProtectionEnabled(ctx),
+                    checked -> SBrowserXPrefs.setFingerprintProtectionEnabled(ctx, checked));
+
+            bindNativeSwitch(findPref, fragment, "sbrowserx_privacy_hide_adblockers",
                     SBrowserXStrings.get(SBrowserXStrings.HIDE_ADBLOCKERS_TITLE),
-                    SBrowserXPrefs.isHideSamsungAdBlockersEnabled(ctx) ? onLbl : offLbl);
-            setNativePref(findPref, fragment, "sbrowserx_external_downloader_images",
+                    SBrowserXStrings.get(SBrowserXStrings.HIDE_ADBLOCKERS_SUMMARY),
+                    SBrowserXPrefs.isHideSamsungAdBlockersEnabled(ctx),
+                    checked -> SBrowserXPrefs.setHideSamsungAdBlockersEnabled(ctx, checked));
+
+            bindNativeSwitch(findPref, fragment, "sbrowserx_external_downloader_images",
                     SBrowserXStrings.get(SBrowserXStrings.EXT_DL_IMAGES_TITLE),
-                    SBrowserXPrefs.isExternalDownloaderImagesEnabled(ctx) ? onLbl : offLbl);
-            setNativePref(findPref, fragment, "sbrowserx_dark_amoled",
+                    SBrowserXStrings.get(SBrowserXStrings.EXT_DL_IMAGES_SUMMARY),
+                    SBrowserXPrefs.isExternalDownloaderImagesEnabled(ctx),
+                    checked -> SBrowserXPrefs.setExternalDownloaderImagesEnabled(ctx, checked));
+
+            bindNativeSwitch(findPref, fragment, "sbrowserx_dark_amoled",
                     SBrowserXStrings.get(SBrowserXStrings.AMOLED_TITLE),
-                    SBrowserXPrefs.isAmoledBlackEnabled(ctx) ? onLbl : offLbl);
-            setNativePref(findPref, fragment, "sbrowserx_dark_bright_images",
+                    SBrowserXStrings.get(SBrowserXStrings.AMOLED_SUMMARY),
+                    SBrowserXPrefs.isAmoledBlackEnabled(ctx),
+                    checked -> SBrowserXPrefs.setAmoledBlackEnabled(ctx, checked));
+
+            bindNativeSwitch(findPref, fragment, "sbrowserx_dark_bright_images",
                     SBrowserXStrings.get(SBrowserXStrings.DARK_BRIGHT_IMG_TITLE),
-                    SBrowserXPrefs.isDarkBrightImagesEnabled(ctx) ? onLbl : offLbl);
-            setNativePref(findPref, fragment, "sbrowserx_dark_adaptive_sites",
+                    SBrowserXStrings.get(SBrowserXStrings.DARK_BRIGHT_IMG_SUMMARY),
+                    SBrowserXPrefs.isDarkBrightImagesEnabled(ctx),
+                    checked -> {
+                        SBrowserXPrefs.setDarkBrightImagesEnabled(ctx, checked);
+                        applyDarkBrightImagesNow(checked);
+                        if (checked) syncSwitchChecked(findPref, fragment, "sbrowserx_dark_adaptive_sites", false);
+                    });
+
+            bindNativeSwitch(findPref, fragment, "sbrowserx_dark_adaptive_sites",
                     SBrowserXStrings.get(SBrowserXStrings.FORCE_DARK_TITLE),
-                    SBrowserXPrefs.isForceAdaptiveDarkEnabled(ctx) ? onLbl : offLbl);
+                    SBrowserXStrings.get(SBrowserXStrings.FORCE_DARK_SUMMARY),
+                    SBrowserXPrefs.isForceAdaptiveDarkEnabled(ctx),
+                    checked -> {
+                        SBrowserXPrefs.setForceAdaptiveDarkEnabled(ctx, checked);
+                        applyForceAdaptiveDarkNow(checked);
+                        if (checked) syncSwitchChecked(findPref, fragment, "sbrowserx_dark_bright_images", false);
+                    });
 
             String layoutSum = (SBrowserXPrefs.isBottomBarBlurEnabled(ctx) ? SBrowserXPrefs.getBottomBarTransparency(ctx) + "%" : offLbl)
                     + " • " + (SBrowserXPrefs.isUrlBarBlurEnabled(ctx) ? SBrowserXPrefs.getUrlBarTransparency(ctx) + "%" : offLbl)
                     + " • " + (SBrowserXPrefs.isCompactBarBlurEnabled(ctx) ? SBrowserXPrefs.getCompactBarTransparency(ctx) + "%" : offLbl);
             setNativePref(findPref, fragment, "sbrowserx_layout_transparency",
-                    SBrowserXStrings.get(SBrowserXStrings.BOTTOM_BLUR_TITLE),
+                    SBrowserXStrings.get(SBrowserXStrings.LAYOUT_TRANSPARENCY_TITLE),
                     layoutSum);
+
+            setNativePref(findPref, fragment, "sbrowserx_layout_compact_button",
+                    SBrowserXStrings.get(SBrowserXStrings.COMPACT_AI_BTN_TITLE),
+                    SBrowserXStrings.compactButtonLabel(SBrowserXPrefs.getCompactAiButton(ctx)));
 
             String transSum = (SBrowserXPrefs.isGoogleTranslateEnabled(ctx) ? onLbl : offLbl)
                     + " • " + SBrowserXGoogleTranslator.getLanguageDisplayName(SBrowserXPrefs.getTranslateTargetLang(ctx));
@@ -1042,6 +1295,56 @@ public final class SBrowserXHooks {
                     SBrowserXStrings.get(SBrowserXStrings.GTRANS_SETTINGS_TITLE),
                     transSum);
         } catch (Throwable ignored) {}
+    }
+
+    private interface NativeSwitchCallback { void onChanged(boolean checked); }
+
+    private static void syncSwitchChecked(Method findPref, Object fragment, String key, boolean checked) {
+        try {
+            Object pref = findPref.invoke(fragment, key);
+            if (pref != null) {
+                pref.getClass().getMethod("setChecked", boolean.class).invoke(pref, checked);
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    private static void bindNativeSwitch(
+            Method findPref, Object fragment, String key,
+            String title, String summary, boolean initialChecked,
+            NativeSwitchCallback cb
+    ) {
+        try {
+            Object pref = findPref.invoke(fragment, key);
+            if (pref == null) return;
+            pref.getClass().getMethod("setTitle", CharSequence.class).invoke(pref, title);
+            pref.getClass().getMethod("setSummary", CharSequence.class).invoke(pref, summary);
+            pref.getClass().getMethod("setChecked", boolean.class).invoke(pref, initialChecked);
+
+            // R8-safe reflection: locate setOnPreferenceChangeListener(obfuscatedInterface)
+            Method setListener = null;
+            for (Method m : pref.getClass().getMethods()) {
+                if ("setOnPreferenceChangeListener".equals(m.getName()) && m.getParameterTypes().length == 1) {
+                    setListener = m;
+                    break;
+                }
+            }
+            if (setListener != null) {
+                Class<?> iface = setListener.getParameterTypes()[0];
+                Object proxy = Proxy.newProxyInstance(
+                        iface.getClassLoader(),
+                        new Class<?>[] { iface },
+                        (p, method, args) -> {
+                            if (args != null && args.length == 2 && args[1] instanceof Boolean) {
+                                cb.onChanged((Boolean) args[1]);
+                                return Boolean.TRUE;
+                            }
+                            return Boolean.TRUE;
+                        });
+                setListener.invoke(pref, proxy);
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "bindNativeSwitch failed for " + key, t);
+        }
     }
 
     private static void setNativePref(Method findPref, Object fragment, String key, String title, String summary) {
