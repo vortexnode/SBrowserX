@@ -14,6 +14,8 @@ private const val SIX_TRANS_SERVICE_CLASS =
     "Lcom/sec/android/app/sbrowser/extensions/trans/SixTransService;"
 private const val WEB_ASSIST_UTIL_CLASS =
     "Lcom/sec/android/app/sbrowser/artificial_intelligence/utils/WebAssistUtil;"
+private const val SIX_MANAGER_CLASS =
+    "Lcom/sec/android/app/sbrowser/extensions/SixManager;"
 
 @Suppress("unused")
 val googleTranslatePatch = bytecodePatch(
@@ -87,6 +89,45 @@ val googleTranslatePatch = bytecodePatch(
                 const/4 v0, 0x1
                 return v0
                 :sbrowserx_consent_stock
+                nop
+            """.trimIndent(),
+        )
+
+
+        // 2c. Keep built-in translator extension (webtrans.crx) enabled even without Samsung Account login
+        findMethodOrThrow(
+            classType = SIX_MANAGER_CLASS,
+            methodName = "updateDefaultTranslatorStatus",
+            parameterTypes = emptyList(),
+            returnType = "Z",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->isGoogleTranslateEnabled()Z
+                move-result v0
+                if-eqz v0, :sbrowserx_upd_trans_stock
+                const/4 v0, 0x1
+                invoke-virtual {p0, v0}, Lcom/sec/android/app/sbrowser/extensions/SixManager;->changeDefaultTranslatorStatus(Z)Z
+                move-result v0
+                return v0
+                :sbrowserx_upd_trans_stock
+                nop
+            """.trimIndent(),
+        )
+
+        findMethodOrThrow(
+            classType = SIX_MANAGER_CLASS,
+            methodName = "changeDefaultTranslatorStatus",
+            parameterTypes = listOf("Z"),
+            returnType = "Z",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->isGoogleTranslateEnabled()Z
+                move-result v0
+                if-eqz v0, :sbrowserx_chg_trans_stock
+                const/4 p1, 0x1
+                :sbrowserx_chg_trans_stock
                 nop
             """.trimIndent(),
         )

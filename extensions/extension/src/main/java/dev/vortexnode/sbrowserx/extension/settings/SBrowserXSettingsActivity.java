@@ -37,7 +37,7 @@ public final class SBrowserXSettingsActivity extends Activity {
 
     private TextView webrtcSummaryView;
     private TextView gtransSummaryView;
-    private Switch extDlSwitch;
+    private TextView extDlSummaryView;
     private TextView daysValueView;
     private View extInstallDot, extPackDot, webrtcDot, fingerprintDot, hideAdsDot, gtransDot, extDlDot, amoledDot, blurDot;
 
@@ -156,13 +156,10 @@ public final class SBrowserXSettingsActivity extends Activity {
                 v -> startActivity(new Intent(this, SBrowserXTranslateSettingsActivity.class)));
         featCard.addView(divider(night));
         extDlDot = createTealDot();
-        extDlSwitch = addSwitchRow(featCard, SBrowserXStrings.get(SBrowserXStrings.EXT_DL_TITLE),
-                SBrowserXStrings.get(SBrowserXStrings.EXT_DL_SUMMARY),
-                SBrowserXPrefs.isExternalDownloaderEnabled(this), night, textPrimary, textSecondary, extDlDot,
-                (btn, checked) -> {
-                    SBrowserXPrefs.setExternalDownloaderEnabled(this, checked);
-                    refreshDynamicViews();
-                });
+        extDlSummaryView = addActionRow(featCard, SBrowserXStrings.get(SBrowserXStrings.EXT_DL_TITLE),
+                SBrowserXHooks.getExternalDownloaderSummary(this),
+                textPrimary, textSecondary, extDlDot,
+                v -> startActivity(new Intent(this, SBrowserXExternalDownloaderDialogActivity.class)));
         root.addView(featCard);
 
         // --- Appearance & UI ---
@@ -304,11 +301,8 @@ public final class SBrowserXSettingsActivity extends Activity {
         if (gtransSummaryView != null) {
             gtransSummaryView.setText(buildTranslateSummary());
         }
-        if (extDlSwitch != null) {
-            boolean cur = SBrowserXPrefs.isExternalDownloaderEnabled(this);
-            if (extDlSwitch.isChecked() != cur) {
-                extDlSwitch.setChecked(cur);
-            }
+        if (extDlSummaryView != null) {
+            extDlSummaryView.setText(SBrowserXHooks.getExternalDownloaderSummary(this));
         }
         setDot(extInstallDot, SBrowserXPrefs.FEATURE_EXT_INSTALLER);
         setDot(extPackDot, SBrowserXPrefs.FEATURE_EXT_PACK);

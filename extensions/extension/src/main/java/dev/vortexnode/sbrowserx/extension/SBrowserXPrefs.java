@@ -17,6 +17,7 @@ public final class SBrowserXPrefs {
     public static final String KEY_BOTTOM_BAR_BLUR = "bottom_bar_blur_enabled";
     public static final String KEY_AMOLED_BLACK = "amoled_black_enabled";
     public static final String KEY_EXTERNAL_DOWNLOADER = "external_downloader_enabled";
+    public static final String KEY_EXTERNAL_DOWNLOADER_PKG = "external_downloader_package";
     public static final String KEY_AUTO_CLOSE_1DAY = "auto_close_tabs_1day_enabled";
     public static final String KEY_GOOGLE_TRANSLATE = "google_translate_backend_enabled";
     public static final String KEY_TRANS_TARGET_LANG = "google_translate_target_lang";
@@ -125,6 +126,15 @@ public final class SBrowserXPrefs {
 
     public static void setExternalDownloaderEnabled(Context context, boolean enabled) {
         prefs(context).edit().putBoolean(KEY_EXTERNAL_DOWNLOADER, enabled).apply();
+        markFeatureViewed(context, FEATURE_EXT_DOWNLOADER);
+    }
+
+    public static String getExternalDownloaderPackage(Context context) {
+        return prefs(context).getString(KEY_EXTERNAL_DOWNLOADER_PKG, "");
+    }
+
+    public static void setExternalDownloaderPackage(Context context, String pkg) {
+        prefs(context).edit().putString(KEY_EXTERNAL_DOWNLOADER_PKG, pkg != null ? pkg : "").apply();
         markFeatureViewed(context, FEATURE_EXT_DOWNLOADER);
     }
 

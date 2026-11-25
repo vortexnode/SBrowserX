@@ -1,7 +1,7 @@
 {
   "created_at": "2026-11-25T01:45:00",
-  "description": "SBrowserX v0.5.1 — обход экрана Galaxy AI при тапе на «Перевести» (сразу открывается родная панель перевода с Google Translate), яркие непрозрачные синие тумблеры One UI (#387AFF), полная локализация пунктов SBrowserX в родных разделах настроек и защита Default/Preferences от перезаписи и сброса расширений при перезапуске.",
-  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v0.5.1/patches-0.5.1.mpp",
+  "description": "SBrowserX v0.5.2 — окончательный фикс сброса расширений (отключено автоудаление в SixPkgUpdater и SixDefaultExtLoader), принудительное включение встроенного webtrans.crx для родной панели перевода без Samsung Account, и выбор любого стороннего загрузчика (ABDM, 1DM, ADM, Seal и др.).",
+  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v0.5.2/patches-0.5.2.mpp",
   "signature_download_url": "",
-  "version": "0.5.1"
+  "version": "0.5.2"
 }

@@ -214,6 +214,29 @@ public final class SBrowserXHooks {
             if (filename != null && !filename.isEmpty()) {
                 viewIntent.putExtra(Intent.EXTRA_TITLE, filename);
             }
+            viewIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+            String targetPkg = SBrowserXPrefs.getExternalDownloaderPackage(ctx);
+            if (targetPkg != null && !targetPkg.isEmpty()) {
+                viewIntent.setPackage(targetPkg);
+                try {
+                    activity.startActivity(viewIntent);
+                    return true;
+                } catch (Throwable viewErr) {
+                    // Fallback to ACTION_SEND (used by ABDM, Seal, etc.)
+                    Intent sendIntent = new Intent(Intent.ACTION_SEND);
+                    sendIntent.setType("text/plain");
+                    sendIntent.putExtra(Intent.EXTRA_TEXT, url);
+                    if (filename != null && !filename.isEmpty()) {
+                        sendIntent.putExtra(Intent.EXTRA_TITLE, filename);
+                    }
+                    sendIntent.setPackage(targetPkg);
+                    sendIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    activity.startActivity(sendIntent);
+                    return true;
+                }
+            }
+
             Intent chooser = Intent.createChooser(viewIntent, SBrowserXStrings.get(SBrowserXStrings.EXT_DL_CHOOSER));
             chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             activity.startActivity(chooser);
@@ -311,10 +334,8 @@ public final class SBrowserXHooks {
             if (extDl != null) {
                 extDl.getClass().getMethod("setTitle", CharSequence.class)
                         .invoke(extDl, SBrowserXStrings.get(SBrowserXStrings.EXT_DL_TITLE));
-                boolean on = SBrowserXPrefs.isExternalDownloaderEnabled(ctx);
-                String state = SBrowserXStrings.get(on ? SBrowserXStrings.BTN_ENABLE : SBrowserXStrings.BTN_DISABLE);
                 extDl.getClass().getMethod("setSummary", CharSequence.class)
-                        .invoke(extDl, state + " • " + SBrowserXStrings.get(SBrowserXStrings.EXT_DL_SUMMARY));
+                        .invoke(extDl, getExternalDownloaderSummary(ctx));
             }
 
             Object webrtc = findPref.invoke(fragment, "sbrowserx_privacy_webrtc");
