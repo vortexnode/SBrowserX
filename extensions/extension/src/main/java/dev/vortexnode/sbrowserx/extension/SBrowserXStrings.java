@@ -74,6 +74,12 @@ public final class SBrowserXStrings {
     public static final String COMPACT_BAR_BLUR_TITLE = "compact_bar_blur_title";
     public static final String COMPACT_BAR_BLUR_SUMMARY = "compact_bar_blur_summary";
     public static final String COMPACT_BAR_BLUR_LEVEL_TITLE = "compact_bar_blur_level_title";
+    public static final String FORCE_DARK_TITLE = "force_dark_title";
+    public static final String FORCE_DARK_SUMMARY = "force_dark_summary";
+    public static final String EXT_DL_IMAGES_TITLE = "ext_dl_images_title";
+    public static final String EXT_DL_IMAGES_SUMMARY = "ext_dl_images_summary";
+    public static final String DARK_BRIGHT_IMG_TITLE = "dark_bright_img_title";
+    public static final String DARK_BRIGHT_IMG_SUMMARY = "dark_bright_img_summary";
 
     private static final Map<String, Map<String, String>> CATALOG = new HashMap<>();
 
@@ -371,6 +377,34 @@ public final class SBrowserXStrings {
             putOne(lang, COMPACT_BAR_BLUR_TITLE, "Semi-transparent compact bar");
             putOne(lang, COMPACT_BAR_BLUR_SUMMARY, "Independent translucency & blur for the Compact floating pill");
             putOne(lang, COMPACT_BAR_BLUR_LEVEL_TITLE, "Compact bar transparency");
+        }
+        putOne("en", FORCE_DARK_TITLE, "Force adaptive dark mode for sites");
+        putOne("en", FORCE_DARK_SUMMARY, "Darken all websites adaptively (respects native site dark themes, works even in Light UI)");
+        putOne("ru", FORCE_DARK_TITLE, "Адаптивная тёмная тема для сайтов");
+        putOne("ru", FORCE_DARK_SUMMARY, "Принудительно затемняет сайты (учитывает родную тёмную тему сайта, работает даже в светлом режиме)");
+        putOne("uk", FORCE_DARK_TITLE, "Адаптивна темна тема для сайтів");
+        putOne("uk", FORCE_DARK_SUMMARY, "Примусово затемнює сайти (враховує рідну темну тему сайту, працює навіть у світлому режимі)");
+        for (String lang : new String[] {"es", "pt", "de", "fr", "it", "pl", "tr", "ar", "hi", "zh", "ja", "ko"}) {
+            putOne(lang, FORCE_DARK_TITLE, "Force adaptive dark mode for sites");
+            putOne(lang, FORCE_DARK_SUMMARY, "Darken all websites adaptively (respects native site dark themes, works even in Light UI)");
+        }
+        putOne("en", EXT_DL_IMAGES_TITLE, "Also forward images to downloader");
+        putOne("en", EXT_DL_IMAGES_SUMMARY, "ON: images, videos & files go to external downloader. OFF: browser saves images natively");
+        putOne("en", DARK_BRIGHT_IMG_TITLE, "Vivid images in Dark Mode");
+        putOne("en", DARK_BRIGHT_IMG_SUMMARY, "Disables Samsung NightDim grey veil & 50% dim filter so photos stay bright and crisp");
+        putOne("ru", EXT_DL_IMAGES_TITLE, "Скачивать и картинки через менеджер");
+        putOne("ru", EXT_DL_IMAGES_SUMMARY, "ВКЛ: всё (включая картинки) идёт в сторонний менеджер. ВЫКЛ: картинки сохраняет сам браузер");
+        putOne("ru", DARK_BRIGHT_IMG_TITLE, "Яркие картинки в тёмной теме");
+        putOne("ru", DARK_BRIGHT_IMG_SUMMARY, "Отключает серое затемнение NightDim и 50%-фильтр Samsung — фото и картинки остаются сочными");
+        putOne("uk", EXT_DL_IMAGES_TITLE, "Завантажувати й картинки через менеджер");
+        putOne("uk", EXT_DL_IMAGES_SUMMARY, "УВІМК: усе (включно з картинками) йде у сторонній менеджер. ВИМК: картинки зберігає браузер");
+        putOne("uk", DARK_BRIGHT_IMG_TITLE, "Яскраві картинки у темній темі");
+        putOne("uk", DARK_BRIGHT_IMG_SUMMARY, "Вимикає сіре затемнення NightDim і 50%-фільтр Samsung — фото залишаються соковитими");
+        for (String lang : new String[] {"es", "pt", "de", "fr", "it", "pl", "tr", "ar", "hi", "zh", "ja", "ko"}) {
+            putOne(lang, EXT_DL_IMAGES_TITLE, "Also forward images to downloader");
+            putOne(lang, EXT_DL_IMAGES_SUMMARY, "ON: images, videos & files go to external downloader. OFF: browser saves images natively");
+            putOne(lang, DARK_BRIGHT_IMG_TITLE, "Vivid images in Dark Mode");
+            putOne(lang, DARK_BRIGHT_IMG_SUMMARY, "Disables Samsung NightDim grey veil & 50% dim filter so photos stay bright and crisp");
         }
     }
 

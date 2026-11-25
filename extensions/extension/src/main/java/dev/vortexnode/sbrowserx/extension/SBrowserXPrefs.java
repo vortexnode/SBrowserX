@@ -21,8 +21,11 @@ public final class SBrowserXPrefs {
     public static final String KEY_COMPACT_BAR_BLUR = "compact_bar_blur_enabled";
     public static final String KEY_COMPACT_BAR_TRANSPARENCY = "compact_bar_transparency_percent";
     public static final String KEY_AMOLED_BLACK = "amoled_black_enabled";
+    public static final String KEY_FORCE_ADAPTIVE_DARK = "force_adaptive_dark_enabled";
+    public static final String KEY_DARK_BRIGHT_IMAGES = "dark_bright_images_enabled";
     public static final String KEY_EXTERNAL_DOWNLOADER = "external_downloader_enabled";
     public static final String KEY_EXTERNAL_DOWNLOADER_PKG = "external_downloader_package";
+    public static final String KEY_EXTERNAL_DOWNLOADER_IMAGES = "external_downloader_images_enabled";
     public static final String KEY_AUTO_CLOSE_1DAY = "auto_close_tabs_1day_enabled";
     public static final String KEY_GOOGLE_TRANSLATE = "google_translate_backend_enabled";
     public static final String KEY_TRANS_TARGET_LANG = "google_translate_target_lang";
@@ -49,6 +52,7 @@ public final class SBrowserXPrefs {
     public static final String FEATURE_AUTO_CLOSE_1DAY = "feat_autoclose_1day_040";
     public static final String FEATURE_GOOGLE_TRANSLATE = "feat_google_translate_050";
     public static final String FEATURE_HIDE_ADBLOCKERS = "feat_hide_adblockers_050";
+    public static final String FEATURE_FORCE_DARK = "feat_force_dark_080";
 
     private static final String[] ALL_FEATURES = new String[] {
             FEATURE_WEBRTC,
@@ -60,7 +64,8 @@ public final class SBrowserXPrefs {
             FEATURE_EXT_DOWNLOADER,
             FEATURE_AUTO_CLOSE_1DAY,
             FEATURE_GOOGLE_TRANSLATE,
-            FEATURE_HIDE_ADBLOCKERS
+            FEATURE_HIDE_ADBLOCKERS,
+            FEATURE_FORCE_DARK
     };
 
     private static volatile Context sAppContext;
@@ -179,6 +184,24 @@ public final class SBrowserXPrefs {
         markFeatureViewed(context, FEATURE_AMOLED);
     }
 
+    public static boolean isForceAdaptiveDarkEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_FORCE_ADAPTIVE_DARK, false);
+    }
+
+    public static void setForceAdaptiveDarkEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_FORCE_ADAPTIVE_DARK, enabled).apply();
+        markFeatureViewed(context, FEATURE_FORCE_DARK);
+    }
+
+    public static boolean isDarkBrightImagesEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_DARK_BRIGHT_IMAGES, true);
+    }
+
+    public static void setDarkBrightImagesEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_DARK_BRIGHT_IMAGES, enabled).apply();
+        markFeatureViewed(context, FEATURE_FORCE_DARK);
+    }
+
     public static boolean isExternalDownloaderEnabled(Context context) {
         return prefs(context).getBoolean(KEY_EXTERNAL_DOWNLOADER, false);
     }
@@ -194,6 +217,15 @@ public final class SBrowserXPrefs {
 
     public static void setExternalDownloaderPackage(Context context, String pkg) {
         prefs(context).edit().putString(KEY_EXTERNAL_DOWNLOADER_PKG, pkg != null ? pkg : "").apply();
+        markFeatureViewed(context, FEATURE_EXT_DOWNLOADER);
+    }
+
+    public static boolean isExternalDownloaderImagesEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_EXTERNAL_DOWNLOADER_IMAGES, false);
+    }
+
+    public static void setExternalDownloaderImagesEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_EXTERNAL_DOWNLOADER_IMAGES, enabled).apply();
         markFeatureViewed(context, FEATURE_EXT_DOWNLOADER);
     }
 

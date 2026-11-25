@@ -104,14 +104,23 @@ public final class SBrowserXHooks {
         if (!isMainBrowserProcess()) return;
         try {
             Context ctx = SBrowserXPrefs.getAppContext();
-            if (ctx == null || !SBrowserXPrefs.isFingerprintProtectionEnabled(ctx)) return;
+            if (ctx == null) return;
 
             Class<?> cmdClass = Class.forName("com.sec.android.app.sbrowser.init.SBrowserCommandLine");
             Method appendFeature = cmdClass.getMethod("appendEnableFeature", String.class);
-            appendFeature.invoke(null, "WebAudioAntiFingerprint");
-            appendFeature.invoke(null, "ScreenAntiFingerprint");
-            appendFeature.invoke(null, "EnableScreenAntiFingerprintingV2");
-            Log.i(TAG, "Enabled native anti-fingerprint features");
+
+            if (SBrowserXPrefs.isFingerprintProtectionEnabled(ctx)) {
+                appendFeature.invoke(null, "WebAudioAntiFingerprint");
+                appendFeature.invoke(null, "ScreenAntiFingerprint");
+                appendFeature.invoke(null, "EnableScreenAntiFingerprintingV2");
+                Log.i(TAG, "Enabled native anti-fingerprint features");
+            }
+            if (SBrowserXPrefs.isDarkBrightImagesEnabled(ctx) || SBrowserXPrefs.isForceAdaptiveDarkEnabled(ctx)) {
+                // Chrome's smart CIELAB + selective image dark engine: keeps photos vivid & uninverted
+                appendFeature.invoke(null,
+                        "WebContentsForceDark:inversion_method/cielab_based/image_behavior/selective/text_lightness_threshold/150/background_lightness_threshold/205");
+                Log.i(TAG, "Enabled CIELAB selective WebContentsForceDark");
+            }
         } catch (Throwable t) {
             Log.e(TAG, "onCommandLineCustomFeatures failed", t);
         }
@@ -624,6 +633,179 @@ public final class SBrowserXHooks {
 
     // --- External Download Manager ---
 
+
+    /**
+     * Forwards context-menu downloads ("Save image", "Save video", "Save link")
+     * to the configured external download manager. Skips data:/blob: URLs so
+     * stock browser handles inline/in-memory blobs safely.
+     */
+    private static boolean isImageExtension(String s) {
+        if (s == null) return false;
+        String lower = s.toLowerCase(java.util.Locale.US);
+        int q = lower.indexOf('?');
+        if (q >= 0) lower = lower.substring(0, q);
+        int h = lower.indexOf('#');
+        if (h >= 0) lower = lower.substring(0, h);
+        return lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png")
+                || lower.endsWith(".webp") || lower.endsWith(".gif") || lower.endsWith(".avif")
+                || lower.endsWith(".bmp") || lower.endsWith(".svg") || lower.endsWith(".heic")
+                || lower.endsWith(".heif") || lower.endsWith(".ico");
+    }
+
+    private static boolean isVideoOrAudioExtension(String s) {
+        if (s == null) return false;
+        String lower = s.toLowerCase(java.util.Locale.US);
+        int q = lower.indexOf('?');
+        if (q >= 0) lower = lower.substring(0, q);
+        return lower.endsWith(".mp4") || lower.endsWith(".webm") || lower.endsWith(".mkv")
+                || lower.endsWith(".mov") || lower.endsWith(".avi") || lower.endsWith(".m3u8")
+                || lower.endsWith(".mp3") || lower.endsWith(".m4a") || lower.endsWith(".ogg")
+                || lower.endsWith(".flac") || lower.endsWith(".wav") || lower.endsWith(".aac");
+    }
+
+    private static boolean isLikelyImageDownload(String url, String mime, String filename, boolean isContextMedia) {
+        if (mime != null && mime.toLowerCase(java.util.Locale.US).startsWith("image/")) return true;
+        if (isImageExtension(filename) || isImageExtension(url)) return true;
+        // Context-menu downloadImage passes isMedia=true; if it's not explicitly video/audio, treat as image
+        return isContextMedia && !isVideoOrAudioExtension(url) && !isVideoOrAudioExtension(filename);
+    }
+
+    public static boolean tryHandOffDirectUrlDownload(String url, boolean isMedia) {
+        if (url == null || !(url.startsWith("http://") || url.startsWith("https://"))) {
+            return false;
+        }
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            if (ctx == null || !SBrowserXPrefs.isExternalDownloaderEnabled(ctx)) return false;
+            if (isLikelyImageDownload(url, null, null, isMedia)
+                    && !SBrowserXPrefs.isExternalDownloaderImagesEnabled(ctx)) {
+                return false;
+            }
+
+            Activity host = sMainActivityRef.get();
+            Context launchCtx = (host != null && !host.isFinishing() && !host.isDestroyed()) ? host : ctx;
+
+            String filename = null;
+            try {
+                String seg = Uri.parse(url).getLastPathSegment();
+                if (seg != null && !seg.isEmpty() && seg.length() < 128) filename = seg;
+            } catch (Throwable ignored) {}
+
+            Intent viewIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+            if (filename != null) {
+                viewIntent.putExtra(Intent.EXTRA_TITLE, filename);
+            }
+            viewIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+            String targetPkg = SBrowserXPrefs.getExternalDownloaderPackage(ctx);
+            if (targetPkg != null && !targetPkg.isEmpty()) {
+                viewIntent.setPackage(targetPkg);
+                try {
+                    launchCtx.startActivity(viewIntent);
+                    return true;
+                } catch (Throwable viewErr) {
+                    Intent sendIntent = new Intent(Intent.ACTION_SEND);
+                    sendIntent.setType("text/plain");
+                    sendIntent.putExtra(Intent.EXTRA_TEXT, url);
+                    if (filename != null) {
+                        sendIntent.putExtra(Intent.EXTRA_TITLE, filename);
+                    }
+                    sendIntent.setPackage(targetPkg);
+                    sendIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    launchCtx.startActivity(sendIntent);
+                    return true;
+                }
+            }
+
+            Intent chooser = Intent.createChooser(viewIntent, SBrowserXStrings.get(SBrowserXStrings.EXT_DL_CHOOSER));
+            chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            launchCtx.startActivity(chooser);
+            return true;
+        } catch (Throwable t) {
+            Log.e(TAG, "tryHandOffDirectUrlDownload failed, falling back to stock", t);
+            return false;
+        }
+    }
+
+    public static boolean isForceAdaptiveDarkEnabled() {
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            return ctx != null && SBrowserXPrefs.isForceAdaptiveDarkEnabled(ctx);
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    public static boolean isDarkBrightImagesEnabled() {
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            return ctx == null || SBrowserXPrefs.isDarkBrightImagesEnabled(ctx);
+        } catch (Throwable t) {
+            return true;
+        }
+    }
+
+    public static boolean adjustNightDimEnabled(boolean stockEnabled) {
+        if (isDarkBrightImagesEnabled()) {
+            return false; // Completely disable Samsung's NightDim grey veil over images
+        }
+        return stockEnabled;
+    }
+
+    public static int adjustNightDimGain(int stockGain) {
+        if (isDarkBrightImagesEnabled()) {
+            return 0;
+        }
+        return stockGain;
+    }
+
+    public static int adjustVaxContrastFactor(int stockFactor) {
+        if (isDarkBrightImagesEnabled()) {
+            return 100; // Full 100% vibrancy instead of Samsung's washed-out 50%
+        }
+        return stockFactor;
+    }
+
+    public static int adjustForceDarkBehavior(int stockBehavior) {
+        if (isForceAdaptiveDarkEnabled() || isDarkBrightImagesEnabled()) {
+            return 2; // PREFER_MEDIA_QUERY_OVER_FORCE_DARK (always prefer website's native dark theme first)
+        }
+        return stockBehavior;
+    }
+
+    public static void applyDarkBrightImagesNow(boolean enabled) {
+        try {
+            Class<?> bridge = Class.forName("com.sec.terrace.browser.prefs.TerracePrefServiceBridge");
+            if (enabled) {
+                bridge.getMethod("setUseNightDim", boolean.class, int.class).invoke(null, false, 0);
+                bridge.getMethod("setVAXContrastFactor", int.class).invoke(null, 100);
+                bridge.getMethod("setForceDarkBehavior", int.class).invoke(null, 2);
+            } else {
+                bridge.getMethod("setVAXContrastFactor", int.class).invoke(null, 50);
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "applyDarkBrightImagesNow skipped", t);
+        }
+    }
+
+    public static void applyForceAdaptiveDarkNow(boolean enabled) {
+        try {
+            Class<?> bridge = Class.forName("com.sec.terrace.browser.prefs.TerracePrefServiceBridge");
+            if (enabled) {
+                bridge.getMethod("setForceDarkBehavior", int.class).invoke(null, 2);
+                bridge.getMethod("setNightMode", boolean.class).invoke(null, true);
+            } else {
+                // Re-sync with DarkModeUtils stock state
+                Class<?> dmu = Class.forName("com.sec.android.app.sbrowser.common.device.DarkModeUtils");
+                Object inst = dmu.getMethod("getInstance").invoke(null);
+                boolean stockDark = Boolean.TRUE.equals(dmu.getMethod("isContentDarkModeEnabled").invoke(inst));
+                bridge.getMethod("setNightMode", boolean.class).invoke(null, stockDark);
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "applyForceAdaptiveDarkNow skipped", t);
+        }
+    }
+
     public static boolean tryHandOffDownload(Object downloadHandler, Activity activity) {
         if (downloadHandler == null || activity == null) return false;
         try {
@@ -641,6 +823,10 @@ public final class SBrowserXHooks {
             }
             String mime = (String) info.getClass().getMethod("getMimetype").invoke(info);
             String filename = (String) info.getClass().getMethod("getFilename").invoke(info);
+            if (isLikelyImageDownload(url, mime, filename, false)
+                    && !SBrowserXPrefs.isExternalDownloaderImagesEnabled(ctx)) {
+                return false;
+            }
 
             Intent viewIntent = new Intent(Intent.ACTION_VIEW);
             if (mime != null && !mime.isEmpty() && !mime.equals("application/octet-stream")) {

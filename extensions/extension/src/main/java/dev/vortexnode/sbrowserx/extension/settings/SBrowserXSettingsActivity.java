@@ -38,6 +38,7 @@ public final class SBrowserXSettingsActivity extends Activity {
     private TextView webrtcSummaryView;
     private TextView gtransSummaryView;
     private TextView extDlSummaryView;
+    private Switch extDlImagesSwitch;
     private TextView daysValueView;
     private TextView blurLevelValueView;
     private LinearLayout blurLevelRow;
@@ -163,6 +164,14 @@ public final class SBrowserXSettingsActivity extends Activity {
                 SBrowserXHooks.getExternalDownloaderSummary(this),
                 textPrimary, textSecondary, extDlDot,
                 v -> startActivity(new Intent(this, SBrowserXExternalDownloaderDialogActivity.class)));
+        featCard.addView(divider(night));
+        extDlImagesSwitch = addSwitchRow(featCard, SBrowserXStrings.get(SBrowserXStrings.EXT_DL_IMAGES_TITLE),
+                SBrowserXStrings.get(SBrowserXStrings.EXT_DL_IMAGES_SUMMARY),
+                SBrowserXPrefs.isExternalDownloaderImagesEnabled(this), night, textPrimary, textSecondary, null,
+                (btn, checked) -> {
+                    SBrowserXPrefs.setExternalDownloaderImagesEnabled(this, checked);
+                    refreshDynamicViews();
+                });
         root.addView(featCard);
 
         // --- Appearance & UI ---
@@ -174,6 +183,25 @@ public final class SBrowserXSettingsActivity extends Activity {
                 SBrowserXPrefs.isAmoledBlackEnabled(this), night, textPrimary, textSecondary, amoledDot,
                 (btn, checked) -> {
                     SBrowserXPrefs.setAmoledBlackEnabled(this, checked);
+                    refreshDynamicViews();
+                });
+        appearanceCard.addView(divider(night));
+        addSwitchRow(appearanceCard, SBrowserXStrings.get(SBrowserXStrings.DARK_BRIGHT_IMG_TITLE),
+                SBrowserXStrings.get(SBrowserXStrings.DARK_BRIGHT_IMG_SUMMARY),
+                SBrowserXPrefs.isDarkBrightImagesEnabled(this), night, textPrimary, textSecondary, null,
+                (btn, checked) -> {
+                    SBrowserXPrefs.setDarkBrightImagesEnabled(this, checked);
+                    SBrowserXHooks.applyDarkBrightImagesNow(checked);
+                    refreshDynamicViews();
+                });
+        appearanceCard.addView(divider(night));
+        forceDarkDot = createTealDot();
+        addSwitchRow(appearanceCard, SBrowserXStrings.get(SBrowserXStrings.FORCE_DARK_TITLE),
+                SBrowserXStrings.get(SBrowserXStrings.FORCE_DARK_SUMMARY),
+                SBrowserXPrefs.isForceAdaptiveDarkEnabled(this), night, textPrimary, textSecondary, forceDarkDot,
+                (btn, checked) -> {
+                    SBrowserXPrefs.setForceAdaptiveDarkEnabled(this, checked);
+                    SBrowserXHooks.applyForceAdaptiveDarkNow(checked);
                     refreshDynamicViews();
                 });
         appearanceCard.addView(divider(night));
@@ -329,6 +357,10 @@ public final class SBrowserXSettingsActivity extends Activity {
         if (extDlSummaryView != null) {
             extDlSummaryView.setText(SBrowserXHooks.getExternalDownloaderSummary(this));
         }
+        if (extDlImagesSwitch != null && extDlImagesSwitch.getParent() instanceof View) {
+            boolean extOn = SBrowserXPrefs.isExternalDownloaderEnabled(this);
+            ((View) extDlImagesSwitch.getParent()).setAlpha(extOn ? 1.0f : 0.45f);
+        }
         setDot(extInstallDot, SBrowserXPrefs.FEATURE_EXT_INSTALLER);
         setDot(extPackDot, SBrowserXPrefs.FEATURE_EXT_PACK);
         setDot(webrtcDot, SBrowserXPrefs.FEATURE_WEBRTC);
@@ -337,6 +369,7 @@ public final class SBrowserXSettingsActivity extends Activity {
         setDot(gtransDot, SBrowserXPrefs.FEATURE_GOOGLE_TRANSLATE);
         setDot(extDlDot, SBrowserXPrefs.FEATURE_EXT_DOWNLOADER);
         setDot(amoledDot, SBrowserXPrefs.FEATURE_AMOLED);
+        setDot(forceDarkDot, SBrowserXPrefs.FEATURE_FORCE_DARK);
         setDot(blurDot, SBrowserXPrefs.FEATURE_BOTTOM_BLUR);
         if (blurLevelValueView != null) {
             boolean blurOn = SBrowserXPrefs.isBottomBarBlurEnabled(this);
