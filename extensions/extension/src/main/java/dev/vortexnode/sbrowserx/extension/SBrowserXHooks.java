@@ -115,7 +115,7 @@ public final class SBrowserXHooks {
                 appendFeature.invoke(null, "EnableScreenAntiFingerprintingV2");
                 Log.i(TAG, "Enabled native anti-fingerprint features");
             }
-            if (SBrowserXPrefs.isDarkBrightImagesEnabled(ctx) || SBrowserXPrefs.isForceAdaptiveDarkEnabled(ctx)) {
+            if (SBrowserXPrefs.isForceAdaptiveDarkEnabled(ctx)) {
                 // Chrome's smart CIELAB + selective image dark engine: keeps photos vivid & uninverted
                 appendFeature.invoke(null,
                         "WebContentsForceDark:inversion_method/cielab_based/image_behavior/selective/text_lightness_threshold/150/background_lightness_threshold/205");
