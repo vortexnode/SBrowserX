@@ -196,6 +196,12 @@ public final class SBrowserXDomTranslator {
     }
 
     public static void maybeAutoTranslateActivity(Activity targetActivity, boolean showChromeBanner) {
+        maybeAutoTranslateActivityInternal(targetActivity, showChromeBanner, 450L, true);
+    }
+
+    private static void maybeAutoTranslateActivityInternal(
+            Activity targetActivity, boolean showChromeBanner, long delayMs, boolean allowRetry
+    ) {
         Context ctx = SBrowserXPrefs.getAppContext();
         if (ctx == null || !SBrowserXPrefs.isGoogleTranslateEnabled(ctx) || !SBrowserXPrefs.isTranslateAutoEnabled(ctx)) {
             return;
@@ -225,7 +231,20 @@ public final class SBrowserXDomTranslator {
                         String pageLang = SBrowserXGoogleTranslator.normalizeLang(obj.optString("lang", ""));
                         String sample = obj.optString("sample", "");
 
-                        if (pageLang.isEmpty() && sample.length() >= 15) {
+                        // SPA / lazy-loaded pages may have empty body at 450ms -> retry once at 1500ms
+                        if (sample.length() < 15) {
+                            if (allowRetry) {
+                                maybeAutoTranslateActivityInternal(act, showChromeBanner, 1500L, false);
+                            }
+                            return;
+                        }
+
+                        // Detect mismatch when a foreign page falsely declares <html lang="ru"> (or vice versa)
+                        boolean looksMostlyLatin = isMostlyLatin(sample);
+                        boolean targetIsCyrillic = "ru".equalsIgnoreCase(targetLang)
+                                || "uk".equalsIgnoreCase(targetLang)
+                                || "be".equalsIgnoreCase(targetLang);
+                        if (pageLang.isEmpty() || (targetIsCyrillic && pageLang.equalsIgnoreCase(targetLang) && looksMostlyLatin)) {
                             pageLang = SBrowserXGoogleTranslator.detectLanguageFast(sample);
                         }
                         if (pageLang.isEmpty() || pageLang.equalsIgnoreCase(targetLang)) return;
@@ -240,7 +259,21 @@ public final class SBrowserXDomTranslator {
                     } catch (Throwable ignored) {}
                 });
             });
-        }, 450L);
+        }, delayMs);
+    }
+
+    private static boolean isMostlyLatin(String s) {
+        if (s == null || s.isEmpty()) return false;
+        int latin = 0;
+        int letters = 0;
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (Character.isLetter(c)) {
+                letters++;
+                if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) latin++;
+            }
+        }
+        return letters >= 12 && (latin * 100 / letters) >= 65;
     }
 
     public static void revertCurrentTab() {
