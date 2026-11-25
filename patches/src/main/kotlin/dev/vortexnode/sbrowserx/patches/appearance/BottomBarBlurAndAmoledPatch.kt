@@ -12,6 +12,8 @@ private const val BOTTOMBAR_CLASS =
     "Lcom/sec/android/app/sbrowser/toolbar/Bottombar;"
 private const val TOOLBAR_CLASS =
     "Lcom/sec/android/app/sbrowser/toolbar/Toolbar;"
+private const val TOOLBAR_LAYOUT_CLASS =
+    "Lcom/sec/android/app/sbrowser/toolbar/ToolbarLayout;"
 private const val GRADIENT_DRAWABLE_FACTORY_CLASS =
     "Lcom/sec/android/app/sbrowser/toolbar/blur/GradientDrawableFactory;"
 private const val GRADIENT_BITMAP_FACTORY_CLASS =
@@ -171,6 +173,23 @@ val bottomBarBlurAndAmoledPatch = bytecodePatch(
                 move-result p7
                 invoke-static/range {p8 .. p8}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->adjustToolbarBlurTintColor(I)I
                 move-result p8
+            """.trimIndent(),
+        )
+
+        // 8. ToolbarLayout.updateTextFieldBackground(ThemeParam)V (.locals 2)
+        // Before return-void, p0 holds LocationBar: applies independent glass alpha to the URL bar capsule.
+        val urlBgMethod = findMethodOrThrow(
+            classType = TOOLBAR_LAYOUT_CLASS,
+            methodName = "updateTextFieldBackground",
+            parameterTypes = listOf("Lcom/sec/android/app/sbrowser/common/toolbar/ThemeParam;"),
+            returnType = "V",
+        )
+        val urlBgInsns = urlBgMethod.implementation?.instructions
+            ?: error("Missing instructions in updateTextFieldBackground")
+        urlBgMethod.addInstructions(
+            urlBgInsns.size - 1,
+            """
+                invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->applyUrlBarGlassStyle(Ljava/lang/Object;)V
             """.trimIndent(),
         )
     }

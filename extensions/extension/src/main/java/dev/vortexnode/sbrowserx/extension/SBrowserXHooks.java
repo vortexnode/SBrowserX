@@ -6,6 +6,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.graphics.drawable.GradientDrawable;
+import android.view.View;
+import android.graphics.drawable.Drawable;
+import android.content.res.Configuration;
 import android.graphics.Shader;
 import android.graphics.Paint;
 import android.graphics.LinearGradient;
@@ -295,6 +298,48 @@ public final class SBrowserXHooks {
             return stockColor;
         }
     }
+
+    public static void applyUrlBarGlassStyle(Object locationBarObj) {
+        if (locationBarObj == null) return;
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            if (ctx != null && !SBrowserXPrefs.isUrlBarBlurEnabled(ctx)) return;
+
+            View urlBarParent = (View) locationBarObj.getClass().getMethod("getUrlBarParent").invoke(locationBarObj);
+            if (urlBarParent == null) return;
+            Drawable bg = urlBarParent.getBackground();
+            if (bg == null) return;
+            Drawable current = bg.getCurrent();
+            if (current == null) return;
+            Drawable mutated = current.mutate();
+
+            boolean isEdit = false;
+            try {
+                Object res = locationBarObj.getClass().getMethod("isEditMode").invoke(locationBarObj);
+                isEdit = Boolean.TRUE.equals(res);
+            } catch (Throwable ignored) {}
+
+            int transparency = ctx != null ? SBrowserXPrefs.getUrlBarTransparency(ctx) : 50;
+            int opacity = 100 - transparency; // 15..85
+            int alpha = clampByte(Math.round(255f * opacity / 100f));
+            if (isEdit) {
+                alpha = Math.max(alpha, 215);
+            }
+            mutated.setAlpha(alpha);
+
+            if (mutated instanceof GradientDrawable && !isEdit && alpha < 220) {
+                Context vCtx = urlBarParent.getContext();
+                boolean night = (vCtx.getResources().getConfiguration().uiMode
+                        & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+                int strokePx = Math.max(1, Math.round(vCtx.getResources().getDisplayMetrics().density * 0.75f));
+                int strokeColor = night ? 0x26FFFFFF : 0x1A000000;
+                ((GradientDrawable) mutated).setStroke(strokePx, strokeColor);
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "applyUrlBarGlassStyle failed", t);
+        }
+    }
+
 
     public static boolean isHideSamsungAdBlockersEnabled() {
         try {

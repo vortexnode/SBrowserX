@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-11-25T11:45:00",
-  "description": "SBrowserX v0.7.2 — настоящее матовое стекло и усиленный GPU-блюр нижней панели и адресной строки (в светлой и тёмной/AMOLED темах), плюс ползунок прозрачности панели (15%–85%) в настройках SBrowserX.",
-  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v0.7.2/patches-0.7.2.mpp",
+  "created_at": "2026-11-25T12:10:00",
+  "description": "SBrowserX v0.7.3 — отдельный тумблер и ползунок прозрачности капсулы адресной строки (15%–85%) с деликатной стеклянной обводкой и авто-уплотнением при вводе URL.",
+  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v0.7.3/patches-0.7.3.mpp",
   "signature_download_url": "",
-  "version": "0.7.2"
+  "version": "0.7.3"
 }

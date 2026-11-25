@@ -68,6 +68,9 @@ public final class SBrowserXStrings {
     public static final String BTN_DISABLE = "btn_disable";
     public static final String EXT_OPEN_NATIVE = "ext_open_native";
     public static final String BOTTOM_BLUR_LEVEL_TITLE = "bottom_blur_level_title";
+    public static final String URL_BAR_BLUR_TITLE = "url_bar_blur_title";
+    public static final String URL_BAR_BLUR_SUMMARY = "url_bar_blur_summary";
+    public static final String URL_BAR_BLUR_LEVEL_TITLE = "url_bar_blur_level_title";
 
     private static final Map<String, Map<String, String>> CATALOG = new HashMap<>();
 
@@ -338,6 +341,20 @@ public final class SBrowserXStrings {
         putOne("zh", BOTTOM_BLUR_LEVEL_TITLE, "工具栏透明度");
         putOne("ja", BOTTOM_BLUR_LEVEL_TITLE, "バーの透明度");
         putOne("ko", BOTTOM_BLUR_LEVEL_TITLE, "하단 바 투명도");
+        putOne("en", URL_BAR_BLUR_TITLE, "Semi-transparent address bar");
+        putOne("en", URL_BAR_BLUR_SUMMARY, "Independent translucency for the address bar capsule");
+        putOne("en", URL_BAR_BLUR_LEVEL_TITLE, "Address bar transparency");
+        putOne("ru", URL_BAR_BLUR_TITLE, "Полупрозрачная адресная строка");
+        putOne("ru", URL_BAR_BLUR_SUMMARY, "Отдельная прозрачность капсулы адресной строки");
+        putOne("ru", URL_BAR_BLUR_LEVEL_TITLE, "Прозрачность адресной строки");
+        putOne("uk", URL_BAR_BLUR_TITLE, "Напівпрозорий адресний рядок");
+        putOne("uk", URL_BAR_BLUR_SUMMARY, "Окрема прозорість капсули адресного рядка");
+        putOne("uk", URL_BAR_BLUR_LEVEL_TITLE, "Прозорість адресного рядка");
+        for (String lang : new String[] {"es", "pt", "de", "fr", "it", "pl", "tr", "ar", "hi", "zh", "ja", "ko"}) {
+            putOne(lang, URL_BAR_BLUR_TITLE, "Semi-transparent address bar");
+            putOne(lang, URL_BAR_BLUR_SUMMARY, "Independent translucency for the address bar capsule");
+            putOne(lang, URL_BAR_BLUR_LEVEL_TITLE, "Address bar transparency");
+        }
     }
 
     private static void putOne(String lang, String key, String value) {
