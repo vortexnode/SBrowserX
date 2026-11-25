@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-11-25T00:18:00",
-  "description": "SBrowserX v0.2.0 — гибридный раздел настроек SBrowserX (15 языков включая RU/UK/EN, бирюзовая точка новизны 0-10 дней), системная защита от утечки WebRTC (4 режима как в Titanium, дубль в Конфиденциальности), блокировка сторонних cookie по умолчанию, AMOLED-чёрная тема и тумблер полупрозрачности нижней панели.",
-  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v0.2.0/patches-0.2.0.mpp",
+  "created_at": "2026-11-25T00:46:00",
+  "description": "SBrowserX v0.2.1 — исправлено зависание загрузки страниц (изолированные процессы рендерера Chromium больше не трогают SharedPreferences/файлы в onCreate).",
+  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v0.2.1/patches-0.2.1.mpp",
   "signature_download_url": "",
-  "version": "0.2.0"
+  "version": "0.2.1"
 }
