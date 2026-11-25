@@ -29,8 +29,9 @@ import java.util.zip.ZipOutputStream;
 
 public final class SBrowserXCrxInstaller {
     private static final String TAG = "SBrowserXCrx";
+    // Chrome 145 prodversion ensures modern MV3 extensions (including Bitwarden) return HTTP 200 CRX3
     private static final String CWS_CRX_URL =
-            "https://clients2.google.com/service/update2/crx?response=redirect&prodversion=131.0.0.0&acceptformat=crx2,crx3&x=id%3D";
+            "https://clients2.google.com/service/update2/crx?response=redirect&prodversion=145.0.0.0&acceptformat=crx2,crx3&x=id%3D";
 
     public static final String[][] RECOMMENDED_EXTENSIONS = new String[][] {
             {"ddkjiahejlhfcafbddmgiahcphecmpfh", "uBlock Origin Lite"},
@@ -84,15 +85,19 @@ public final class SBrowserXCrxInstaller {
         new Thread(() -> {
             int okCount = 0;
             String lastError = null;
-            for (String extId : extIds) {
+            for (int i = 0; i < extIds.size(); i++) {
+                String extId = extIds.get(i);
                 try {
-                    byte[] crxBytes = downloadFromCws(extId);
-                    File outFile = saveCrxToCache(context, extId, crxBytes);
+                    File outFile = downloadFromCwsToFile(context, extId);
                     boolean launched = launchNativeInstallSync(extId, outFile.getAbsolutePath());
                     if (launched) {
                         okCount++;
+                        // Pace sequential installs slightly so Terrace's CRX installer doesn't drop overlapping requests
+                        if (i + 1 < extIds.size()) {
+                            try { Thread.sleep(650L); } catch (InterruptedException ignored) {}
+                        }
                     } else {
-                        lastError = "Native extension loader not initialized yet — open any webpage first";
+                        lastError = SBrowserXStrings.get(SBrowserXStrings.EXT_ENGINE_NOT_READY);
                     }
                 } catch (Throwable t) {
                     Log.e(TAG, "Failed downloading/installing " + extId, t);
@@ -107,16 +112,16 @@ public final class SBrowserXCrxInstaller {
         }).start();
     }
 
-    private static byte[] downloadFromCws(String extId) throws Exception {
+    private static File downloadFromCwsToFile(Context context, String extId) throws Exception {
         String urlStr = CWS_CRX_URL + extId + "%26uc";
         HttpURLConnection conn = null;
-        for (int redirect = 0; redirect < 5; redirect++) {
+        for (int redirect = 0; redirect < 6; redirect++) {
             URL url = new URL(urlStr);
             conn = (HttpURLConnection) url.openConnection();
             conn.setInstanceFollowRedirects(false);
             conn.setConnectTimeout(15000);
-            conn.setReadTimeout(30000);
-            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36");
+            conn.setReadTimeout(60000);
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36");
             int code = conn.getResponseCode();
             if (code == 301 || code == 302 || code == 303 || code == 307 || code == 308) {
                 String loc = conn.getHeaderField("Location");
@@ -126,17 +131,34 @@ public final class SBrowserXCrxInstaller {
                 continue;
             }
             if (code != 200) {
+                conn.disconnect();
                 throw new IllegalStateException("HTTP " + code + " for " + extId);
             }
-            try (InputStream is = conn.getInputStream()) {
-                byte[] data = readAll(is);
-                if (data.length < 16 || data[0] != 'C' || data[1] != 'r') {
-                    throw new IllegalStateException("Invalid CRX payload for " + extId);
+            File dir = new File(context.getCacheDir(), "sbrowserx_crx");
+            if (!dir.exists()) dir.mkdirs();
+            File out = new File(dir, extId + ".crx");
+            byte[] header = new byte[4];
+            int headerRead = 0;
+            try (InputStream is = conn.getInputStream();
+                 FileOutputStream fos = new FileOutputStream(out)) {
+                byte[] buf = new byte[16384];
+                int n;
+                while ((n = is.read(buf)) != -1) {
+                    if (headerRead < 4) {
+                        int toCopy = Math.min(4 - headerRead, n);
+                        System.arraycopy(buf, 0, header, headerRead, toCopy);
+                        headerRead += toCopy;
+                    }
+                    fos.write(buf, 0, n);
                 }
-                return data;
             } finally {
                 conn.disconnect();
             }
+            if (headerRead < 4 || header[0] != 'C' || header[1] != 'r' || header[2] != '2' || header[3] != '4') {
+                out.delete();
+                throw new IllegalStateException("Invalid CRX payload for " + extId);
+            }
+            return out;
         }
         throw new IllegalStateException("Too many redirects for " + extId);
     }
@@ -173,7 +195,7 @@ public final class SBrowserXCrxInstaller {
         });
         synchronized (lock) {
             try {
-                lock.wait(5000);
+                lock.wait(8000);
             } catch (InterruptedException ignored) {}
         }
         return res[0];
@@ -207,7 +229,7 @@ public final class SBrowserXCrxInstaller {
         int version = bb.getInt();
         if (version == 2 && crx.length > 16) {
             int pubKeyLen = bb.getInt();
-            bb.getInt(); // sigLen
+            bb.getInt();
             if (pubKeyLen > 0 && 16 + pubKeyLen <= crx.length) {
                 byte[] pubKey = new byte[pubKeyLen];
                 System.arraycopy(crx, 16, pubKey, 0, pubKeyLen);
@@ -226,8 +248,6 @@ public final class SBrowserXCrxInstaller {
     }
 
     private static byte[] parseCrx3IdFromHeader(byte[] data, int offset, int len) {
-        // CrxFileHeader field 10000 (signed_header_data, wire type 2 = length-delimited)
-        // Inside SignedData, field 1 (crx_id, wire type 2 = length-delimited, 16 bytes)
         int end = offset + len;
         int pos = offset;
         while (pos < end) {
@@ -301,17 +321,12 @@ public final class SBrowserXCrxInstaller {
         return null;
     }
 
-    /**
-     * Ensures manifest.json is at the root of the ZIP (strips single wrapper folder if present).
-     */
     private static byte[] normalizeExtensionZip(byte[] zipBytes) throws Exception {
-        List<String> names = new ArrayList<>();
         String manifestPath = null;
         try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {
             ZipEntry entry;
             while ((entry = zis.getNextEntry()) != null) {
                 String name = entry.getName();
-                names.add(name);
                 if (!entry.isDirectory() && (name.equals("manifest.json") || name.endsWith("/manifest.json"))) {
                     if (manifestPath == null || name.length() < manifestPath.length()) {
                         manifestPath = name;
@@ -359,24 +374,19 @@ public final class SBrowserXCrxInstaller {
         }
     }
 
-    /**
-     * Packages any extension ZIP into a valid CRX3 archive signed with a fresh RSA-2048 key.
-     */
     private static CrxBuildResult buildSignedCrx3(byte[] zipBytes) throws Exception {
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
         kpg.initialize(2048);
         KeyPair kp = kpg.generateKeyPair();
-        byte[] pubKey = kp.getPublic().getEncoded(); // X.509 SubjectPublicKeyInfo
+        byte[] pubKey = kp.getPublic().getEncoded();
 
         byte[] sha256 = MessageDigest.getInstance("SHA-256").digest(pubKey);
         byte[] crxId16 = new byte[16];
         System.arraycopy(sha256, 0, crxId16, 0, 16);
         String extId = bytes16ToExtId(crxId16);
 
-        // SignedData protobuf: field 1 = crx_id (16 bytes)
         byte[] signedHeaderData = pbBytesField(1, crxId16);
 
-        // Signature input: "CRX3 SignedData\0" + LE32(signedHeaderData.length) + signedHeaderData + zipBytes
         Signature sig = Signature.getInstance("SHA256withRSA");
         sig.initSign(kp.getPrivate());
         sig.update("CRX3 SignedData\u0000".getBytes(StandardCharsets.US_ASCII));
@@ -386,12 +396,10 @@ public final class SBrowserXCrxInstaller {
         sig.update(zipBytes);
         byte[] sigBytes = sig.sign();
 
-        // AsymmetricKeyProof protobuf: field 1 = public_key, field 2 = signature
         ByteArrayOutputStream proof = new ByteArrayOutputStream();
         proof.write(pbBytesField(1, pubKey));
         proof.write(pbBytesField(2, sigBytes));
 
-        // CrxFileHeader protobuf: field 2 = sha256_with_rsa (proof), field 10000 = signed_header_data
         ByteArrayOutputStream header = new ByteArrayOutputStream();
         header.write(pbBytesField(2, proof.toByteArray()));
         header.write(pbBytesField(10000, signedHeaderData));

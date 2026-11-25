@@ -23,97 +23,70 @@ import java.util.ArrayList;
 import java.util.List;
 
 import dev.vortexnode.sbrowserx.extension.SBrowserXCrxInstaller;
+import dev.vortexnode.sbrowserx.extension.SBrowserXGoogleTranslator;
+import dev.vortexnode.sbrowserx.extension.SBrowserXHooks;
 import dev.vortexnode.sbrowserx.extension.SBrowserXPrefs;
 import dev.vortexnode.sbrowserx.extension.SBrowserXStrings;
 import dev.vortexnode.sbrowserx.extension.SBrowserXWebRtcManager;
 
 public final class SBrowserXSettingsActivity extends Activity {
     private static final int TEAL_DOT_COLOR = 0xFF00BFA5;
+    private static final int ONEUI_BLUE = 0xFF387AFF;
     private static final int REQ_PICK_EXTENSION = 4101;
 
     private TextView webrtcSummaryView;
-    private View extInstallDot;
-    private View extPackDot;
-    private View webrtcDot;
-    private View fingerprintDot;
-    private View gtransDot;
-    private View extDlDot;
-    private View autoClose1dDot;
-    private View amoledDot;
-    private View blurDot;
+    private TextView gtransSummaryView;
+    private Switch extDlSwitch;
     private TextView daysValueView;
+    private View extInstallDot, extPackDot, webrtcDot, fingerprintDot, hideAdsDot, gtransDot, extDlDot, amoledDot, blurDot;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         SBrowserXPrefs.init(this);
-        buildUi();
-    }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        refreshDynamicViews();
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQ_PICK_EXTENSION && resultCode == RESULT_OK && data != null && data.getData() != null) {
-            Uri uri = data.getData();
-            SBrowserXPrefs.markFeatureViewed(this, SBrowserXPrefs.FEATURE_EXT_INSTALLER);
-            refreshDynamicViews();
-            Toast.makeText(this, SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALLING), Toast.LENGTH_SHORT).show();
-            SBrowserXCrxInstaller.installFromUri(this, uri, (ok, msg) -> {
-                String toast = ok
-                        ? SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALL_OK)
-                        : SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALL_FAIL) + msg;
-                Toast.makeText(this, toast, Toast.LENGTH_LONG).show();
-            });
-        }
-    }
-
-    private void buildUi() {
         boolean night = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
                 == Configuration.UI_MODE_NIGHT_YES;
         boolean amoled = night && SBrowserXPrefs.isAmoledBlackEnabled(this);
 
-        int bgColor = amoled ? 0xFF000000 : (night ? 0xFF010101 : 0xFFF6F6F8);
-        int cardColor = amoled ? 0xFF141416 : (night ? 0xFF1C1C1E : 0xFFFFFFFF);
-        int textPrimary = night ? 0xFFF5F5F7 : 0xFF111113;
-        int textSecondary = night ? 0xFFA8A8B2 : 0xFF636368;
-        int accent = 0xFF7B6BFF;
+        int bgColor = amoled ? 0xFF000000 : (night ? 0xFF0D0D10 : 0xFFF2F2F7);
+        int cardColor = amoled ? 0xFF121216 : (night ? 0xFF1C1C22 : 0xFFFFFFFF);
+        int textPrimary = night ? 0xFFF5F5F7 : 0xFF111111;
+        int textSecondary = night ? 0xFFA2A2AD : 0xFF63636B;
+        int accent = ONEUI_BLUE;
         int dialogTheme = night
                 ? android.R.style.Theme_DeviceDefault_Dialog_Alert
                 : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert;
 
-        getWindow().setStatusBarColor(bgColor);
-        getWindow().setNavigationBarColor(bgColor);
+        if (getWindow() != null) {
+            getWindow().setStatusBarColor(bgColor);
+            getWindow().setNavigationBarColor(bgColor);
+        }
 
         ScrollView scroll = new ScrollView(this);
         scroll.setBackgroundColor(bgColor);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(16), dp(20), dp(16), dp(32));
-        scroll.addView(root);
+        root.setPadding(dp(16), dp(20), dp(16), dp(36));
 
+        // Top Bar
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(dp(4), dp(8), dp(4), dp(16));
+        header.setPadding(dp(4), dp(8), dp(4), dp(18));
 
-        TextView back = new TextView(this);
-        back.setText("\u2190");
-        back.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22);
-        back.setTextColor(textPrimary);
-        back.setPadding(dp(4), dp(4), dp(16), dp(4));
-        back.setOnClickListener(v -> finish());
-        header.addView(back);
+        TextView backBtn = new TextView(this);
+        backBtn.setText("\u2190");
+        backBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 24);
+        backBtn.setTextColor(textPrimary);
+        backBtn.setPadding(dp(4), dp(4), dp(16), dp(4));
+        backBtn.setOnClickListener(v -> finish());
+        header.addView(backBtn);
 
         TextView title = new TextView(this);
         title.setText(SBrowserXStrings.get(SBrowserXStrings.TITLE_HUB));
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 24);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         title.setTextColor(textPrimary);
         header.addView(title);
@@ -133,10 +106,14 @@ public final class SBrowserXSettingsActivity extends Activity {
                 textPrimary, textSecondary, extPackDot, v -> showRecommendedPackDialog(dialogTheme));
         extCard.addView(divider(night));
         addActionRow(extCard, SBrowserXStrings.get(SBrowserXStrings.EXT_OPEN_MANAGER),
-                null, accent, textSecondary, null, v -> openUrlInSelf("internet://extensions"));
+                null, accent, textSecondary, null, v -> {
+                    if (SBrowserXHooks.openExtensionsManager(this)) {
+                        finish();
+                    }
+                });
         extCard.addView(divider(night));
         addActionRow(extCard, SBrowserXStrings.get(SBrowserXStrings.EXT_OPEN_CWS),
-                null, accent, textSecondary, null, v -> openUrlInSelf("https://chromewebstore.google.com/category/extensions"));
+                null, accent, textSecondary, null, v -> openWebUrlInSelf("https://chromewebstore.google.com/category/extensions"));
         root.addView(extCard);
 
         // --- Privacy & Security ---
@@ -157,35 +134,32 @@ public final class SBrowserXSettingsActivity extends Activity {
                     SBrowserXWebRtcManager.applyToProfile(this);
                     refreshDynamicViews();
                 });
+        privacyCard.addView(divider(night));
+        hideAdsDot = createTealDot();
+        addSwitchRow(privacyCard, SBrowserXStrings.get(SBrowserXStrings.HIDE_ADBLOCKERS_TITLE),
+                SBrowserXStrings.get(SBrowserXStrings.HIDE_ADBLOCKERS_SUMMARY),
+                SBrowserXPrefs.isHideSamsungAdBlockersEnabled(this), night, textPrimary, textSecondary, hideAdsDot,
+                (btn, checked) -> {
+                    SBrowserXPrefs.setHideSamsungAdBlockersEnabled(this, checked);
+                    refreshDynamicViews();
+                });
         root.addView(privacyCard);
 
         // --- Features & Downloads ---
         root.addView(sectionHeader(SBrowserXStrings.get(SBrowserXStrings.CAT_FEATURES), textSecondary));
         LinearLayout featCard = card(cardColor);
         gtransDot = createTealDot();
-        addSwitchRow(featCard, SBrowserXStrings.get(SBrowserXStrings.GTRANS_TITLE),
-                SBrowserXStrings.get(SBrowserXStrings.GTRANS_SUMMARY),
-                SBrowserXPrefs.isGoogleTranslateEnabled(this), night, textPrimary, textSecondary, gtransDot,
-                (btn, checked) -> {
-                    SBrowserXPrefs.setGoogleTranslateEnabled(this, checked);
-                    refreshDynamicViews();
-                });
+        gtransSummaryView = addActionRow(featCard, SBrowserXStrings.get(SBrowserXStrings.GTRANS_SETTINGS_TITLE),
+                buildTranslateSummary(),
+                textPrimary, textSecondary, gtransDot,
+                v -> startActivity(new Intent(this, SBrowserXTranslateSettingsActivity.class)));
         featCard.addView(divider(night));
         extDlDot = createTealDot();
-        addSwitchRow(featCard, SBrowserXStrings.get(SBrowserXStrings.EXT_DL_TITLE),
+        extDlSwitch = addSwitchRow(featCard, SBrowserXStrings.get(SBrowserXStrings.EXT_DL_TITLE),
                 SBrowserXStrings.get(SBrowserXStrings.EXT_DL_SUMMARY),
                 SBrowserXPrefs.isExternalDownloaderEnabled(this), night, textPrimary, textSecondary, extDlDot,
                 (btn, checked) -> {
                     SBrowserXPrefs.setExternalDownloaderEnabled(this, checked);
-                    refreshDynamicViews();
-                });
-        featCard.addView(divider(night));
-        autoClose1dDot = createTealDot();
-        addSwitchRow(featCard, SBrowserXStrings.get(SBrowserXStrings.AUTOCLOSE_1D_TITLE),
-                SBrowserXStrings.get(SBrowserXStrings.AUTOCLOSE_1D_SUMMARY),
-                SBrowserXPrefs.isAutoClose1DayEnabled(this), night, textPrimary, textSecondary, autoClose1dDot,
-                (btn, checked) -> {
-                    SBrowserXPrefs.setAutoClose1DayEnabled(this, checked);
                     refreshDynamicViews();
                 });
         root.addView(featCard);
@@ -225,30 +199,62 @@ public final class SBrowserXSettingsActivity extends Activity {
                 });
         root.addView(highlightCard);
 
-        // --- Restart Browser ---
+        // --- Restart ---
         LinearLayout restartCard = card(cardColor);
-        LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) restartCard.getLayoutParams();
-        lp.topMargin = dp(16);
+        LinearLayout.LayoutParams rlp = (LinearLayout.LayoutParams) restartCard.getLayoutParams();
+        rlp.topMargin = dp(16);
         addActionRow(restartCard, SBrowserXStrings.get(SBrowserXStrings.RESTART_TITLE),
                 SBrowserXStrings.get(SBrowserXStrings.RESTART_SUMMARY),
-                accent, textSecondary, null, v -> SBrowserXWebRtcDialogActivity.restartBrowser(this));
+                accent, textSecondary, null, v -> SBrowserXWebRtcManager.restartBrowser(this));
         root.addView(restartCard);
 
+        scroll.addView(root);
         setContentView(scroll);
         refreshDynamicViews();
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        refreshDynamicViews();
+    }
+
+    private String buildTranslateSummary() {
+        boolean on = SBrowserXPrefs.isGoogleTranslateEnabled(this);
+        String lang = SBrowserXGoogleTranslator.getLanguageDisplayName(SBrowserXPrefs.getTranslateTargetLang(this));
+        return (on ? "ON • " : "OFF • ") + lang;
+    }
+
     private void launchFilePicker() {
-        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("*/*");
-        startActivityForResult(intent, REQ_PICK_EXTENSION);
+        SBrowserXPrefs.markFeatureViewed(this, SBrowserXPrefs.FEATURE_EXT_INSTALLER);
+        refreshDynamicViews();
+        try {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("*/*");
+            startActivityForResult(intent, REQ_PICK_EXTENSION);
+        } catch (Throwable t) {
+            Toast.makeText(this, SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALL_FAIL) + t.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQ_PICK_EXTENSION && resultCode == RESULT_OK && data != null && data.getData() != null) {
+            Toast.makeText(this, SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALLING), Toast.LENGTH_SHORT).show();
+            SBrowserXCrxInstaller.installFromUri(this, data.getData(), (ok, msg) -> {
+                String toast = ok
+                        ? SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALL_OK) + " (" + msg + ")"
+                        : SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALL_FAIL) + msg;
+                Toast.makeText(this, toast, Toast.LENGTH_LONG).show();
+            });
+        }
     }
 
     private void showRecommendedPackDialog(int theme) {
         SBrowserXPrefs.markFeatureViewed(this, SBrowserXPrefs.FEATURE_EXT_PACK);
         refreshDynamicViews();
-
         String[][] items = SBrowserXCrxInstaller.RECOMMENDED_EXTENSIONS;
         String[] labels = new String[items.length];
         boolean[] checked = new boolean[items.length];
@@ -278,7 +284,7 @@ public final class SBrowserXSettingsActivity extends Activity {
                 .show();
     }
 
-    private void openUrlInSelf(String url) {
+    private void openWebUrlInSelf(String url) {
         try {
             Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
             intent.setPackage(getPackageName());
@@ -294,13 +300,22 @@ public final class SBrowserXSettingsActivity extends Activity {
         if (webrtcSummaryView != null) {
             webrtcSummaryView.setText(SBrowserXStrings.webrtcLabel(SBrowserXPrefs.getWebRtcPolicy(this)));
         }
+        if (gtransSummaryView != null) {
+            gtransSummaryView.setText(buildTranslateSummary());
+        }
+        if (extDlSwitch != null) {
+            boolean cur = SBrowserXPrefs.isExternalDownloaderEnabled(this);
+            if (extDlSwitch.isChecked() != cur) {
+                extDlSwitch.setChecked(cur);
+            }
+        }
         setDot(extInstallDot, SBrowserXPrefs.FEATURE_EXT_INSTALLER);
         setDot(extPackDot, SBrowserXPrefs.FEATURE_EXT_PACK);
         setDot(webrtcDot, SBrowserXPrefs.FEATURE_WEBRTC);
         setDot(fingerprintDot, SBrowserXPrefs.FEATURE_FINGERPRINT);
+        setDot(hideAdsDot, SBrowserXPrefs.FEATURE_HIDE_ADBLOCKERS);
         setDot(gtransDot, SBrowserXPrefs.FEATURE_GOOGLE_TRANSLATE);
         setDot(extDlDot, SBrowserXPrefs.FEATURE_EXT_DOWNLOADER);
-        setDot(autoClose1dDot, SBrowserXPrefs.FEATURE_AUTO_CLOSE_1DAY);
         setDot(amoledDot, SBrowserXPrefs.FEATURE_AMOLED);
         setDot(blurDot, SBrowserXPrefs.FEATURE_BOTTOM_BLUR);
         if (daysValueView != null) {
@@ -317,23 +332,35 @@ public final class SBrowserXSettingsActivity extends Activity {
         }
     }
 
+    private View createTealDot() {
+        View dot = new View(this);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(8), dp(8));
+        lp.leftMargin = dp(8);
+        dot.setLayoutParams(lp);
+        GradientDrawable gd = new GradientDrawable();
+        gd.setShape(GradientDrawable.OVAL);
+        gd.setColor(TEAL_DOT_COLOR);
+        dot.setBackground(gd);
+        return dot;
+    }
+
     private TextView sectionHeader(String text, int color) {
         TextView tv = new TextView(this);
         tv.setText(text);
         tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         tv.setTypeface(Typeface.DEFAULT_BOLD);
         tv.setTextColor(color);
-        tv.setPadding(dp(12), dp(14), dp(12), dp(6));
+        tv.setPadding(dp(14), dp(14), dp(14), dp(6));
         return tv;
     }
 
     private LinearLayout card(int bgColor) {
         LinearLayout ll = new LinearLayout(this);
         ll.setOrientation(LinearLayout.VERTICAL);
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(bgColor);
-        bg.setCornerRadius(dp(20));
-        ll.setBackground(bg);
+        GradientDrawable gd = new GradientDrawable();
+        gd.setColor(bgColor);
+        gd.setCornerRadius(dp(22));
+        ll.setBackground(gd);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         ll.setLayoutParams(lp);
@@ -342,41 +369,26 @@ public final class SBrowserXSettingsActivity extends Activity {
 
     private View divider(boolean night) {
         View v = new View(this);
-        v.setBackgroundColor(night ? 0x22FFFFFF : 0x16000000);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 1);
+        v.setBackgroundColor(night ? 0xFF2A2A32 : 0xFFE5E5EA);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1);
         lp.leftMargin = dp(18);
         lp.rightMargin = dp(18);
         v.setLayoutParams(lp);
         return v;
     }
 
-    private View createTealDot() {
-        View dot = new View(this);
-        GradientDrawable shape = new GradientDrawable();
-        shape.setShape(GradientDrawable.OVAL);
-        shape.setColor(TEAL_DOT_COLOR);
-        dot.setBackground(shape);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(8), dp(8));
-        lp.leftMargin = dp(8);
-        dot.setLayoutParams(lp);
-        return dot;
-    }
-
     private TextView addActionRow(
-            LinearLayout parent, String title, String summary,
-            int titleColor, int summaryColor, View badgeDot, View.OnClickListener listener
+            LinearLayout parent, String title, String summary, int titleColor, int summaryColor,
+            View badgeDot, View.OnClickListener onClick
     ) {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.VERTICAL);
-        row.setPadding(dp(18), dp(14), dp(18), dp(14));
-        row.setClickable(true);
-        row.setOnClickListener(listener);
+        row.setPadding(dp(18), dp(15), dp(18), dp(15));
+        row.setOnClickListener(onClick);
 
         LinearLayout titleRow = new LinearLayout(this);
         titleRow.setOrientation(LinearLayout.HORIZONTAL);
         titleRow.setGravity(Gravity.CENTER_VERTICAL);
-
         TextView tvTitle = new TextView(this);
         tvTitle.setText(title);
         tvTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
@@ -399,7 +411,7 @@ public final class SBrowserXSettingsActivity extends Activity {
         return tvSummary;
     }
 
-    private void addSwitchRow(
+    private Switch addSwitchRow(
             LinearLayout parent, String title, String summary, boolean initialValue, boolean night,
             int titleColor, int summaryColor, View badgeDot,
             android.widget.CompoundButton.OnCheckedChangeListener listener
@@ -418,7 +430,6 @@ public final class SBrowserXSettingsActivity extends Activity {
         LinearLayout titleRow = new LinearLayout(this);
         titleRow.setOrientation(LinearLayout.HORIZONTAL);
         titleRow.setGravity(Gravity.CENTER_VERTICAL);
-
         TextView tvTitle = new TextView(this);
         tvTitle.setText(title);
         tvTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
@@ -435,7 +446,7 @@ public final class SBrowserXSettingsActivity extends Activity {
         textCol.addView(tvSummary);
 
         Switch sw = new Switch(this);
-        styleHighContrastSwitch(sw, night);
+        styleOneUiBlueSwitch(sw, night);
         sw.setChecked(initialValue);
         sw.setOnCheckedChangeListener(listener);
 
@@ -443,29 +454,30 @@ public final class SBrowserXSettingsActivity extends Activity {
         row.addView(sw);
         row.setOnClickListener(v -> sw.toggle());
         parent.addView(row);
+        return sw;
     }
 
-    private void styleHighContrastSwitch(Switch sw, boolean night) {
+    static void styleOneUiBlueSwitch(Switch sw, boolean night) {
         int[][] states = new int[][] {
                 new int[] { android.R.attr.state_checked },
                 new int[] {}
         };
         int[] thumbColors = new int[] {
                 0xFFFFFFFF,
-                night ? 0xFFD0D0DA : 0xFFFFFFFF
+                night ? 0xFFD8D8E0 : 0xFFFFFFFF
         };
         int[] trackColors = new int[] {
-                0xFF6C5CE7,
-                night ? 0xFF52525E : 0xFFB8B8C4
+                ONEUI_BLUE,
+                night ? 0xFF4E4E5A : 0xFFB8B8C4
         };
         sw.setThumbTintList(new ColorStateList(states, thumbColors));
         sw.setTrackTintList(new ColorStateList(states, trackColors));
     }
 
     private void addDaysSliderRow(LinearLayout parent, int titleColor, int summaryColor) {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.VERTICAL);
-        row.setPadding(dp(18), dp(14), dp(18), dp(14));
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(18), dp(14), dp(18), dp(14));
 
         LinearLayout top = new LinearLayout(this);
         top.setOrientation(LinearLayout.HORIZONTAL);
@@ -480,25 +492,26 @@ public final class SBrowserXSettingsActivity extends Activity {
 
         daysValueView = new TextView(this);
         daysValueView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-        daysValueView.setTextColor(summaryColor);
+        daysValueView.setTextColor(ONEUI_BLUE);
         top.addView(daysValueView);
-        row.addView(top);
+        box.addView(top);
 
-        SeekBar seek = new SeekBar(this);
-        seek.setMax(10);
-        seek.setProgress(SBrowserXPrefs.getHighlightDays(this));
-        seek.setPadding(0, dp(10), 0, dp(4));
-        seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                SBrowserXPrefs.setHighlightDays(SBrowserXSettingsActivity.this, progress);
-                refreshDynamicViews();
+        SeekBar sb = new SeekBar(this);
+        sb.setMax(10);
+        sb.setProgress(SBrowserXPrefs.getHighlightDays(this));
+        sb.setPadding(0, dp(10), 0, dp(4));
+        sb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (fromUser) {
+                    SBrowserXPrefs.setHighlightDays(SBrowserXSettingsActivity.this, progress);
+                    refreshDynamicViews();
+                }
             }
             @Override public void onStartTrackingTouch(SeekBar seekBar) {}
             @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
-        row.addView(seek);
-        parent.addView(row);
+        box.addView(sb);
+        parent.addView(box);
     }
 
     private int dp(int value) {

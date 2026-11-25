@@ -8,12 +8,20 @@ import android.net.Uri;
 import android.os.Process;
 import android.util.Log;
 
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import dev.vortexnode.sbrowserx.extension.settings.SBrowserXTranslateSettingsActivity;
 
 public final class SBrowserXHooks {
     private static final String TAG = "SBrowserXHooks";
     private static volatile Object sActiveTransService;
+    private static volatile WeakReference<Activity> sMainActivityRef = new WeakReference<>(null);
 
     private SBrowserXHooks() {}
 
@@ -34,6 +42,49 @@ public final class SBrowserXHooks {
             SBrowserXWebRtcManager.applyToProfile(app);
         } catch (Throwable t) {
             Log.e(TAG, "onApplicationCreate failed", t);
+        }
+    }
+
+    public static void onMainActivityResume(Activity activity) {
+        if (activity != null) {
+            sMainActivityRef = new WeakReference<>(activity);
+        }
+    }
+
+    public static boolean openExtensionsManager(Context context) {
+        return openInternalUrl(context, "internet://extensions/");
+    }
+
+    public static boolean openInternalUrl(Context context, String url) {
+        if (context == null || url == null) return false;
+        try {
+            Activity main = sMainActivityRef.get();
+            if (main != null && !main.isFinishing() && !main.isDestroyed()) {
+                try {
+                    Method loadNew = main.getClass().getMethod("loadUrlInNewTab", String.class);
+                    loadNew.invoke(main, url);
+                    Intent bringFront = new Intent(context, main.getClass());
+                    bringFront.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                    if (!(context instanceof Activity)) {
+                        bringFront.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    }
+                    context.startActivity(bringFront);
+                    return true;
+                } catch (Throwable t) {
+                    Log.w(TAG, "Direct loadUrlInNewTab failed, using explicit MainActivity intent", t);
+                }
+            }
+            Class<?> mainCls = Class.forName("com.sec.android.app.sbrowser.SBrowserMainActivity");
+            Intent intent = new Intent(context, mainCls);
+            intent.putExtra("create_new_tab", true);
+            intent.putExtra("com.android.browser.application_id", context.getPackageName());
+            intent.setData(Uri.parse(url));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            context.startActivity(intent);
+            return true;
+        } catch (Throwable t) {
+            Log.e(TAG, "openInternalUrl failed for " + url, t);
+            return false;
         }
     }
 
@@ -85,15 +136,56 @@ public final class SBrowserXHooks {
         }
     }
 
-    public static long getAutoClose7DayOverride() {
+    public static boolean isHideSamsungAdBlockersEnabled() {
         try {
             Context ctx = SBrowserXPrefs.getAppContext();
-            if (ctx != null && SBrowserXPrefs.isAutoClose1DayEnabled(ctx)) {
-                return 1L;
-            }
-        } catch (Throwable ignored) {}
-        return 7L;
+            return ctx != null && SBrowserXPrefs.isHideSamsungAdBlockersEnabled(ctx);
+        } catch (Throwable t) {
+            return false;
+        }
     }
+
+    // --- Native Auto-Close Unused Tabs (adds "After 1 day" at index 1) ---
+
+    public static List<String> getAutoCloseKeys() {
+        return Arrays.asList(
+                "close_never",
+                "close_after_1day",
+                "close_after_7days",
+                "close_after_30days",
+                "close_automatically"
+        );
+    }
+
+    public static List<String> insertAutoClose1DayTitle(List<String> stockTitles) {
+        List<String> out = new ArrayList<>();
+        if (stockTitles != null && !stockTitles.isEmpty()) {
+            out.add(stockTitles.get(0)); // Never
+            out.add(SBrowserXStrings.get(SBrowserXStrings.AUTOCLOSE_1D_OPTION)); // After 1 day
+            for (int i = 1; i < stockTitles.size(); i++) {
+                out.add(stockTitles.get(i));
+            }
+        } else {
+            out.add("Never");
+            out.add(SBrowserXStrings.get(SBrowserXStrings.AUTOCLOSE_1D_OPTION));
+            out.add("After 7 days");
+            out.add("After 30 days");
+            out.add("With smart tab management");
+        }
+        return out;
+    }
+
+    public static int getAutoCloseTabStatus(long lastUsedTime, int settingValue) {
+        if (settingValue == 0) return 1; // Never -> keep
+        if (settingValue == 4) return 2; // Smart tab management
+        long days = TimeUnit.MILLISECONDS.toDays(System.currentTimeMillis() - lastUsedTime);
+        if (settingValue == 1) return days < 1L ? 1 : 0; // 1 day
+        if (settingValue == 2) return days < 7L ? 1 : 0; // 7 days
+        if (settingValue == 3) return days < 30L ? 1 : 0; // 30 days
+        return 1;
+    }
+
+    // --- External Download Manager ---
 
     public static boolean tryHandOffDownload(Object downloadHandler, Activity activity) {
         if (downloadHandler == null || activity == null) return false;
@@ -132,8 +224,51 @@ public final class SBrowserXHooks {
         }
     }
 
+    // --- Google Translate Hooks ---
+
+    public static boolean isGoogleTranslateEnabled() {
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            return ctx == null || SBrowserXPrefs.isGoogleTranslateEnabled(ctx);
+        } catch (Throwable t) {
+            return true;
+        }
+    }
+
     public static void setActiveTransService(Object sixTransService) {
         sActiveTransService = sixTransService;
+    }
+
+    public static boolean tryTransGetSupport(Object service, long cb) {
+        return SBrowserXGoogleTranslator.handleGetSupport(service, cb);
+    }
+
+    public static boolean tryTransGetMode(Object service, long cb) {
+        return SBrowserXGoogleTranslator.handleGetMode(service, cb);
+    }
+
+    public static boolean tryTransCreate(Object service, long cb) {
+        return SBrowserXGoogleTranslator.handleCreateTrans(service, cb);
+    }
+
+    public static boolean tryTransDestroy(Object service, long cb) {
+        return SBrowserXGoogleTranslator.handleDestroyTrans(service, cb);
+    }
+
+    public static boolean tryTransClear(Object service, long cb) {
+        return SBrowserXGoogleTranslator.handleClear(service, cb);
+    }
+
+    public static boolean tryTransRefresh(Object service, long cb) {
+        return SBrowserXGoogleTranslator.handleRefresh(service, cb);
+    }
+
+    public static boolean tryTransGetLangList(Object service, String direction, long cb) {
+        return SBrowserXGoogleTranslator.handleGetLangList(service, direction, cb);
+    }
+
+    public static boolean tryTransDetectLang(Object service, String text, long cb) {
+        return SBrowserXGoogleTranslator.handleDetectionLang(service, text, cb);
     }
 
     public static boolean tryGoogleTranslate(
@@ -144,5 +279,24 @@ public final class SBrowserXHooks {
     ) {
         return SBrowserXGoogleTranslator.handleTranslate(
                 sActiveTransService, sourceLang, targetLang, textList, nativeCallback);
+    }
+
+    public static boolean tryOpenTranslateSettings(Object service) {
+        if (!isGoogleTranslateEnabled()) return false;
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            Activity main = sMainActivityRef.get();
+            Context launchCtx = main != null ? main : ctx;
+            if (launchCtx == null) return false;
+            Intent intent = new Intent(launchCtx, SBrowserXTranslateSettingsActivity.class);
+            if (!(launchCtx instanceof Activity)) {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            }
+            launchCtx.startActivity(intent);
+            return true;
+        } catch (Throwable t) {
+            Log.e(TAG, "tryOpenTranslateSettings failed", t);
+            return false;
+        }
     }
 }

@@ -1,6 +1,7 @@
 package dev.vortexnode.sbrowserx.patches.core
 
 import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
+import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.patch.resourcePatch
 import dev.vortexnode.sbrowserx.patches.branding.SBrowserPackageRenameTarget
@@ -11,15 +12,24 @@ import dev.vortexnode.sbrowserx.shared.returnConstantBoolean
 import org.w3c.dom.Element
 
 private const val SBROWSER_APP_CLASS = "Lcom/sec/android/app/sbrowser/SBrowserApplication;"
+private const val SBROWSER_MAIN_ACTIVITY_CLASS = "Lcom/sec/android/app/sbrowser/SBrowserMainActivity;"
 private const val SBROWSER_CMDLINE_CLASS = "Lcom/sec/android/app/sbrowser/init/SBrowserCommandLine;"
 private const val BADGE_MANAGER_CLASS = "Lcom/sec/android/app/sbrowser/toolbar/BadgeManager;"
+private const val DEBUG_SETTINGS_CLASS = "Lcom/sec/android/app/sbrowser/common/device/DebugSettings;"
+
 private const val SETTINGS_ACTIVITY_CLASS =
     "dev.vortexnode.sbrowserx.extension.settings.SBrowserXSettingsActivity"
+private const val TRANSLATE_SETTINGS_ACTIVITY_CLASS =
+    "dev.vortexnode.sbrowserx.extension.settings.SBrowserXTranslateSettingsActivity"
 private const val WEBRTC_DIALOG_ACTIVITY_CLASS =
     "dev.vortexnode.sbrowserx.extension.settings.SBrowserXWebRtcDialogActivity"
+private const val EXT_BRIDGE_ACTIVITY_CLASS =
+    "dev.vortexnode.sbrowserx.extension.settings.SBrowserXExtensionsBridgeActivity"
+private const val EXT_DL_DIALOG_ACTIVITY_CLASS =
+    "dev.vortexnode.sbrowserx.extension.settings.SBrowserXExternalDownloaderDialogActivity"
 
 internal val sbrowserXCoreResourcePatch = resourcePatch(
-    description = "Registers SBrowserX activities in AndroidManifest.xml, adds SBrowserX & Extensions to Settings, and puts WebRTC in its own card inside Privacy.",
+    description = "Registers SBrowserX activities, adds SBrowserX & Extensions to Settings, WebRTC card in Privacy, and External Downloader in Sites & Downloads.",
 ) {
     finalize {
         val targetPkg = SBrowserPackageRenameTarget.packageName
@@ -29,29 +39,11 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
             val application = root.getElementsByTagName("application").item(0) as? Element
                 ?: error("Missing <application>")
 
-            if (!hasActivity(application, SETTINGS_ACTIVITY_CLASS)) {
-                val settingsActivity = manifest.createElement("activity")
-                settingsActivity.setAttributeNS(ANDROID_NS, "android:name", SETTINGS_ACTIVITY_CLASS)
-                settingsActivity.setAttributeNS(ANDROID_NS, "android:exported", "false")
-                settingsActivity.setAttributeNS(
-                    ANDROID_NS,
-                    "android:theme",
-                    "@android:style/Theme.DeviceDefault.NoActionBar",
-                )
-                application.appendChild(settingsActivity)
-            }
-
-            if (!hasActivity(application, WEBRTC_DIALOG_ACTIVITY_CLASS)) {
-                val dialogActivity = manifest.createElement("activity")
-                dialogActivity.setAttributeNS(ANDROID_NS, "android:name", WEBRTC_DIALOG_ACTIVITY_CLASS)
-                dialogActivity.setAttributeNS(ANDROID_NS, "android:exported", "false")
-                dialogActivity.setAttributeNS(
-                    ANDROID_NS,
-                    "android:theme",
-                    "@android:style/Theme.Translucent.NoTitleBar",
-                )
-                application.appendChild(dialogActivity)
-            }
+            ensureActivity(manifest, application, SETTINGS_ACTIVITY_CLASS, "@android:style/Theme.DeviceDefault.NoActionBar")
+            ensureActivity(manifest, application, TRANSLATE_SETTINGS_ACTIVITY_CLASS, "@android:style/Theme.DeviceDefault.NoActionBar")
+            ensureActivity(manifest, application, WEBRTC_DIALOG_ACTIVITY_CLASS, "@android:style/Theme.Translucent.NoTitleBar")
+            ensureActivity(manifest, application, EXT_BRIDGE_ACTIVITY_CLASS, "@android:style/Theme.Translucent.NoTitleBar")
+            ensureActivity(manifest, application, EXT_DL_DIALOG_ACTIVITY_CLASS, "@android:style/Theme.Translucent.NoTitleBar")
         }
 
         document("res/xml/settings_fragment.xml").use { xml ->
@@ -71,9 +63,8 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
             extPref.setAttributeNS(ANDROID_NS, "android:title", "@string/extensions_title")
             extPref.setAttributeNS(ANDROID_NS, "android:summary", "internet://extensions & Chrome Web Store")
             val extIntent = xml.createElement("intent")
-            extIntent.setAttributeNS(ANDROID_NS, "android:action", "android.intent.action.VIEW")
-            extIntent.setAttributeNS(ANDROID_NS, "android:data", "internet://extensions")
             extIntent.setAttributeNS(ANDROID_NS, "android:targetPackage", targetPkg)
+            extIntent.setAttributeNS(ANDROID_NS, "android:targetClass", EXT_BRIDGE_ACTIVITY_CLASS)
             extPref.appendChild(extIntent)
 
             val firstChild = screen.firstChild
@@ -119,22 +110,47 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
                 screen.appendChild(pref)
             }
         }
+
+        document("res/xml/sites_content_preferences.xml").use { xml ->
+            val screen = xml.documentElement ?: error("Missing PreferenceScreen in sites_content_preferences.xml")
+
+            val pref = xml.createElement("com.sec.android.app.sbrowser.common.settings.PreferenceCustom")
+            pref.setAttributeNS(ANDROID_NS, "android:key", "sbrowserx_external_downloader")
+            pref.setAttributeNS(ANDROID_NS, "android:title", "External download manager")
+            pref.setAttributeNS(ANDROID_NS, "android:summary", "SBrowserX \u2022 ADM, 1DM, etc.")
+
+            val intent = xml.createElement("intent")
+            intent.setAttributeNS(ANDROID_NS, "android:targetPackage", targetPkg)
+            intent.setAttributeNS(ANDROID_NS, "android:targetClass", EXT_DL_DIALOG_ACTIVITY_CLASS)
+            pref.appendChild(intent)
+
+            screen.appendChild(pref)
+        }
     }
 }
 
-private fun hasActivity(application: Element, className: String): Boolean {
+private fun ensureActivity(
+    manifest: org.w3c.dom.Document,
+    application: Element,
+    className: String,
+    theme: String,
+) {
     val activities = application.getElementsByTagName("activity")
     for (i in 0 until activities.length) {
         val el = activities.item(i) as? Element ?: continue
-        if (el.getAttributeNS(ANDROID_NS, "name") == className) return true
+        if (el.getAttributeNS(ANDROID_NS, "name") == className) return
     }
-    return false
+    val el = manifest.createElement("activity")
+    el.setAttributeNS(ANDROID_NS, "android:name", className)
+    el.setAttributeNS(ANDROID_NS, "android:exported", "false")
+    el.setAttributeNS(ANDROID_NS, "android:theme", theme)
+    application.appendChild(el)
 }
 
 @Suppress("unused")
 val sbrowserXCorePatch = bytecodePatch(
     name = "SBrowserX Settings, Extensions & Privacy Core",
-    description = "Adds SBrowserX settings hub (15 languages, high-contrast switches, teal badges), native .crx/.zip installer, 6-extension pack (+Bitwarden), separate WebRTC card in Privacy, native anti-fingerprint protection, and removes stuck orange Extensions badge.",
+    description = "Adds SBrowserX settings hub (15 languages, One UI blue switches, teal badges), native .crx/.zip installer, 6-extension pack, WebRTC card in Privacy, External Downloader in Sites & Downloads, reversible Hide Samsung Ad Blockers toggle, and fixes Extensions Manager launch.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)
@@ -150,6 +166,16 @@ val sbrowserXCorePatch = bytecodePatch(
         ).addInstruction(
             0,
             "invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onApplicationCreate(Landroid/app/Application;)V",
+        )
+
+        findMethodOrThrow(
+            classType = SBROWSER_MAIN_ACTIVITY_CLASS,
+            methodName = "onResume",
+            parameterTypes = emptyList(),
+            returnType = "V",
+        ).addInstruction(
+            0,
+            "invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onMainActivityResume(Landroid/app/Activity;)V",
         )
 
         val cmdMethod = findMethodOrThrow(
@@ -171,5 +197,23 @@ val sbrowserXCorePatch = bytecodePatch(
             parameterTypes = emptyList(),
             returnType = "I",
         ).returnConstantBoolean(false)
+
+        findMethodOrThrow(
+            classType = DEBUG_SETTINGS_CLASS,
+            methodName = "isContentBlockerSupported",
+            parameterTypes = emptyList(),
+            returnType = "Z",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->isHideSamsungAdBlockersEnabled()Z
+                move-result v0
+                if-eqz v0, :sbrowserx_cb_stock
+                const/4 v0, 0x0
+                return v0
+                :sbrowserx_cb_stock
+                nop
+            """.trimIndent(),
+        )
     }
 }

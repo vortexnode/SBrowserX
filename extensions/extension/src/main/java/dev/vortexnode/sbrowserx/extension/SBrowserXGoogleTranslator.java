@@ -1,5 +1,6 @@
 package dev.vortexnode.sbrowserx.extension;
 
+import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -13,6 +14,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -21,7 +23,169 @@ public final class SBrowserXGoogleTranslator {
     private static final ExecutorService EXECUTOR = Executors.newFixedThreadPool(3);
     private static final String SEP = "\n<<<SBX_SEP>>>\n";
 
+    public static final String[][] SUPPORTED_LANGUAGES = new String[][] {
+            {"en", "English"},
+            {"ru", "Русский (Russian)"},
+            {"uk", "Українська (Ukrainian)"},
+            {"es", "Español (Spanish)"},
+            {"pt", "Português (Portuguese)"},
+            {"de", "Deutsch (German)"},
+            {"fr", "Français (French)"},
+            {"it", "Italiano (Italian)"},
+            {"pl", "Polski (Polish)"},
+            {"tr", "Türkçe (Turkish)"},
+            {"ar", "العربية (Arabic)"},
+            {"hi", "हिन्दी (Hindi)"},
+            {"zh-CN", "中文 简体 (Chinese Simplified)"},
+            {"zh-TW", "中文 繁體 (Chinese Traditional)"},
+            {"ja", "日本語 (Japanese)"},
+            {"ko", "한국어 (Korean)"},
+            {"nl", "Nederlands (Dutch)"},
+            {"sv", "Svenska (Swedish)"},
+            {"cs", "Čeština (Czech)"},
+            {"ro", "Română (Romanian)"},
+            {"el", "Ελληνικά (Greek)"},
+            {"he", "עברית (Hebrew)"},
+            {"th", "ไทย (Thai)"},
+            {"vi", "Tiếng Việt (Vietnamese)"},
+            {"id", "Bahasa Indonesia (Indonesian)"},
+            {"ms", "Bahasa Melayu (Malay)"},
+            {"fa", "فارسی (Persian)"},
+            {"bg", "Български (Bulgarian)"},
+            {"sr", "Српски (Serbian)"},
+            {"hr", "Hrvatski (Croatian)"},
+            {"sk", "Slovenčina (Slovak)"},
+            {"hu", "Magyar (Hungarian)"},
+            {"fi", "Suomi (Finnish)"},
+            {"da", "Dansk (Danish)"},
+            {"no", "Norsk (Norwegian)"},
+            {"ca", "Català (Catalan)"},
+            {"lt", "Lietuvių (Lithuanian)"},
+            {"lv", "Latviešu (Latvian)"},
+            {"et", "Eesti (Estonian)"},
+            {"sl", "Slovenščina (Slovenian)"}
+    };
+
     private SBrowserXGoogleTranslator() {}
+
+    public static String getLanguageDisplayName(String code) {
+        if (code == null) return "English";
+        String norm = normalizeLang(code);
+        for (String[] pair : SUPPORTED_LANGUAGES) {
+            if (pair[0].equalsIgnoreCase(norm) || pair[0].equalsIgnoreCase(code)) {
+                return pair[1];
+            }
+        }
+        return code;
+    }
+
+    private static boolean isEnabled() {
+        Context ctx = SBrowserXPrefs.getAppContext();
+        return ctx == null || SBrowserXPrefs.isGoogleTranslateEnabled(ctx);
+    }
+
+    private static boolean isTranslateV2() {
+        try {
+            Class<?> cls = Class.forName("com.sec.android.app.sbrowser.common.extensions.SixStatus");
+            Object inst = cls.getMethod("getInstance").invoke(null);
+            Boolean v2 = (Boolean) cls.getMethod("isTranslateV2").invoke(inst);
+            return v2 != null && v2;
+        } catch (Throwable t) {
+            return true;
+        }
+    }
+
+    public static boolean handleGetSupport(Object service, long cb) {
+        if (service == null || !isEnabled()) return false;
+        String support = isTranslateV2() ? "ON_DEVICE_V2" : "ON_DEVICE";
+        deliverArray(service, "getSupportResult", cb, new String[] {"Success", support});
+        return true;
+    }
+
+    public static boolean handleGetMode(Object service, long cb) {
+        if (service == null || !isEnabled()) return false;
+        String mode = isTranslateV2() ? "ON_DEVICE_V2" : "CLOUD";
+        deliverArray(service, "getModeResult", cb, new String[] {"Success", mode});
+        return true;
+    }
+
+    public static boolean handleCreateTrans(Object service, long cb) {
+        if (service == null || !isEnabled()) return false;
+        deliverArray(service, "createTransResult", cb, new String[] {"Success"});
+        return true;
+    }
+
+    public static boolean handleDestroyTrans(Object service, long cb) {
+        if (service == null || !isEnabled()) return false;
+        deliverArray(service, "destroyTransResult", cb, new String[] {"Success"});
+        return true;
+    }
+
+    public static boolean handleClear(Object service, long cb) {
+        if (service == null || !isEnabled()) return false;
+        deliverString(service, "clearResult", cb, "Success");
+        return true;
+    }
+
+    public static boolean handleRefresh(Object service, long cb) {
+        if (service == null || !isEnabled()) return false;
+        deliverString(service, "refreshResult", cb, "Success");
+        return true;
+    }
+
+    public static boolean handleGetLangList(Object service, String direction, long cb) {
+        if (service == null || !isEnabled()) return false;
+        boolean v2 = isTranslateV2();
+        int extra = v2 ? 0 : 1;
+        String[] langs = new String[SUPPORTED_LANGUAGES.length + extra];
+        if (!v2) langs[0] = "Success";
+        for (int i = 0; i < SUPPORTED_LANGUAGES.length; i++) {
+            langs[i + extra] = SUPPORTED_LANGUAGES[i][0];
+        }
+        String dir = direction != null ? direction : "TARGET";
+        new Handler(Looper.getMainLooper()).post(() -> {
+            try {
+                Method m = service.getClass().getMethod("getLangListResult", long.class, String.class, String[].class);
+                m.invoke(service, cb, dir, langs);
+            } catch (Throwable t) {
+                Log.e(TAG, "deliver getLangListResult failed", t);
+            }
+        });
+        return true;
+    }
+
+    public static boolean handleDetectionLang(Object service, String text, long cb) {
+        if (service == null || !isEnabled()) return false;
+        EXECUTOR.execute(() -> {
+            String detected = "en";
+            try {
+                String sample = text != null && text.length() > 300 ? text.substring(0, 300) : (text != null ? text : "");
+                if (!sample.trim().isEmpty()) {
+                    String urlStr = "https://translate.googleapis.com/translate_a/single?client=gtx"
+                            + "&sl=auto&tl=en&dt=t&q=" + URLEncoder.encode(sample, "UTF-8");
+                    HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
+                    conn.setConnectTimeout(8000);
+                    conn.setReadTimeout(10000);
+                    conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/145.0.0.0 Mobile Safari/537.36");
+                    try {
+                        if (conn.getResponseCode() == 200) {
+                            JSONArray root = new JSONArray(readUtf8(conn.getInputStream()));
+                            String lang = root.optString(2, "en");
+                            if (lang != null && !lang.isEmpty()) detected = normalizeLang(lang);
+                        }
+                    } finally {
+                        conn.disconnect();
+                    }
+                }
+            } catch (Throwable t) {
+                Log.e(TAG, "detectLang failed", t);
+            }
+            boolean v2 = isTranslateV2();
+            String[] res = v2 ? new String[] {detected} : new String[] {"Success", detected};
+            deliverArray(service, "detectionLangResult", cb, res);
+        });
+        return true;
+    }
 
     public static boolean handleTranslate(
             Object sixTransService,
@@ -31,20 +195,31 @@ public final class SBrowserXGoogleTranslator {
             long nativeCallback
     ) {
         if (sixTransService == null || textList == null || textList.length == 0) return false;
-        if (SBrowserXPrefs.getAppContext() != null
-                && !SBrowserXPrefs.isGoogleTranslateEnabled(SBrowserXPrefs.getAppContext())) {
-            return false;
-        }
+        if (!isEnabled()) return false;
 
+        Context ctx = SBrowserXPrefs.getAppContext();
         final String sl = (sourceLang == null || sourceLang.isEmpty() || "auto".equalsIgnoreCase(sourceLang))
                 ? "auto" : normalizeLang(sourceLang);
-        final String tl = (targetLang == null || targetLang.isEmpty())
-                ? "en" : normalizeLang(targetLang);
+        String resolvedTarget = targetLang;
+        if ((resolvedTarget == null || resolvedTarget.isEmpty()) && ctx != null) {
+            resolvedTarget = SBrowserXPrefs.getTranslateTargetLang(ctx);
+        }
+        final String tl = (resolvedTarget == null || resolvedTarget.isEmpty())
+                ? "en" : normalizeLang(resolvedTarget);
+
+        // Respect "Never translate languages" when source language is explicitly known and equals a never-translate entry
+        if (ctx != null && !"auto".equals(sl) && !sl.equalsIgnoreCase(tl)) {
+            Set<String> never = SBrowserXPrefs.getTranslateNeverLangs(ctx);
+            Set<String> always = SBrowserXPrefs.getTranslateAlwaysLangs(ctx);
+            if (never.contains(sl) && !always.contains(sl)) {
+                deliverTranslatePayload(sixTransService, nativeCallback, textList);
+                return true;
+            }
+        }
 
         EXECUTOR.execute(() -> {
             String[] results = new String[textList.length];
             try {
-                // Batch chunks up to ~1800 chars per Google Translate HTTP call for speed
                 int i = 0;
                 while (i < textList.length) {
                     StringBuilder batch = new StringBuilder();
@@ -63,7 +238,6 @@ public final class SBrowserXGoogleTranslator {
                             results[start + k] = parts[k];
                         }
                     } else {
-                        // Fallback: translate item-by-item if separator was altered
                         for (int k = 0; k < count; k++) {
                             String item = textList[start + k];
                             results[start + k] = (item == null || item.trim().isEmpty())
@@ -79,9 +253,21 @@ public final class SBrowserXGoogleTranslator {
                 }
             }
 
-            deliverTranslateResult(sixTransService, nativeCallback, results);
+            deliverTranslatePayload(sixTransService, nativeCallback, results);
         });
         return true;
+    }
+
+    private static void deliverTranslatePayload(Object service, long cb, String[] results) {
+        boolean v2 = isTranslateV2();
+        if (v2) {
+            deliverArray(service, "translateResult", cb, results);
+        } else {
+            String[] wrapped = new String[results.length + 1];
+            wrapped[0] = "Success";
+            System.arraycopy(results, 0, wrapped, 1, results.length);
+            deliverArray(service, "translateResult", cb, wrapped);
+        }
     }
 
     private static int safeLen(String s) {
@@ -105,7 +291,7 @@ public final class SBrowserXGoogleTranslator {
         HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
         conn.setConnectTimeout(10000);
         conn.setReadTimeout(15000);
-        conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 Chrome/131.0.0.0 Mobile Safari/537.36");
+        conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/145.0.0.0 Mobile Safari/537.36");
         try {
             if (conn.getResponseCode() != 200) {
                 return text;
@@ -127,13 +313,24 @@ public final class SBrowserXGoogleTranslator {
         }
     }
 
-    private static void deliverTranslateResult(Object service, long callbackId, String[] results) {
+    private static void deliverArray(Object service, String methodName, long cb, String[] payload) {
         new Handler(Looper.getMainLooper()).post(() -> {
             try {
-                Method m = service.getClass().getMethod("translateResult", long.class, String[].class);
-                m.invoke(service, callbackId, results);
+                Method m = service.getClass().getMethod(methodName, long.class, String[].class);
+                m.invoke(service, cb, payload);
             } catch (Throwable t) {
-                Log.e(TAG, "deliverTranslateResult failed", t);
+                Log.e(TAG, "deliver " + methodName + " failed", t);
+            }
+        });
+    }
+
+    private static void deliverString(Object service, String methodName, long cb, String payload) {
+        new Handler(Looper.getMainLooper()).post(() -> {
+            try {
+                Method m = service.getClass().getMethod(methodName, long.class, String.class);
+                m.invoke(service, cb, payload);
+            } catch (Throwable t) {
+                Log.e(TAG, "deliver " + methodName + " failed", t);
             }
         });
     }

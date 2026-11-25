@@ -50,6 +50,22 @@ public final class SBrowserXStrings {
     public static final String RESTART_REQUIRED = "restart_required";
     public static final String BTN_RESTART = "btn_restart";
     public static final String BTN_LATER = "btn_later";
+    public static final String AUTOCLOSE_1D_OPTION = "autoclose_1d_option";
+    public static final String HIDE_ADBLOCKERS_TITLE = "hide_adblockers_title";
+    public static final String HIDE_ADBLOCKERS_SUMMARY = "hide_adblockers_summary";
+    public static final String GTRANS_SETTINGS_TITLE = "gtrans_settings_title";
+    public static final String GTRANS_SETTINGS_SUMMARY = "gtrans_settings_summary";
+    public static final String GTRANS_TARGET_LANG = "gtrans_target_lang";
+    public static final String GTRANS_AUTO_TITLE = "gtrans_auto_title";
+    public static final String GTRANS_AUTO_SUMMARY = "gtrans_auto_summary";
+    public static final String GTRANS_NEVER_LANGS = "gtrans_never_langs";
+    public static final String GTRANS_ALWAYS_LANGS = "gtrans_always_langs";
+    public static final String GTRANS_RESET = "gtrans_reset";
+    public static final String GTRANS_RESET_DONE = "gtrans_reset_done";
+    public static final String GTRANS_NONE = "gtrans_none";
+    public static final String EXT_DL_DIALOG_MSG = "ext_dl_dialog_msg";
+    public static final String BTN_ENABLE = "btn_enable";
+    public static final String BTN_DISABLE = "btn_disable";
 
     private static final Map<String, Map<String, String>> CATALOG = new HashMap<>();
 
@@ -137,6 +153,148 @@ public final class SBrowserXStrings {
         m.put(GTRANS_TITLE, gtrans);
         m.put(EXT_DL_TITLE, extDl);
         m.put(AUTOCLOSE_1D_TITLE, autoClose);
+
+        putExtra("en",
+            "After 1 day",
+            "Hide Samsung Ad Blockers", "Safely hide Samsung's built-in Ad Blockers from the menu (reversible, restart to apply)",
+            "Google Translate settings", "Target language, auto-translate & language rules (like Chrome)",
+            "Translate into language", "Auto-translate pages", "Automatically translate pages not in your Never-translate list",
+            "Never translate these languages", "Always translate these languages",
+            "Reset translate settings", "Translate settings reset", "None",
+            "Send file downloads to an external download manager (ADM, 1DM, etc.)?", "Enable", "Disable");
+        putExtra("ru",
+            "Через 1 день",
+            "Скрыть блокировщики рекламы Samsung", "Безопасно скрывает штатный пункт «Блокировщики рекламы» из меню (обратимо, нужен перезапуск)",
+            "Настройки Google Переводчика", "Язык перевода, автоперевод и списки языков (как в Chrome)",
+            "Переводить на язык", "Автоперевод страниц", "Автоматически переводить страницы на других языках",
+            "Никогда не переводить языки", "Всегда переводить языки",
+            "Сбросить настройки переводчика", "Настройки переводчика сброшены", "Не выбрано",
+            "Передавать загрузку файлов в сторонний менеджер загрузок (ADM, 1DM и др.)?", "Включить", "Выключить");
+        putExtra("uk",
+            "Через 1 день",
+            "Сховати блокувальники реклами Samsung", "Безпечно ховає штатний пункт «Блокувальники реклами» з меню (зворотно, потрібен перезапуск)",
+            "Налаштування Google Перекладача", "Мова перекладу, автопереклад та списки мов (як у Chrome)",
+            "Перекладати мовою", "Автопереклад сторінок", "Автоматично перекладати сторінки іншими мовами",
+            "Ніколи не перекладати мови", "Завжди перекладати мови",
+            "Скинути налаштування перекладача", "Налаштування перекладача скинуто", "Не вибрано",
+            "Передавати завантаження файлів до стороннього менеджера (ADM, 1DM тощо)?", "Увімкнути", "Вимкнути");
+        putExtra("es",
+            "Después de 1 día",
+            "Ocultar bloqueadores de Samsung", "Oculta el menú nativo de bloqueadores de Samsung (reversible, reiniciar)",
+            "Ajustes de Google Translate", "Idioma de destino, traducción automática y reglas (como Chrome)",
+            "Traducir al idioma", "Traducir páginas automáticamente", "Traducir automáticamente páginas en otros idiomas",
+            "Nunca traducir estos idiomas", "Traducir siempre estos idiomas",
+            "Restablecer ajustes", "Ajustes restablecidos", "Ninguno",
+            "¿Enviar descargas a un gestor externo (ADM, 1DM, etc.)?", "Activar", "Desactivar");
+        putExtra("pt",
+            "Após 1 dia",
+            "Ocultar bloqueadores da Samsung", "Oculta o menu nativo de bloqueadores da Samsung (reversível, reiniciar)",
+            "Configurações do Google Tradutor", "Idioma de destino, tradução automática e regras (como no Chrome)",
+            "Traduzir para o idioma", "Traduzir páginas automaticamente", "Traduzir automaticamente páginas em outros idiomas",
+            "Nunca traduzir estes idiomas", "Sempre traduzir estes idiomas",
+            "Redefinir configurações", "Configurações redefinidas", "Nenhum",
+            "Enviar downloads para um gerenciador externo (ADM, 1DM, etc.)?", "Ativar", "Desativar");
+        putExtra("de",
+            "Nach 1 Tag",
+            "Samsung-Werbeblocker ausblenden", "Blendet Samsungs Werbeblocker-Menü sicher aus (umkehrbar, Neustart)",
+            "Google Übersetzer-Einstellungen", "Zielsprache, automatische Übersetzung & Sprachregeln (wie Chrome)",
+            "In Sprache übersetzen", "Seiten automatisch übersetzen", "Seiten in anderen Sprachen automatisch übersetzen",
+            "Diese Sprachen nie übersetzen", "Diese Sprachen immer übersetzen",
+            "Einstellungen zurücksetzen", "Zurückgesetzt", "Keine",
+            "Downloads an einen externen Manager (ADM, 1DM usw.) übergeben?", "Aktivieren", "Deaktivieren");
+        putExtra("fr",
+            "Après 1 jour",
+            "Masquer les bloqueurs Samsung", "Masque les bloqueurs intégrés Samsung du menu (réversible, redémarrer)",
+            "Paramètres Google Traduction", "Langue cible, traduction auto et règles (comme Chrome)",
+            "Traduire vers la langue", "Traduire automatiquement", "Traduire automatiquement les pages dans d'autres langues",
+            "Ne jamais traduire ces langues", "Toujours traduire ces langues",
+            "Réinitialiser les paramètres", "Paramètres réinitialisés", "Aucun",
+            "Envoyer les téléchargements vers un gestionnaire externe (ADM, 1DM) ?", "Activer", "Désactiver");
+        putExtra("it",
+            "Dopo 1 giorno",
+            "Nascondi Ad Blocker Samsung", "Nasconde i blocchi pubblicità Samsung dal menu (reversibile, riavvia)",
+            "Impostazioni Google Traduttore", "Lingua di destinazione, traduzione automatica e regole (come Chrome)",
+            "Traduci in lingua", "Traduci pagine automaticamente", "Traduci automaticamente pagine in altre lingue",
+            "Non tradurre mai queste lingue", "Traduci sempre queste lingue",
+            "Ripristina impostazioni", "Impostazioni ripristinate", "Nessuna",
+            "Inviare i download a un gestore esterno (ADM, 1DM, ecc.)?", "Attiva", "Disattiva");
+        putExtra("pl",
+            "Po 1 dniu",
+            "Ukryj blokery reklam Samsung", "Bezpiecznie ukrywa wbudowane blokery reklam z menu (odwracalne, restart)",
+            "Ustawienia Tłumacza Google", "Język docelowy, autotłumaczenie i reguły (jak w Chrome)",
+            "Tłumacz na język", "Automatyczne tłumaczenie", "Automatycznie tłumacz strony w innych językach",
+            "Nigdy nie tłumacz tych języków", "Zawsze tłumacz te języki",
+            "Resetuj ustawienia", "Zresetowano ustawienia", "Brak",
+            "Przekazywać pobieranie do zewnętrznego menedżera (ADM, 1DM)?", "Włącz", "Wyłącz");
+        putExtra("tr",
+            "1 gün sonra",
+            "Samsung Reklam Engelleyicileri Gizle", "Samsung reklam engelleyici menüsünü güvenle gizler (geri alınabilir)",
+            "Google Çeviri Ayarları", "Hedef dil, otomatik çeviri ve dil kuralları (Chrome gibi)",
+            "Hedef dil", "Sayfaları otomatik çevir", "Diğer dillerdeki sayfaları otomatik çevir",
+            "Bu dilleri asla çevirme", "Bu dilleri her zaman çevir",
+            "Ayarları sıfırla", "Ayarlar sıfırlandı", "Yok",
+            "İndirmeler harici indiriciye (ADM, 1DM vb.) gönderilsin mi?", "Etkinleştir", "Devre dışı");
+        putExtra("ar",
+            "بعد يوم واحد",
+            "إخفاء مانعات إعلانات سامسونج", "إخفاء قائمة مانعات الإعلانات من القائمة بأمان (قابل للعكس)",
+            "إعدادات ترجمة Google", "لغة الترجمة والترجمة التلقائية وقواعد اللغات (مثل Chrome)",
+            "الترجمة إلى اللغة", "الترجمة التلقائية للصفحات", "ترجمة الصفحات باللغات الأخرى تلقائياً",
+            "عدم ترجمة هذه اللغات أبداً", "ترجمة هذه اللغات دائماً",
+            "إعادة تعيين الإعدادات", "تمت إعادة التعيين", "لا شيء",
+            "إرسال التنزيلات إلى مدير تنزيل خارجي (ADM, 1DM)؟", "تفعيل", "تعطيل");
+        putExtra("hi",
+            "1 दिन बाद",
+            "Samsung विज्ञापन अवरोधक छिपाएँ", "मेनू से Samsung विज्ञापन अवरोधक सुरक्षित रूप से छिपाएँ (उलटने योग्य)",
+            "Google अनुवाद सेटिंग्स", "लक्ष्य भाषा, ऑटो-अनुवाद और भाषा नियम (Chrome जैसा)",
+            "इस भाषा में अनुवाद करें", "पेज ऑटो-अनुवाद करें", "अन्य भाषाओं के पेज अपने आप अनुवाद करें",
+            "इन भाषाओं का कभी अनुवाद न करें", "इन भाषाओं का हमेशा अनुवाद करें",
+            "सेटिंग्स रीसेट करें", "सेटिंग्स रीसेट हुईं", "कोई नहीं",
+            "क्या डाउनलोड को बाहरी मैनेजर (ADM, 1DM) पर भेजें?", "सक्षम करें", "अक्षम करें");
+        putExtra("zh",
+            "1 天后",
+            "隐藏三星广告拦截器", "从菜单中安全隐藏三星自带广告拦截器（可恢复，需重启）",
+            "Google 翻译设置", "目标语言、自动翻译与语言规则（类似 Chrome）",
+            "翻译为语言", "自动翻译网页", "自动翻译非母语网页",
+            "永不翻译这些语言", "始终翻译这些语言",
+            "重置翻译设置", "已重置翻译设置", "无",
+            "将文件下载交由外部下载器（ADM、1DM 等）处理？", "启用", "禁用");
+        putExtra("ja",
+            "1日後",
+            "Samsung広告ブロッカーを非表示", "メニューからSamsung標準の広告ブロッカーを安全に非表示（再起動必要）",
+            "Google翻訳の設定", "翻訳先言語、自動翻訳、言語ルール（Chrome風）",
+            "翻訳先の言語", "ページを自動翻訳", "他の言語のページを自動的に翻訳する",
+            "翻訳しない言語", "常に翻訳する言語",
+            "設定をリセット", "設定をリセットしました", "なし",
+            "外部ダウンローダー（ADM、1DMなど）にダウンロードを渡しますか？", "有効", "無効");
+        putExtra("ko",
+            "1일 후",
+            "삼성 광고 차단기 숨기기", "메뉴에서 삼성 기본 광고 차단기를 안전하게 숨깁니다 (재시작 필요)",
+            "Google 번역 설정", "대상 언어, 자동 번역 및 언어 규칙 (Chrome 스타일)",
+            "번역 대상 언어", "페이지 자동 번역", "다른 언어 페이지를 자동으로 번역",
+            "번역하지 않을 언어", "항상 번역할 언어",
+            "번역 설정 초기화", "번역 설정이 초기화되었습니다", "없음",
+            "파일 다운로드를 외부 다운로더(ADM, 1DM 등)로 전달할까요?", "사용", "사용 안 함");
+    }
+
+
+    private static void putExtra(String lang, String... v) {
+        Map<String, String> m = CATALOG.get(lang);
+        if (m == null) {
+            m = new HashMap<>();
+            CATALOG.put(lang, m);
+        }
+        String[] keys = new String[] {
+            AUTOCLOSE_1D_OPTION,
+            HIDE_ADBLOCKERS_TITLE, HIDE_ADBLOCKERS_SUMMARY,
+            GTRANS_SETTINGS_TITLE, GTRANS_SETTINGS_SUMMARY,
+            GTRANS_TARGET_LANG, GTRANS_AUTO_TITLE, GTRANS_AUTO_SUMMARY,
+            GTRANS_NEVER_LANGS, GTRANS_ALWAYS_LANGS,
+            GTRANS_RESET, GTRANS_RESET_DONE, GTRANS_NONE,
+            EXT_DL_DIALOG_MSG, BTN_ENABLE, BTN_DISABLE
+        };
+        for (int i = 0; i < keys.length && i < v.length; i++) {
+            m.put(keys[i], v[i]);
+        }
     }
 
     private static void put(String lang, String... values) {

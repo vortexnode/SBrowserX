@@ -3,16 +3,26 @@ package dev.vortexnode.sbrowserx.extension;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Set;
+
 public final class SBrowserXPrefs {
     public static final String PREFS_NAME = "sbrowserx_prefs";
 
     public static final String KEY_WEBRTC_POLICY = "webrtc_ip_policy";
     public static final String KEY_FINGERPRINT_PROTECTION = "fingerprint_protection_enabled";
+    public static final String KEY_HIDE_SAMSUNG_ADBLOCKERS = "hide_samsung_adblockers_enabled";
     public static final String KEY_BOTTOM_BAR_BLUR = "bottom_bar_blur_enabled";
     public static final String KEY_AMOLED_BLACK = "amoled_black_enabled";
     public static final String KEY_EXTERNAL_DOWNLOADER = "external_downloader_enabled";
     public static final String KEY_AUTO_CLOSE_1DAY = "auto_close_tabs_1day_enabled";
     public static final String KEY_GOOGLE_TRANSLATE = "google_translate_backend_enabled";
+    public static final String KEY_TRANS_TARGET_LANG = "google_translate_target_lang";
+    public static final String KEY_TRANS_AUTO_TRANSLATE = "google_translate_auto_enabled";
+    public static final String KEY_TRANS_NEVER_LANGS = "google_translate_never_langs";
+    public static final String KEY_TRANS_ALWAYS_LANGS = "google_translate_always_langs";
     public static final String KEY_HIGHLIGHT_DAYS = "new_feature_highlight_days";
 
     public static final String WEBRTC_DEFAULT = "default";
@@ -28,7 +38,8 @@ public final class SBrowserXPrefs {
     public static final String FEATURE_FINGERPRINT = "feat_fingerprint_030";
     public static final String FEATURE_EXT_DOWNLOADER = "feat_ext_downloader_040";
     public static final String FEATURE_AUTO_CLOSE_1DAY = "feat_autoclose_1day_040";
-    public static final String FEATURE_GOOGLE_TRANSLATE = "feat_google_translate_040";
+    public static final String FEATURE_GOOGLE_TRANSLATE = "feat_google_translate_050";
+    public static final String FEATURE_HIDE_ADBLOCKERS = "feat_hide_adblockers_050";
 
     private static final String[] ALL_FEATURES = new String[] {
             FEATURE_WEBRTC,
@@ -39,7 +50,8 @@ public final class SBrowserXPrefs {
             FEATURE_FINGERPRINT,
             FEATURE_EXT_DOWNLOADER,
             FEATURE_AUTO_CLOSE_1DAY,
-            FEATURE_GOOGLE_TRANSLATE
+            FEATURE_GOOGLE_TRANSLATE,
+            FEATURE_HIDE_ADBLOCKERS
     };
 
     private static volatile Context sAppContext;
@@ -78,6 +90,15 @@ public final class SBrowserXPrefs {
     public static void setFingerprintProtectionEnabled(Context context, boolean enabled) {
         prefs(context).edit().putBoolean(KEY_FINGERPRINT_PROTECTION, enabled).apply();
         markFeatureViewed(context, FEATURE_FINGERPRINT);
+    }
+
+    public static boolean isHideSamsungAdBlockersEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_HIDE_SAMSUNG_ADBLOCKERS, false);
+    }
+
+    public static void setHideSamsungAdBlockersEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_HIDE_SAMSUNG_ADBLOCKERS, enabled).apply();
+        markFeatureViewed(context, FEATURE_HIDE_ADBLOCKERS);
     }
 
     public static boolean isBottomBarBlurEnabled(Context context) {
@@ -123,6 +144,64 @@ public final class SBrowserXPrefs {
     public static void setGoogleTranslateEnabled(Context context, boolean enabled) {
         prefs(context).edit().putBoolean(KEY_GOOGLE_TRANSLATE, enabled).apply();
         markFeatureViewed(context, FEATURE_GOOGLE_TRANSLATE);
+    }
+
+    public static String getTranslateTargetLang(Context context) {
+        String saved = prefs(context).getString(KEY_TRANS_TARGET_LANG, "");
+        if (saved != null && !saved.isEmpty()) return saved;
+        String sys = Locale.getDefault().getLanguage();
+        return (sys != null && !sys.isEmpty()) ? sys.toLowerCase(Locale.US) : "en";
+    }
+
+    public static void setTranslateTargetLang(Context context, String langCode) {
+        prefs(context).edit().putString(KEY_TRANS_TARGET_LANG, langCode).apply();
+        markFeatureViewed(context, FEATURE_GOOGLE_TRANSLATE);
+    }
+
+    public static boolean isTranslateAutoEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_TRANS_AUTO_TRANSLATE, false);
+    }
+
+    public static void setTranslateAutoEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_TRANS_AUTO_TRANSLATE, enabled).apply();
+        markFeatureViewed(context, FEATURE_GOOGLE_TRANSLATE);
+    }
+
+    public static Set<String> getTranslateNeverLangs(Context context) {
+        SharedPreferences sp = prefs(context);
+        if (!sp.contains(KEY_TRANS_NEVER_LANGS)) {
+            Set<String> def = new HashSet<>();
+            String sys = Locale.getDefault().getLanguage();
+            if (sys != null && !sys.isEmpty()) def.add(sys.toLowerCase(Locale.US));
+            return def;
+        }
+        Set<String> stored = sp.getStringSet(KEY_TRANS_NEVER_LANGS, Collections.emptySet());
+        return stored != null ? new HashSet<>(stored) : new HashSet<>();
+    }
+
+    public static void setTranslateNeverLangs(Context context, Set<String> langs) {
+        prefs(context).edit().putStringSet(KEY_TRANS_NEVER_LANGS, new HashSet<>(langs)).apply();
+        markFeatureViewed(context, FEATURE_GOOGLE_TRANSLATE);
+    }
+
+    public static Set<String> getTranslateAlwaysLangs(Context context) {
+        Set<String> stored = prefs(context).getStringSet(KEY_TRANS_ALWAYS_LANGS, Collections.emptySet());
+        return stored != null ? new HashSet<>(stored) : new HashSet<>();
+    }
+
+    public static void setTranslateAlwaysLangs(Context context, Set<String> langs) {
+        prefs(context).edit().putStringSet(KEY_TRANS_ALWAYS_LANGS, new HashSet<>(langs)).apply();
+        markFeatureViewed(context, FEATURE_GOOGLE_TRANSLATE);
+    }
+
+    public static void resetTranslateSettings(Context context) {
+        prefs(context).edit()
+                .remove(KEY_TRANS_TARGET_LANG)
+                .remove(KEY_TRANS_AUTO_TRANSLATE)
+                .remove(KEY_TRANS_NEVER_LANGS)
+                .remove(KEY_TRANS_ALWAYS_LANGS)
+                .putBoolean(KEY_GOOGLE_TRANSLATE, true)
+                .apply();
     }
 
     public static int getHighlightDays(Context context) {
