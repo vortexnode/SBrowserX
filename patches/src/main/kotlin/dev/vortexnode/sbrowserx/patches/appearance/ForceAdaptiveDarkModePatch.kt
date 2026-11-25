@@ -197,5 +197,22 @@ val forceAdaptiveDarkModePatch = bytecodePatch(
                 invoke-static {p0, p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onNativeWebBrightnessChanged(Ljava/lang/Object;Ljava/lang/Object;)V
             """.trimIndent(),
         )
+
+        // 11. TerracePrefServiceBridge.setNightMode(Z)V (.locals 1, static)
+        // Bypasses Samsung's broken hue-shifting Terrace Night Mode shader (which turns orange headers
+        // blood-red & dims white icons) and routes website darkening through Blink's native Chromium
+        // DarkModeFilter (--force-dark-mode + --blink-settings=forceDarkModeEnabled=true).
+        findMethodOrThrow(
+            classType = TERRACE_PREF_BRIDGE_CLASS,
+            methodName = "setNightMode",
+            parameterTypes = listOf("Z"),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->adjustTerraceNightMode(Z)Z
+                move-result p0
+            """.trimIndent(),
+        )
     }
 }

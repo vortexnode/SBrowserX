@@ -123,11 +123,11 @@ public final class SBrowserXHooks {
                 appendFeature.invoke(null, "EnableScreenAntiFingerprintingV2");
                 Log.i(TAG, "Enabled native anti-fingerprint features");
             }
-            if (SBrowserXPrefs.isForceAdaptiveDarkEnabled(ctx)) {
-                // Chrome's smart CIELAB + selective image dark engine: keeps photos vivid & uninverted
-                appendFeature.invoke(null,
-                        "WebContentsForceDark:inversion_method/cielab_based/image_behavior/selective/text_lightness_threshold/150/background_lightness_threshold/205");
-                Log.i(TAG, "Enabled CIELAB selective WebContentsForceDark");
+            boolean useChromiumDark = SBrowserXPrefs.isDarkBrightImagesEnabled(ctx);
+            boolean darkActive = isBrowserNightMode(ctx) || SBrowserXPrefs.isForceAdaptiveDarkEnabled(ctx);
+            if (useChromiumDark && darkActive) {
+                syncChromiumForceDarkSwitches(true);
+                Log.i(TAG, "Enabled native Chromium Blink force-dark-mode (CIELAB)");
             }
         } catch (Throwable t) {
             Log.e(TAG, "onCommandLineCustomFeatures failed", t);
@@ -762,6 +762,33 @@ public final class SBrowserXHooks {
         return -1;
     }
 
+    private static void syncChromiumForceDarkSwitches(boolean enable) {
+        try {
+            Class<?> tcl = Class.forName("com.sec.terrace.TerraceCommandLine");
+            if (enable) {
+                tcl.getMethod("appendSwitch", String.class).invoke(null, "force-dark-mode");
+                tcl.getMethod("appendSwitchWithValue", String.class, String.class)
+                        .invoke(null, "blink-settings", "forceDarkModeEnabled=true");
+            } else {
+                tcl.getMethod("removeSwitch", String.class).invoke(null, "force-dark-mode");
+                tcl.getMethod("removeSwitch", String.class).invoke(null, "blink-settings");
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    public static boolean adjustTerraceNightMode(boolean requested) {
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            if (ctx != null && SBrowserXPrefs.isDarkBrightImagesEnabled(ctx)) {
+                boolean darkActive = requested || SBrowserXPrefs.isForceAdaptiveDarkEnabled(ctx);
+                syncChromiumForceDarkSwitches(darkActive);
+                // Always return false to disable Samsung's hue-shifting Terrace Night Mode shader
+                return false;
+            }
+        } catch (Throwable ignored) {}
+        return requested;
+    }
+
     private static final String SBROWSERX_AMOLED_JS =
             "(function(){"
             + "var id='sbrowserx-amoled-css';"
@@ -771,9 +798,10 @@ public final class SBrowserXHooks {
             + "var amoled=__AMOLED__;"
             + "if(amoled){"
             + "css+='html,body{background-color:#000000 !important;}';"
+            + "var paint=function(){"
             + "try{"
-            + "var els=document.querySelectorAll('body,main,article,section,header,footer,nav,div');"
-            + "var lim=Math.min(els.length,220);"
+            + "var els=document.querySelectorAll('body,main,article,section,header,footer,nav,aside,ul,li,div');"
+            + "var lim=Math.min(els.length,400);"
             + "for(var i=0;i<lim;i++){"
             + "var el=els[i];var cs=getComputedStyle(el);var bg=cs.backgroundColor;"
             + "if(!bg||bg==='transparent'||bg==='rgba(0, 0, 0, 0)')continue;"
@@ -781,9 +809,16 @@ public final class SBrowserXHooks {
             + "if(!m)continue;"
             + "var r=+m[1],g=+m[2],b=+m[3];"
             + "var mx=Math.max(r,g,b),mn=Math.min(r,g,b);"
-            + "if(mx<=48 && (mx-mn)<=14){el.style.setProperty('background-color','#000000','important');}"
+            + "if(mx<=54 && (mx-mn)<=14){el.style.setProperty('background-color','#000000','important');}"
             + "}"
-            + "}catch(e){}"
+            + "}catch(e){}};"
+            + "paint();"
+            + "if(!window.__sbxAmoledObs){"
+            + "window.__sbxAmoledObs=1;"
+            + "var tm=null;var mo=new MutationObserver(function(){if(tm)return;tm=setTimeout(function(){tm=null;paint();},250);});"
+            + "if(document.body)mo.observe(document.body,{childList:true,subtree:true});"
+            + "setTimeout(function(){try{mo.disconnect();}catch(e){}},4000);"
+            + "}"
             + "}"
             + "st.textContent=css;"
             + "})();";

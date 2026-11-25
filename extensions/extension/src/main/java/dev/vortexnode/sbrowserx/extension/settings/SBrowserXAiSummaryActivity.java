@@ -146,29 +146,50 @@ public final class SBrowserXAiSummaryActivity extends Activity {
                 JSONObject content = new JSONObject().put("parts", new JSONArray().put(part));
                 JSONObject reqBody = new JSONObject().put("contents", new JSONArray().put(content));
 
-                URL endpoint = new URL("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key="
-                        + Uri.encode(apiKey));
-                HttpURLConnection conn = (HttpURLConnection) endpoint.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setConnectTimeout(15000);
-                conn.setReadTimeout(25000);
-                conn.setDoOutput(true);
-                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-                try (OutputStream os = conn.getOutputStream()) {
-                    os.write(reqBody.toString().getBytes(StandardCharsets.UTF_8));
-                }
+                String encodedKey = Uri.encode(apiKey);
+                String[] endpoints = apiKey.startsWith("AQ.")
+                        ? new String[] {
+                            "https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash:generateContent?key=" + encodedKey,
+                            "https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash-lite:generateContent?key=" + encodedKey
+                        }
+                        : new String[] {
+                            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + encodedKey,
+                            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + encodedKey
+                        };
 
-                int code = conn.getResponseCode();
-                InputStream is = (code >= 200 && code < 300) ? conn.getInputStream() : conn.getErrorStream();
                 StringBuilder sb = new StringBuilder();
-                if (is != null) {
-                    try (BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
-                        String line;
-                        while ((line = br.readLine()) != null) sb.append(line);
+                int lastCode = 0;
+                for (String ep : endpoints) {
+                    sb.setLength(0);
+                    URL endpoint = new URL(ep);
+                    HttpURLConnection conn = (HttpURLConnection) endpoint.openConnection();
+                    conn.setRequestMethod("POST");
+                    conn.setConnectTimeout(15000);
+                    conn.setReadTimeout(25000);
+                    conn.setDoOutput(true);
+                    conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                    try (OutputStream os = conn.getOutputStream()) {
+                        os.write(reqBody.toString().getBytes(StandardCharsets.UTF_8));
                     }
+                    lastCode = conn.getResponseCode();
+                    InputStream is = (lastCode >= 200 && lastCode < 300) ? conn.getInputStream() : conn.getErrorStream();
+                    if (is != null) {
+                        try (BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+                            String line;
+                            while ((line = br.readLine()) != null) sb.append(line);
+                        }
+                    }
+                    if (lastCode >= 200 && lastCode < 300) break;
+                    if (lastCode != 404) break;
                 }
-                if (code < 200 || code >= 300) {
-                    throw new RuntimeException("HTTP " + code);
+                if (lastCode < 200 || lastCode >= 300) {
+                    String errMsg = "HTTP " + lastCode;
+                    try {
+                        JSONObject ej = new JSONObject(sb.toString());
+                        String m = ej.optJSONObject("error") != null ? ej.getJSONObject("error").optString("message", "") : "";
+                        if (!m.isEmpty()) errMsg += " (" + m + ")";
+                    } catch (Throwable ignored) {}
+                    throw new RuntimeException(errMsg);
                 }
 
                 JSONObject resp = new JSONObject(sb.toString());
