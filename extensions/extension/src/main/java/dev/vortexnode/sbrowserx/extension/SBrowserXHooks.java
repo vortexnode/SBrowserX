@@ -100,6 +100,7 @@ public final class SBrowserXHooks {
         if (app == null || !isMainBrowserProcess()) return;
         try {
             SBrowserXPrefs.init(app);
+            SBrowserXRestartManager.init(app);
             SBrowserXWebRtcManager.applyToProfile(app);
             SBrowserXBackupManager.runAutoBackupIfDue(app);
         } catch (Throwable t) {
@@ -108,6 +109,7 @@ public final class SBrowserXHooks {
     }
 
     private static final String COMPACT_STATUS_SCRIM_TAG = "sbrowserx_compact_status_scrim";
+    private static volatile boolean sInCommandLineInit = false;
 
     public static void onMainActivityResume(Activity activity) {
         if (activity != null) {
@@ -169,6 +171,52 @@ public final class SBrowserXHooks {
         return stockColor;
     }
 
+    public static void clearSystemBarFadeContext(Context ctx) {
+        if (ctx == null) return;
+        try {
+            Activity act = null;
+            if (ctx instanceof Activity) {
+                act = (Activity) ctx;
+            } else {
+                Class<?> au = Class.forName("com.sec.android.app.sbrowser.common.device.ActivityUtil");
+                Object a = au.getMethod("getActivity", Context.class).invoke(null, ctx);
+                if (a instanceof Activity) act = (Activity) a;
+            }
+            if (act != null) {
+                clearSystemBarFadeWindow(act.getWindow());
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    public static void clearSystemBarFadeWindow(android.view.Window win) {
+        if (win == null) return;
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= 29) {
+                win.setNavigationBarContrastEnforced(false);
+                win.setStatusBarContrastEnforced(false);
+            }
+            View decor = win.getDecorView();
+            if (decor == null) return;
+            Context ctx = win.getContext();
+            String pkg = ctx != null ? ctx.getPackageName() : null;
+            if (pkg == null) return;
+            for (String idName : new String[] {
+                    "navigation_bar_background",
+                    "status_bar_background",
+                    "navigation_bar_background_for_multi_tab",
+                    "status_bar_background_for_multi_tab"
+            }) {
+                int id = ctx.getResources().getIdentifier(idName, "id", pkg);
+                if (id != 0) {
+                    View barView = decor.findViewById(id);
+                    if (barView != null) {
+                        barView.setBackgroundColor(0x00000000);
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+    }
+
     private static void applyCompactSystemBarPolish(Activity activity) {
         try {
             android.view.Window win = activity.getWindow();
@@ -182,45 +230,15 @@ public final class SBrowserXHooks {
             if (compact) {
                 win.setNavigationBarColor(0x00000000);
                 win.setStatusBarColor(0x00000000);
+                clearSystemBarFadeWindow(win);
             }
             View decorObj = win.getDecorView();
-            if (!(decorObj instanceof android.view.ViewGroup)) return;
-            android.view.ViewGroup decor = (android.view.ViewGroup) decorObj;
-            View existing = decor.findViewWithTag(COMPACT_STATUS_SCRIM_TAG);
-            if (!compact) {
+            if (decorObj instanceof android.view.ViewGroup) {
+                View existing = ((android.view.ViewGroup) decorObj).findViewWithTag(COMPACT_STATUS_SCRIM_TAG);
                 if (existing != null && existing.getParent() instanceof android.view.ViewGroup) {
                     ((android.view.ViewGroup) existing.getParent()).removeView(existing);
                 }
-                return;
             }
-            boolean night = isBrowserNightMode(activity);
-            int statusH = 0;
-            int resId = activity.getResources().getIdentifier("status_bar_height", "dimen", "android");
-            if (resId > 0) statusH = activity.getResources().getDimensionPixelSize(resId);
-            if (statusH <= 0) {
-                statusH = Math.round(android.util.TypedValue.applyDimension(
-                        android.util.TypedValue.COMPLEX_UNIT_DIP, 28, activity.getResources().getDisplayMetrics()));
-            }
-            View scrim = existing;
-            if (scrim == null) {
-                scrim = new View(activity);
-                scrim.setTag(COMPACT_STATUS_SCRIM_TAG);
-                scrim.setClickable(false);
-                scrim.setFocusable(false);
-                scrim.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-                android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(
-                        android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                        statusH + Math.round(statusH * 0.25f),
-                        android.view.Gravity.TOP
-                );
-                decor.addView(scrim, lp);
-            }
-            GradientDrawable gd = new GradientDrawable(
-                    GradientDrawable.Orientation.TOP_BOTTOM,
-                    night ? new int[] { 0xCC000000, 0x66000000, 0x00000000 }
-                          : new int[] { 0x44FFFFFF, 0x18FFFFFF, 0x00FFFFFF }
-            );
-            scrim.setBackground(gd);
         } catch (Throwable ignored) {}
     }
 
@@ -288,11 +306,14 @@ public final class SBrowserXHooks {
             } catch (Throwable ignored) {}
             boolean darkActive = isBrowserNightMode(ctx);
             boolean forceLightSites = isApplyDefaultDarkSitesEnabled();
-            if (darkActive && forceLightSites) {
-                syncChromiumForceDarkSwitches(true);
-                Log.i(TAG, "Enabled native Chromium Blink force-dark-mode (CIELAB)");
-            } else {
-                syncChromiumForceDarkSwitches(false);
+            sInCommandLineInit = true;
+            try {
+                if (darkActive && forceLightSites) {
+                    syncChromiumForceDarkSwitches(true);
+                    Log.i(TAG, "Enabled native Chromium Blink force-dark-mode (CIELAB)");
+                }
+            } finally {
+                sInCommandLineInit = false;
             }
         } catch (Throwable t) {
             Log.e(TAG, "onCommandLineCustomFeatures failed", t);
@@ -954,15 +975,15 @@ public final class SBrowserXHooks {
     }
 
     private static void syncChromiumForceDarkSwitches(boolean enable) {
+        // Never mutate Chromium CommandLine after native init: calling native CommandLineJni.removeSwitch()
+        // on a live multi-threaded browser process triggers a native crash on Dark -> Light switches.
+        if (!sInCommandLineInit) return;
         try {
             Class<?> tcl = Class.forName("com.sec.terrace.TerraceCommandLine");
             if (enable) {
                 tcl.getMethod("appendSwitch", String.class).invoke(null, "force-dark-mode");
                 tcl.getMethod("appendSwitchWithValue", String.class, String.class)
                         .invoke(null, "blink-settings", "forceDarkModeEnabled=true");
-            } else {
-                tcl.getMethod("removeSwitch", String.class).invoke(null, "force-dark-mode");
-                tcl.getMethod("removeSwitch", String.class).invoke(null, "blink-settings");
             }
         } catch (Throwable ignored) {}
     }
@@ -1242,9 +1263,7 @@ public final class SBrowserXHooks {
 
     public static void onNativeApplyDefaultDarkToggled(Object fragment, Object newValue) {
         try {
-            Context ctx = SBrowserXPrefs.getAppContext();
-            boolean enableSites = Boolean.TRUE.equals(newValue) && isBrowserNightMode(ctx);
-            syncChromiumForceDarkSwitches(enableSites);
+            SBrowserXRestartManager.markDirtyFromUi();
             syncDarkBrightnessExclusion(fragment);
         } catch (Throwable ignored) {}
     }

@@ -16,6 +16,10 @@ private const val CUSTOMIZE_MENU_MODEL_CLASS =
     "Lcom/sec/android/app/sbrowser/common/customize_toolbar/CustomizeMenuModel;"
 private const val TOOLBAR_BUTTON_LAYOUT_CLASS =
     "Lcom/sec/android/app/sbrowser/toolbar/ToolbarButtonLayout;"
+private const val TOOLBAR_COMPACT_CLASS =
+    "Lcom/sec/android/app/sbrowser/toolbar/ToolbarCompact;"
+private const val DEVICE_LAYOUT_UTIL_CLASS =
+    "Lcom/sec/android/app/sbrowser/common/device/DeviceLayoutUtil;"
 
 @Suppress("unused")
 val unlockCompactLayoutPatch = bytecodePatch(
@@ -207,6 +211,112 @@ val unlockCompactLayoutPatch = bytecodePatch(
                 return-void
                 :sbrowserx_stock_fit_ext
                 nop
+            """.trimIndent(),
+        )
+
+        // 10. ToolbarCompact.shouldApplyBlurEffect()Z (.locals 1)
+        // Disables Samsung's QuickAccess full-width blur strip behind the Compact pill.
+        findMethodOrThrow(
+            classType = TOOLBAR_COMPACT_CLASS,
+            methodName = "shouldApplyBlurEffect",
+            parameterTypes = emptyList(),
+            returnType = "Z",
+        ).addInstructions(
+            0,
+            """
+                const/4 v0, 0x0
+                return v0
+            """.trimIndent(),
+        )
+
+        // 11. DeviceLayoutUtil.setNavigationBarColorApi35(Window, I, Z, NavigationBarState)V (.locals 1, static)
+        // Eliminates Android 15/16 edge-to-edge white/grey bottom contrast stripe in Compact mode.
+        findMethodOrThrow(
+            classType = DEVICE_LAYOUT_UTIL_CLASS,
+            methodName = "setNavigationBarColorApi35",
+            parameterTypes = listOf(
+                "Landroid/view/Window;",
+                "I",
+                "Z",
+                "Lcom/sec/android/app/sbrowser/common/device/DeviceLayoutUtil${'$'}NavigationBarState;",
+            ),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {p0, p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->adjustApi35NavBarColor(Landroid/view/Window;I)I
+                move-result p1
+                invoke-static {p2}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->adjustApi35NavBarDarkIconFlag(Z)Z
+                move-result p2
+            """.trimIndent(),
+        )
+
+        // 12. DeviceLayoutUtil.setStatusBarColorApi35(Window, I)V (.locals 0, static)
+        // Eliminates Android 15/16 edge-to-edge white/grey top status bar stripe in Compact mode.
+        findMethodOrThrow(
+            classType = DEVICE_LAYOUT_UTIL_CLASS,
+            methodName = "setStatusBarColorApi35",
+            parameterTypes = listOf("Landroid/view/Window;", "I"),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {p0, p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->adjustApi35StatusBarColor(Landroid/view/Window;I)I
+                move-result p1
+            """.trimIndent(),
+        )
+
+        // 13-16. Neutralize Samsung's 4 top/bottom gradient fade methods in bytecode so
+        // navigationbar_gradient_background(_dark) & statusbar_gradient_background(_dark) never draw anywhere.
+        findMethodOrThrow(
+            classType = DEVICE_LAYOUT_UTIL_CLASS,
+            methodName = "enableFadeNavigationBar",
+            parameterTypes = listOf("Landroid/content/Context;", "Z"),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->clearSystemBarFadeContext(Landroid/content/Context;)V
+                return-void
+            """.trimIndent(),
+        )
+
+        findMethodOrThrow(
+            classType = DEVICE_LAYOUT_UTIL_CLASS,
+            methodName = "enableFadeStatusBar",
+            parameterTypes = listOf("Landroid/content/Context;", "Z"),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->clearSystemBarFadeContext(Landroid/content/Context;)V
+                return-void
+            """.trimIndent(),
+        )
+
+        findMethodOrThrow(
+            classType = DEVICE_LAYOUT_UTIL_CLASS,
+            methodName = "setFadeNavigationBar",
+            parameterTypes = listOf("Landroid/view/Window;"),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->clearSystemBarFadeWindow(Landroid/view/Window;)V
+                return-void
+            """.trimIndent(),
+        )
+
+        findMethodOrThrow(
+            classType = DEVICE_LAYOUT_UTIL_CLASS,
+            methodName = "setFadeStatusBar",
+            parameterTypes = listOf("Landroid/view/Window;"),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->clearSystemBarFadeWindow(Landroid/view/Window;)V
+                return-void
             """.trimIndent(),
         )
     }

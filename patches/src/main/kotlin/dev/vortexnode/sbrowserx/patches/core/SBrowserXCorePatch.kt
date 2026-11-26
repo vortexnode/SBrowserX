@@ -222,26 +222,6 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
         }
 
         // 4. Dark Mode: Native in-place switches (AMOLED, Vivid Images, Force Day Dark)
-        // Neutralize Samsung's Compact-mode statusbar & navigationbar white/grey gradient drawables
-        // (eliminates the white/grey top & bottom stripes and QuickAccess wallpaper haze everywhere).
-        listOf(
-            "res/drawable/navigationbar_gradient_background.xml",
-            "res/drawable/navigationbar_gradient_background_dark.xml",
-            "res/drawable/statusbar_gradient_background.xml",
-            "res/drawable/statusbar_gradient_background_dark.xml",
-        ).forEach { drawablePath ->
-            try {
-                document(drawablePath).use { xml ->
-                    val gradients = xml.getElementsByTagName("gradient")
-                    for (i in 0 until gradients.length) {
-                        val el = gradients.item(i) as? Element ?: continue
-                        el.setAttribute("android:startColor", "#00000000")
-                        el.setAttribute("android:endColor", "#00000000")
-                    }
-                }
-            } catch (_: Throwable) {}
-        }
-
         document("res/xml/manage_dark_mode_preference.xml").use { xml ->
             val screen = xml.documentElement ?: error("Missing PreferenceScreen in manage_dark_mode_preference.xml")
 
@@ -423,6 +403,27 @@ val sbrowserXCorePatch = bytecodePatch(
         showReadyMethod.addInstruction(
             showReadyInsns.size - 1,
             "invoke-static {}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->localizePrivacyFragmentFromTL()V",
+        )
+
+        // Attach persistent top-right circular Restart button to Samsung Internet's SettingsActivity toolbar
+        findMethodOrThrow(
+            classType = "Lcom/sec/android/app/sbrowser/settings/SettingsActivity;",
+            methodName = "onResume",
+            parameterTypes = emptyList(),
+            returnType = "V",
+        ).addInstruction(
+            0,
+            "invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXRestartManager;->onSettingsActivityResume(Landroid/app/Activity;)V",
+        )
+
+        findMethodOrThrow(
+            classType = "Lcom/sec/android/app/sbrowser/settings/SettingsActivity;",
+            methodName = "onConfigurationChanged",
+            parameterTypes = listOf("Landroid/content/res/Configuration;"),
+            returnType = "V",
+        ).addInstruction(
+            0,
+            "invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXRestartManager;->onSettingsActivityConfigChanged(Landroid/app/Activity;)V",
         )
 
         // Intercept More Menu -> "Browsing assist" click to launch Gemini 2.5 Flash AI Page Summary

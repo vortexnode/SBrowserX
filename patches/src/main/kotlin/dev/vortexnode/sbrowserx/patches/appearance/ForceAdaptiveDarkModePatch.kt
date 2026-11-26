@@ -173,6 +173,20 @@ val forceAdaptiveDarkModePatch = bytecodePatch(
             """.trimIndent(),
         )
 
+        // 8b. ManageDarkModePreferenceFragment.setManageDarkMode(I)V (.locals 0)
+        // Lights up the top-right Settings Restart button when user manually switches Dark/Light/System.
+        findMethodOrThrow(
+            classType = MANAGE_DARK_FRAGMENT_CLASS,
+            methodName = "setManageDarkMode",
+            parameterTypes = listOf("I"),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {}, Ldev/vortexnode/sbrowserx/extension/SBrowserXRestartManager;->markDirtyFromUi()V
+            """.trimIndent(),
+        )
+
         // 9. ManageDarkModePreferenceFragment.lambda$onCreate$1(Preference, Object)Z (.locals 0)
         // Syncs Blink force-dark-mode immediately when toggling "Force dark mode on light websites".
         val applyDefaultLambda = findMethodOrThrow(

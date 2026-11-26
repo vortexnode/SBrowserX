@@ -654,6 +654,7 @@ public final class SBrowserXSettingsActivity extends Activity {
         title.setTextColor(textPrimary);
         title.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         header.addView(title);
+        dev.vortexnode.sbrowserx.extension.SBrowserXRestartManager.attachToCustomHeader(act, header, night);
         return header;
     }
 
