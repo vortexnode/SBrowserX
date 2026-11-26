@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-11-26T15:45:00",
-  "description": "SBrowserX v1.2.5: восстановлена корректная работа тёмной темы сайтов (--force-dark-mode поднимается надёжно и со старта по SharedPreferences, и в рантайме без краша при переключении в светлую), добавлен нативный ARM64-патч libterrace.so (защита иконок и логотипов <100px от инверсии в Blink Dark Mode) и зафиксирована позиция кнопки перезапуска в правом верхнем углу настроек (не обрезается и не уезжает при прокрутке).",
-  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v1.2.5/patches-1.2.5.mpp",
+  "created_at": "2026-11-26T16:30:00",
+  "description": "SBrowserX v1.2.6: убраны светлые и серые полосы сверху/снизу и размытая подложка под компактной панелью (на сайтах и стартовой странице), а также обновлены описания всех патчей на простые и понятные.",
+  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v1.2.6/patches-1.2.6.mpp",
   "signature_download_url": "",
-  "version": "1.2.5"
+  "version": "1.2.6"
 }

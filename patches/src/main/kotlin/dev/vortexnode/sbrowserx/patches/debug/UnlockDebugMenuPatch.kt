@@ -11,7 +11,7 @@ private const val SETTINGS_FRAGMENT_UTIL_CLASS =
 @Suppress("unused")
 val unlockDebugMenuPatch = bytecodePatch(
     name = "Unlock Debug settings menu",
-    description = "Always shows Samsung Internet's hidden Debug settings menu inside Settings.",
+    description = "Reveals the hidden Debug settings menu inside browser Settings.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)

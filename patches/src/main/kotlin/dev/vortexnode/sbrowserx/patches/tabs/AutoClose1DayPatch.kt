@@ -20,7 +20,7 @@ private const val UNUSED_TAB_CLOSER_CLASS =
 @Suppress("unused")
 val autoClose1DayPatch = bytecodePatch(
     name = "Auto-close unused tabs: After 1 day",
-    description = "Adds a native 'After 1 day' (24h) radio option directly inside Samsung's Auto-close unused tabs settings screen.",
+    description = "Adds an 'After 1 day' option to the Auto-close unused tabs setting.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)

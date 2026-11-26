@@ -20,7 +20,7 @@ private const val BROWSER_SETTINGS_CLASS =
 @Suppress("unused")
 val blockThirdPartyCookiesPatch = bytecodePatch(
     name = "Block third-party cookies by default",
-    description = "Blocks third-party cookies by default across all sites on fresh installs, while allowing users to re-enable them in Settings.",
+    description = "Blocks third-party cookies by default across all websites, with an option to re-enable them in Settings.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)

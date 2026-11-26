@@ -38,7 +38,7 @@ private const val MENU_SETTINGS_HELPER_CLASS =
 @Suppress("unused")
 val googleTranslatePatch = bytecodePatch(
     name = "Built-in Google Translate engine",
-    description = "Unlocks the Translate button in the side popup menu without Galaxy AI/SCS, routes page translation through Google Translate, and adds Chrome-style Translate settings.",
+    description = "Adds a built-in page translation engine with automatic translation and quick language settings.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)

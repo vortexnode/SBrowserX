@@ -29,8 +29,8 @@ private const val TIN_CONTENT_VIEW_CORE_CLASS =
 
 @Suppress("unused")
 val bottomBarBlurAndAmoledPatch = bytecodePatch(
-    name = "AMOLED Black & Bottom Bar Transparency Toggle",
-    description = "True frosted-glass bottom bar & toolbar translucency with adjustable transparency (15-85%), enhanced Chromium compositor blur, and AMOLED pure black (#000000) dark mode surfaces.",
+    name = "AMOLED Black & Bottom Bar Transparency",
+    description = "Adds adjustable toolbar and bottom bar transparency with frosted-glass blur and pure AMOLED black mode for the browser interface.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)

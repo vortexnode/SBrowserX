@@ -12,7 +12,7 @@ private const val TAB_COUNT_MANAGER_CLASS =
 @Suppress("unused")
 val unlimitedTabsPatch = bytecodePatch(
     name = "Remove 99-Tab Limit",
-    description = "Lifts Samsung Internet's 99-tab cap to 9999 tabs (configurable toggle in SBrowserX & Useful Features, enabled by default).",
+    description = "Removes the 99-tab limit so you can keep thousands of open tabs.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)

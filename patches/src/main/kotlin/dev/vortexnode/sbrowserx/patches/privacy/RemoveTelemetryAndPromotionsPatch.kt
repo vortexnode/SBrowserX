@@ -33,7 +33,7 @@ private const val QUICKACCESS_PROMO_ADAPTER_CLASS =
 @Suppress("unused")
 val removeTelemetryAndPromotionsPatch = bytecodePatch(
     name = "Remove telemetry, promotions & updates",
-    description = "Disables Samsung Analytics, SILog, SMP marketing push, Promotion Engine, Kindred shopping/coupons, and Galaxy Store update checks while preserving site Web Push notifications.",
+    description = "Removes built-in analytics, promotional banners, shopping ads, and background update checks while keeping website notifications working.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)

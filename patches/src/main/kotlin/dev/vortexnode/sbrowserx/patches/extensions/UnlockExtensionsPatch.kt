@@ -19,7 +19,7 @@ private const val EXTENSIONS_MENU_COORDINATOR_CLASS =
 @Suppress("unused")
 val unlockExtensionsPatch = bytecodePatch(
     name = "Unlock Chrome Web Store & Extensions",
-    description = "Force-enables SIX extensions engine, unlocks extensions WebUI & Chrome Web Store, and prevents SixPkgUpdater from auto-uninstalling sideloaded CRX extensions on restart.",
+    description = "Enables extension support, unlocks the Chrome Web Store, and allows installing and keeping third-party extensions.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)

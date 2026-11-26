@@ -85,8 +85,8 @@ private fun findPatternStreaming(raf: RandomAccessFile, pattern: ByteArray): Lis
 
 @Suppress("unused")
 val nativeDarkModeIconGuardPatch = resourcePatch(
-    name = "Dark Mode: Preserve Icons & Logos (Native Blink)",
-    description = "Patches Blink's native DarkModeImageClassifier::Classify in libterrace.so (arm64-v8a) so small <100px icons, logos, badges, and avatars are never color-inverted in Dark Mode.",
+    name = "Dark Mode: Preserve Icons & Logos",
+    description = "Prevents small icons, logos, badges, and avatars from being color-inverted when Dark Mode or AMOLED mode is enabled.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)

@@ -21,8 +21,8 @@ private const val TAB_EVENT_HANDLER_CLASS =
 
 @Suppress("unused")
 val forceAdaptiveDarkModePatch = bytecodePatch(
-    name = "Unified Dark Mode, True AMOLED Websites & Vivid Images",
-    description = "Syncs website dark mode cleanly with browser Dark/Light mode (system or manual), eliminates Samsung NightDim & 50% dim veil, preserves true site colors/icons, and applies pure AMOLED #000000 backgrounds to darkened websites when AMOLED Black is ON.",
+    name = "Unified Dark Mode & True AMOLED Websites",
+    description = "Synchronizes website dark mode with the browser theme, removes dim overlays, and applies pure AMOLED black backgrounds when enabled.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)

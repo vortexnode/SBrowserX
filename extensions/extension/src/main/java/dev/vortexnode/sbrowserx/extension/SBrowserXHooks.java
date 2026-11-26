@@ -130,6 +130,19 @@ public final class SBrowserXHooks {
         }
     }
 
+    private static boolean isWindowOnQuickAccess(android.view.Window window) {
+        try {
+            Activity act = sMainActivityRef.get();
+            if (act == null || act.isFinishing() || act.isDestroyed()) return false;
+            if (window != null && act.getWindow() != window) return false;
+            Object tab = act.getClass().getMethod("getCurrentTab").invoke(act);
+            if (tab == null) return false;
+            Object res = tab.getClass().getMethod("isNewQuickAccessPage").invoke(tab);
+            return Boolean.TRUE.equals(res);
+        } catch (Throwable ignored) {}
+        return false;
+    }
+
     public static int adjustApi35NavBarColor(android.view.Window window, int stockColor) {
         try {
             if (window != null && android.os.Build.VERSION.SDK_INT >= 29) {
@@ -137,7 +150,13 @@ public final class SBrowserXHooks {
             }
             Context ctx = window != null ? window.getContext() : SBrowserXPrefs.getAppContext();
             if (isCompactLayoutActive()) {
-                return 0x00000000;
+                if (isWindowOnQuickAccess(window)) {
+                    return 0x00000000;
+                }
+                if (isBrowserNightMode(ctx)) {
+                    return isAmoledBlackEnabled() ? 0xFF000000 : 0xFF121212;
+                }
+                return 0xFFFFFFFF;
             }
             if (isBrowserNightMode(ctx)) {
                 return isAmoledBlackEnabled() ? 0xFF000000 : 0xFF141418;
@@ -149,7 +168,8 @@ public final class SBrowserXHooks {
     public static boolean adjustApi35NavBarDarkIconFlag(boolean stockDarkIcon) {
         try {
             if (isCompactLayoutActive()) {
-                return false;
+                Context ctx = SBrowserXPrefs.getAppContext();
+                return !isBrowserNightMode(ctx);
             }
         } catch (Throwable ignored) {}
         return stockDarkIcon;
@@ -162,7 +182,13 @@ public final class SBrowserXHooks {
             }
             Context ctx = window != null ? window.getContext() : SBrowserXPrefs.getAppContext();
             if (isCompactLayoutActive()) {
-                return 0x00000000;
+                if (isWindowOnQuickAccess(window)) {
+                    return 0x00000000;
+                }
+                if (isBrowserNightMode(ctx)) {
+                    return isAmoledBlackEnabled() ? 0xFF000000 : 0xFF121212;
+                }
+                return 0xFFFFFFFF;
             }
             if (isBrowserNightMode(ctx)) {
                 return isAmoledBlackEnabled() ? 0xFF000000 : 0xFF141418;
@@ -228,8 +254,13 @@ public final class SBrowserXHooks {
             }
             boolean compact = isCompactLayoutActive();
             if (compact) {
-                win.setNavigationBarColor(0x00000000);
-                win.setStatusBarColor(0x00000000);
+                int barColor = isWindowOnQuickAccess(win)
+                        ? 0x00000000
+                        : (isBrowserNightMode(activity)
+                            ? (isAmoledBlackEnabled() ? 0xFF000000 : 0xFF121212)
+                            : 0xFFFFFFFF);
+                win.setNavigationBarColor(barColor);
+                win.setStatusBarColor(barColor);
                 clearSystemBarFadeWindow(win);
             }
             View decorObj = win.getDecorView();
@@ -523,6 +554,22 @@ public final class SBrowserXHooks {
 
     public static boolean isCompactLayoutActivePublic() {
         return isCompactLayoutActive();
+    }
+
+    public static boolean isNativePageBlurAllowed(Object nativePageToolbarBlur) {
+        if (isCompactLayoutActive()) return false;
+        try {
+            if (nativePageToolbarBlur != null) {
+                Field f = nativePageToolbarBlur.getClass().getDeclaredField("mDelegate");
+                f.setAccessible(true);
+                Object del = f.get(nativePageToolbarBlur);
+                if (del != null) {
+                    Object res = del.getClass().getMethod("isBlurEffectEnabled").invoke(del);
+                    return Boolean.TRUE.equals(res);
+                }
+            }
+        } catch (Throwable ignored) {}
+        return false;
     }
 
     public static int adjustMaxTabCount(int stockMax) {

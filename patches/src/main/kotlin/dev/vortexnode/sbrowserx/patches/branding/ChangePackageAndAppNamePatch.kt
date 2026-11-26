@@ -71,7 +71,7 @@ internal object SBrowserPackageRenameTarget {
 }
 
 internal val changePackageAndAppNameResourcePatch = resourcePatch(
-    description = "Rewrites AndroidManifest.xml package, permissions, provider authorities, and app/launcher labels for SBrowserX.",
+    description = "Allows changing the app name and package name so the modified browser can be installed alongside the original Samsung Internet.",
 ) {
     finalize {
         val newPackage = SBrowserPackageRenameTarget.packageName

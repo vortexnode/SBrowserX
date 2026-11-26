@@ -14,7 +14,7 @@ private const val TAB_CLASS =
 @Suppress("unused")
 val externalDownloaderPatch = bytecodePatch(
     name = "External downloader support",
-    description = "Forwards HTTP/HTTPS file downloads AND context-menu image/video/link downloads to external download managers (1DM, ADM, ABDM, FDM, Seal, etc.) via SBrowserX settings.",
+    description = "Sends file, image, video, and link downloads to your chosen external download manager.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)

@@ -16,7 +16,7 @@ private const val APP_UPDATE_MANAGER_CLASS =
 @Suppress("unused")
 val disableUpdatePromptsPatch = bytecodePatch(
     name = "Disable Update Prompts & Badges",
-    description = "Blocks Galaxy Store and Google Play update checks, update banners, and update badges on the patched browser.",
+    description = "Hides store update prompts, banners, and update badges.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)

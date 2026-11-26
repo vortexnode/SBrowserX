@@ -92,7 +92,7 @@ private fun createCategory(xml: Document, key: String, title: String = "SBrowser
 }
 
 internal val sbrowserXCoreResourcePatch = resourcePatch(
-    description = "Registers SBrowserX activities/dialogs and mirrors all SBrowserX toggles as native in-place switches & dialogs inside Samsung Internet's own settings sections (zero redirects to SBrowserX hub).",
+    description = "Adds the SBrowserX settings hub and integrates extra privacy, appearance, and utility options into browser Settings.",
 ) {
     finalize {
         val targetPkg = SBrowserPackageRenameTarget.packageName

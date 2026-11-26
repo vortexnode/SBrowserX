@@ -24,7 +24,7 @@ private const val DEVICE_LAYOUT_UTIL_CLASS =
 @Suppress("unused")
 val unlockCompactLayoutPatch = bytecodePatch(
     name = "Unlock Compact Layout",
-    description = "Restores Samsung Internet's native Compact toolbar layout, fixes More-Menu height oscillation and Compact pill scroll/refresh jitter, and replaces the Galaxy AI button with a user-configurable button.",
+    description = "Unlocks the compact floating toolbar layout, smooths scrolling behavior, and lets you customize the extra toolbar button.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)
@@ -317,6 +317,37 @@ val unlockCompactLayoutPatch = bytecodePatch(
             """
                 invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->clearSystemBarFadeWindow(Landroid/view/Window;)V
                 return-void
+            """.trimIndent(),
+        )
+
+        // 17. NativePageToolbarBlur.isBlurEffectEnabled()Z (.locals 0)
+        // Disables blurred wallpaper strip behind the bottom Compact pill on QuickAccess.
+        findMethodOrThrow(
+            classType = "Lcom/sec/android/app/sbrowser/toolbar/blur/NativePageToolbarBlur;",
+            methodName = "isBlurEffectEnabled",
+            parameterTypes = emptyList(),
+            returnType = "Z",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->isNativePageBlurAllowed(Ljava/lang/Object;)Z
+                move-result p0
+                return p0
+            """.trimIndent(),
+        )
+
+        // 18. MainViewTheme.shouldApplyFadeStatusBar()Z (.locals 1)
+        // Keeps website status bar matched to page/theme color instead of forcing transparent fade.
+        findMethodOrThrow(
+            classType = "Lcom/sec/android/app/sbrowser/main_view/MainViewTheme;",
+            methodName = "shouldApplyFadeStatusBar",
+            parameterTypes = emptyList(),
+            returnType = "Z",
+        ).addInstructions(
+            0,
+            """
+                const/4 v0, 0x0
+                return v0
             """.trimIndent(),
         )
     }
