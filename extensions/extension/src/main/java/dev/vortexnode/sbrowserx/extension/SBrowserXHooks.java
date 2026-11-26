@@ -2656,20 +2656,30 @@ public final class SBrowserXHooks {
         return code;
     }
 
-    public static String sanitizeOmniboxUrl(String url) {
-        if (url == null) return "";
+    public static boolean isStartPageOmniboxUrl(String url) {
+        if (url == null) return false;
         String trimmed = url.trim();
-        if (SBrowserXStartPageServer.isStartPageUrl(trimmed)
+        return SBrowserXStartPageServer.isStartPageUrl(trimmed)
                 || "127.0.0.1".equals(trimmed)
                 || trimmed.startsWith("127.0.0.1:")
-                || trimmed.startsWith("http://127.0.0.1:")) {
+                || trimmed.startsWith("http://127.0.0.1:")
+                || trimmed.startsWith("https://127.0.0.1:");
+    }
+
+    public static boolean shouldForceBlankOmnibox(String url, boolean origForceBlank) {
+        return origForceBlank || isStartPageOmniboxUrl(url);
+    }
+
+    public static String sanitizeOmniboxUrl(String url) {
+        if (url == null) return "";
+        if (isStartPageOmniboxUrl(url)) {
             return "";
         }
         return url;
     }
 
     public static String formatStartPageDisplayUrl(String url) {
-        if (url != null && (SBrowserXStartPageServer.isStartPageUrl(url) || url.startsWith("http://127.0.0.1:"))) {
+        if (url != null && isStartPageOmniboxUrl(url)) {
             return SBrowserXStrings.get(SBrowserXStrings.SP_TITLE);
         }
         return url;

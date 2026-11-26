@@ -122,11 +122,11 @@ public final class SBrowserXBookmarkBackup {
     private static Uri getBookmarkUri(Context ctx) {
         try {
             Class<?> cls = Class.forName("com.sec.android.app.sbrowser.common.constants.sites.SBrowserProviderConstants");
-            Field f = cls.getField("BOOKMARK_INTERNAL_CONTENT_URI");
+            Field f = cls.getField("BOOKMARK_CONTENT_URI");
             Object val = f.get(null);
             if (val instanceof Uri) return (Uri) val;
         } catch (Throwable ignored) {}
-        return Uri.parse("content://" + ctx.getPackageName() + ".sbrowser2/bookmarks");
+        return Uri.parse("content://" + ctx.getPackageName() + "/bookmarks");
     }
 
     private static long getRootFolderId(Context ctx, Uri bookmarkUri) {
@@ -160,7 +160,7 @@ public final class SBrowserXBookmarkBackup {
 
         Cursor c = null;
         try {
-            c = cr.query(uri, projection, "DELETED = 0", null, "POSITION ASC, _ID ASC");
+            c = cr.query(uri, projection, "DELETED = 0 AND IS_COMMITED = 0", null, "POSITION ASC, _ID ASC");
             if (c != null) {
                 int idxId = c.getColumnIndex("_ID");
                 int idxTitle = c.getColumnIndex("TITLE");
@@ -490,14 +490,67 @@ public final class SBrowserXBookmarkBackup {
     private static List<ParsedNode> parsePlainUrls(String text) {
         List<ParsedNode> out = new ArrayList<>();
         Set<String> seen = new HashSet<>();
-        Matcher m = PLAIN_URL.matcher(text);
-        while (m.find()) {
-            String url = m.group(1);
-            if (url != null && seen.add(url)) {
-                out.add(ParsedNode.bookmark(url, url, System.currentTimeMillis()));
+        String[] lines = text.split("\r?\n");
+        String pendingTitle = null;
+
+        for (String rawLine : lines) {
+            String line = rawLine != null ? rawLine.trim() : "";
+            if (line.isEmpty()) {
+                pendingTitle = null;
+                continue;
+            }
+            Matcher m = PLAIN_URL.matcher(line);
+            if (m.find()) {
+                String url = m.group(1);
+                if (url != null) {
+                    // Trim trailing punctuation sometimes attached in plain-text lists
+                    while (url.length() > 8 && (url.endsWith(",") || url.endsWith(")") || url.endsWith("]"))) {
+                        url = url.substring(0, url.length() - 1);
+                    }
+                    if (seen.add(url)) {
+                        String before = line.substring(0, m.start()).trim();
+                        before = before.replaceAll("[\s\-:|—–]+$", "").trim();
+                        String title;
+                        if (!before.isEmpty() && before.length() <= 200) {
+                            title = before;
+                        } else if (pendingTitle != null && !pendingTitle.isEmpty()) {
+                            title = pendingTitle;
+                        } else {
+                            title = url;
+                        }
+                        out.add(ParsedNode.bookmark(title, url, System.currentTimeMillis()));
+                    }
+                }
+                pendingTitle = null;
+            } else {
+                // Non-URL line (e.g. Samsung Browser shared text format: Title on line N, URL on line N+1)
+                if (line.length() <= 240 && !line.matches("^[-=_*#]{3,}$")) {
+                    pendingTitle = line;
+                } else {
+                    pendingTitle = null;
+                }
             }
         }
         return out;
+    }
+
+    private static int getNextPosition(ContentResolver cr, Uri uri, long parentId) {
+        Cursor c = null;
+        try {
+            c = cr.query(
+                    uri,
+                    new String[] { "POSITION" },
+                    "PARENT = ? AND DELETED = 0 AND IS_COMMITED = 0",
+                    new String[] { String.valueOf(parentId) },
+                    "POSITION DESC");
+            if (c != null && c.moveToFirst()) {
+                return Math.max(0, c.getInt(0)) + 1;
+            }
+        } catch (Throwable ignored) {
+        } finally {
+            if (c != null) try { c.close(); } catch (Throwable ignored) {}
+        }
+        return 1;
     }
 
     private static void insertNodesRecursive(
@@ -509,6 +562,7 @@ public final class SBrowserXBookmarkBackup {
             int depth) {
         if (nodes == null || depth > 24) return;
         long now = System.currentTimeMillis();
+        int nextPos = getNextPosition(cr, uri, parentId);
 
         for (ParsedNode n : nodes) {
             if (n.isFolder) {
@@ -522,8 +576,12 @@ public final class SBrowserXBookmarkBackup {
                     cv.put("TITLE", folderName);
                     cv.put("FOLDER", 1);
                     cv.put("PARENT", parentId);
+                    cv.put("POSITION", nextPos++);
                     cv.put("EDITABLE", 1);
                     cv.put("DELETED", 0);
+                    cv.put("IS_COMMITED", 0);
+                    cv.put("bookmark_type", 0);
+                    cv.put("EXPAND", 0);
                     cv.put("CREATED", n.addDateMs > 0L ? n.addDateMs : now);
                     cv.put("MODIFIED", now);
                     cv.put("TAGS", "NP");
@@ -548,8 +606,12 @@ public final class SBrowserXBookmarkBackup {
                 cv.put("SURL", n.url);
                 cv.put("FOLDER", 0);
                 cv.put("PARENT", parentId);
+                cv.put("POSITION", nextPos++);
                 cv.put("EDITABLE", 1);
                 cv.put("DELETED", 0);
+                cv.put("IS_COMMITED", 0);
+                cv.put("bookmark_type", 0);
+                cv.put("EXPAND", 0);
                 cv.put("CREATED", n.addDateMs > 0L ? n.addDateMs : now);
                 cv.put("MODIFIED", now);
                 cv.put("TAGS", "NP");
@@ -567,7 +629,7 @@ public final class SBrowserXBookmarkBackup {
             c = cr.query(
                     uri,
                     new String[] { "_ID" },
-                    "PARENT = ? AND TITLE = ? AND FOLDER = 1 AND DELETED = 0",
+                    "PARENT = ? AND TITLE = ? AND FOLDER = 1 AND DELETED = 0 AND IS_COMMITED = 0",
                     new String[] { String.valueOf(parentId), title },
                     null);
             if (c != null && c.moveToFirst()) {
@@ -586,7 +648,7 @@ public final class SBrowserXBookmarkBackup {
             c = cr.query(
                     uri,
                     new String[] { "_ID" },
-                    "PARENT = ? AND URL = ? AND FOLDER = 0 AND DELETED = 0",
+                    "PARENT = ? AND URL = ? AND FOLDER = 0 AND DELETED = 0 AND IS_COMMITED = 0",
                     new String[] { String.valueOf(parentId), url },
                     null);
             return c != null && c.moveToFirst();

@@ -469,7 +469,7 @@ val sbrowserXCorePatch = bytecodePatch(
             "invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->injectStartPageIntoHomepageSettings(Ljava/lang/Object;)V",
         )
 
-        // Hide internal 127.0.0.1 loopback address in both Standard/Bottom and Compact omniboxes
+        // Hide internal 127.0.0.1 loopback address and prevent "about:blank" in Standard/Bottom and Compact omniboxes
         listOf(
             "Lcom/sec/android/app/sbrowser/omnibox/LocationBar;",
             "Lcom/sec/android/app/sbrowser/omnibox/UrlBar;",
@@ -482,6 +482,8 @@ val sbrowserXCorePatch = bytecodePatch(
             ).addInstructions(
                 0,
                 """
+                    invoke-static {p1, p2}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->shouldForceBlankOmnibox(Ljava/lang/String;Z)Z
+                    move-result p2
                     invoke-static {p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->sanitizeOmniboxUrl(Ljava/lang/String;)Ljava/lang/String;
                     move-result-object p1
                 """.trimIndent(),
@@ -502,6 +504,42 @@ val sbrowserXCorePatch = bytecodePatch(
             val reg = (hpSummaryMethod.implementation!!.instructions.elementAt(retIdx) as OneRegisterInstruction).registerA
             hpSummaryMethod.addInstructions(
                 retIdx,
+                """
+                    invoke-static {v$reg}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->formatStartPageDisplayUrl(Ljava/lang/String;)Ljava/lang/String;
+                    move-result-object v$reg
+                """.trimIndent(),
+            )
+        }
+
+        // Also show clean "SBrowserX Start Page" label in Main Settings -> Homepage summary
+        val mainSettingsHpMethod = findMethodOrThrow(
+            classType = "Lcom/sec/android/app/sbrowser/settings/SettingsFragment;",
+            methodName = "updateHomepageSummary",
+            parameterTypes = emptyList(),
+            returnType = "V",
+        )
+        val mainHpInsns = mainSettingsHpMethod.implementation!!.instructions.toList()
+        val getHpIdx = mainHpInsns.indexOfFirst { insn ->
+            insn.opcode == Opcode.INVOKE_VIRTUAL &&
+                insn.toString().contains("HomePageSettings;->getHomePage()Ljava/lang/String;")
+        }
+        val moveResultIdx = if (getHpIdx >= 0 && getHpIdx + 1 < mainHpInsns.size &&
+            mainHpInsns[getHpIdx + 1].opcode == Opcode.MOVE_RESULT_OBJECT
+        ) {
+            getHpIdx + 1
+        } else {
+            // Fallback: find HomePageSettings;->getHomePage via ReferenceInstruction
+            mainHpInsns.indexOfFirst { insn ->
+                val ref = (insn as? com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction)?.reference
+                ref is com.android.tools.smali.dexlib2.iface.reference.MethodReference &&
+                    ref.definingClass == "Lcom/sec/android/app/sbrowser/homepage/HomePageSettings;" &&
+                    ref.name == "getHomePage"
+            }.let { idx -> if (idx >= 0) idx + 1 else -1 }
+        }
+        if (moveResultIdx >= 0 && mainHpInsns[moveResultIdx].opcode == Opcode.MOVE_RESULT_OBJECT) {
+            val reg = (mainHpInsns[moveResultIdx] as OneRegisterInstruction).registerA
+            mainSettingsHpMethod.addInstructions(
+                moveResultIdx + 1,
                 """
                     invoke-static {v$reg}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->formatStartPageDisplayUrl(Ljava/lang/String;)Ljava/lang/String;
                     move-result-object v$reg
