@@ -110,6 +110,7 @@ public final class SBrowserXHooks {
 
     private static final String COMPACT_STATUS_SCRIM_TAG = "sbrowserx_compact_status_scrim";
     private static volatile boolean sInCommandLineInit = false;
+    private static int sLastMainWindowBgColor = 0;
 
     public static void onMainActivityResume(Activity activity) {
         if (activity != null) {
@@ -143,6 +144,16 @@ public final class SBrowserXHooks {
         return false;
     }
 
+    private static void syncMainWindowBackground(android.view.Window window, int color) {
+        if (window == null || color == 0) return;
+        try {
+            if (sLastMainWindowBgColor != color) {
+                sLastMainWindowBgColor = color;
+                window.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(color));
+            }
+        } catch (Throwable ignored) {}
+    }
+
     public static int adjustApi35NavBarColor(android.view.Window window, int stockColor) {
         try {
             if (window != null) {
@@ -158,10 +169,11 @@ public final class SBrowserXHooks {
                 if (isWindowOnQuickAccess(window)) {
                     return 0x00000000;
                 }
-                if (isBrowserNightMode(ctx)) {
-                    return isAmoledBlackEnabled() ? 0xFF000000 : 0xFF121212;
-                }
-                return 0xFFFFFFFF;
+                int c = isBrowserNightMode(ctx)
+                        ? (isAmoledBlackEnabled() ? 0xFF000000 : 0xFF121212)
+                        : 0xFFFFFFFF;
+                syncMainWindowBackground(window, c);
+                return c;
             }
             if (isBrowserNightMode(ctx)) {
                 return isAmoledBlackEnabled() ? 0xFF000000 : 0xFF141418;
@@ -190,10 +202,11 @@ public final class SBrowserXHooks {
                 if (isWindowOnQuickAccess(window)) {
                     return 0x00000000;
                 }
-                if (isBrowserNightMode(ctx)) {
-                    return isAmoledBlackEnabled() ? 0xFF000000 : 0xFF121212;
-                }
-                return 0xFFFFFFFF;
+                int c = isBrowserNightMode(ctx)
+                        ? (isAmoledBlackEnabled() ? 0xFF000000 : 0xFF121212)
+                        : 0xFFFFFFFF;
+                syncMainWindowBackground(window, c);
+                return c;
             }
             if (isBrowserNightMode(ctx)) {
                 return isAmoledBlackEnabled() ? 0xFF000000 : 0xFF141418;
@@ -260,11 +273,12 @@ public final class SBrowserXHooks {
             }
             boolean compact = isCompactLayoutActive();
             if (compact) {
-                int barColor = isWindowOnQuickAccess(win)
-                        ? 0x00000000
-                        : (isBrowserNightMode(activity)
-                            ? (isAmoledBlackEnabled() ? 0xFF000000 : 0xFF121212)
-                            : 0xFFFFFFFF);
+                boolean qa = isWindowOnQuickAccess(win);
+                int themeColor = isBrowserNightMode(activity)
+                        ? (isAmoledBlackEnabled() ? 0xFF000000 : 0xFF121212)
+                        : 0xFFFFFFFF;
+                int barColor = qa ? 0x00000000 : themeColor;
+                syncMainWindowBackground(win, themeColor);
                 win.setNavigationBarColor(barColor);
                 win.setStatusBarColor(barColor);
                 clearSystemBarFadeWindow(win);
