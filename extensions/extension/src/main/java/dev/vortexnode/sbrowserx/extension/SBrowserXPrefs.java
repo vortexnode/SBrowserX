@@ -22,6 +22,7 @@ public final class SBrowserXPrefs {
     public static final String KEY_COMPACT_BAR_TRANSPARENCY = "compact_bar_transparency_percent";
     public static final String KEY_COMPACT_AI_BUTTON = "compact_ai_slot_button";
     public static final String KEY_UNLIMITED_TABS = "unlimited_tabs_enabled";
+    public static final String KEY_TEXT_REFLOW_ZOOM = "text_reflow_zoom_enabled";
     public static final String KEY_BACKUP_LOCAL_AUTO = "backup_local_auto";
     public static final String KEY_BACKUP_LOCAL_INTERVAL = "backup_local_interval";
     public static final String KEY_BACKUP_LOCAL_TREE = "backup_local_tree_uri";
@@ -234,6 +235,14 @@ public final class SBrowserXPrefs {
 
     public static void setUnlimitedTabsEnabled(Context context, boolean enabled) {
         prefs(context).edit().putBoolean(KEY_UNLIMITED_TABS, enabled).apply();
+    }
+
+    public static boolean isTextReflowOnZoomEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_TEXT_REFLOW_ZOOM, false);
+    }
+
+    public static void setTextReflowOnZoomEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_TEXT_REFLOW_ZOOM, enabled).apply();
     }
 
     public static boolean isLocalAutoBackupEnabled(Context context) {

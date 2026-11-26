@@ -301,6 +301,31 @@ public final class SBrowserXExtensionsActivity extends Activity {
      * Combines TerraceExtensionsLoader.getInstalledExtensionsProperties() (ALL extensions: enabled + disabled)
      * with TerraceExtensionsManager.getActionList() (live Bitmap icons) and TerraceExtensionUtil (native states).
      */
+    private static boolean isHiddenSystemExt(String id, String name) {
+        if (id != null) {
+            String lowId = id.toLowerCase(Locale.US);
+            if (lowId.contains("web-agent") || lowId.contains("web_agent") || lowId.contains("webagent")) {
+                return true;
+            }
+        }
+        if (name != null) {
+            String lowName = name.toLowerCase(Locale.US).trim();
+            if ("web-agent".equals(lowName) || "web agent".equals(lowName) || lowName.contains("web-agent")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void disableHiddenSystemExtQuietly(String id) {
+        if (id == null || id.isEmpty()) return;
+        try {
+            Class<?> mgrCls = Class.forName("com.sec.terrace.browser.extensions.TerraceExtensionsManager");
+            Object mgr = mgrCls.getMethod("getInstance").invoke(null);
+            mgrCls.getMethod("setExtensionEnabled", String.class, boolean.class).invoke(mgr, id, false);
+        } catch (Throwable ignored) {}
+    }
+
     private List<ExtItem> loadAllInstalledExtensions() {
         Map<String, ExtItem> byId = new LinkedHashMap<>();
         Map<String, Bitmap> icons = new HashMap<>();
@@ -314,12 +339,13 @@ public final class SBrowserXExtensionsActivity extends Activity {
                 for (Object obj : actions) {
                     if (obj == null) continue;
                     String id = (String) obj.getClass().getMethod("getId").invoke(obj);
-                    if (id == null || id.isEmpty() || BUILTIN_TRANS_ID.equals(id)) continue;
+                    if (id == null || id.isEmpty() || BUILTIN_TRANS_ID.equals(id) || isHiddenSystemExt(id, null)) continue;
                     try {
                         Bitmap bmp = (Bitmap) obj.getClass().getMethod("getIcon").invoke(obj);
                         if (bmp != null) icons.put(id, bmp);
                     } catch (Throwable ignored) {}
                     String name = (String) obj.getClass().getMethod("getName").invoke(obj);
+                    if (isHiddenSystemExt(id, name)) { disableHiddenSystemExtQuietly(id); continue; }
                     ExtItem item = new ExtItem();
                     item.id = id;
                     item.name = (name != null && !name.isEmpty()) ? name : id;
@@ -338,7 +364,7 @@ public final class SBrowserXExtensionsActivity extends Activity {
                 for (Object p : props) {
                     if (p == null) continue;
                     String id = (String) p.getClass().getMethod("getExtId").invoke(p);
-                    if (id == null || id.isEmpty() || BUILTIN_TRANS_ID.equals(id)) continue;
+                    if (id == null || id.isEmpty() || BUILTIN_TRANS_ID.equals(id) || isHiddenSystemExt(id, null)) continue;
                     ExtItem item = byId.get(id);
                     if (item == null) {
                         item = new ExtItem();

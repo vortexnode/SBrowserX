@@ -80,6 +80,10 @@ public final class SBrowserXStrings {
     public static final String EXT_DL_IMAGES_SUMMARY = "ext_dl_images_summary";
     public static final String DARK_BRIGHT_IMG_TITLE = "dark_bright_img_title";
     public static final String DARK_BRIGHT_IMG_SUMMARY = "dark_bright_img_summary";
+    public static final String TEXT_REFLOW_TITLE = "text_reflow_title";
+    public static final String TEXT_REFLOW_SUMMARY = "text_reflow_summary";
+    public static final String DARK_FORCE_LIGHT_TITLE = "dark_force_light_title";
+    public static final String DARK_FORCE_LIGHT_SUMMARY = "dark_force_light_summary";
     public static final String LAYOUT_TRANSPARENCY_TITLE = "layout_transparency_title";
     public static final String COMPACT_AI_BTN_TITLE = "compact_ai_btn_title";
     public static final String UNLIMITED_TABS_TITLE = "unlimited_tabs_title";
@@ -449,19 +453,35 @@ public final class SBrowserXStrings {
         putOne("en", EXT_DL_IMAGES_SUMMARY, "ON: images, videos & files go to external downloader. OFF: browser saves images natively");
         putOne("en", DARK_BRIGHT_IMG_TITLE, "Vivid images in Dark Mode");
         putOne("en", DARK_BRIGHT_IMG_SUMMARY, "Disables NightDim & 50% dim veil, preserves true site colors & vivid photos (mutually exclusive with Samsung Webpage brightness in dark mode)");
+        putOne("en", TEXT_REFLOW_TITLE, "Text reflow on zoom (Opera-style)");
+        putOne("en", TEXT_REFLOW_SUMMARY, "Automatically wraps text to screen width after pinch-to-zoom on mobile websites");
+        putOne("en", DARK_FORCE_LIGHT_TITLE, "Force dark mode on light websites");
+        putOne("en", DARK_FORCE_LIGHT_SUMMARY, "Darken websites automatically when they do not have a native dark theme");
         putOne("ru", EXT_DL_IMAGES_TITLE, "Скачивать и картинки через менеджер");
         putOne("ru", EXT_DL_IMAGES_SUMMARY, "ВКЛ: всё (включая картинки) идёт в сторонний менеджер. ВЫКЛ: картинки сохраняет сам браузер");
         putOne("ru", DARK_BRIGHT_IMG_TITLE, "Яркие картинки в тёмной теме");
         putOne("ru", DARK_BRIGHT_IMG_SUMMARY, "Отключает NightDim и 50%-фильтр, сохраняет цвета сайтов и яркость фото (взаимоисключаемо с «Яркость веб-страницы в режиме затемнения»)");
+        putOne("ru", TEXT_REFLOW_TITLE, "Перенос текста при зуме (как в Opera)");
+        putOne("ru", TEXT_REFLOW_SUMMARY, "Автоматически подгоняет ширину текста под экран после масштабирования щипком");
+        putOne("ru", DARK_FORCE_LIGHT_TITLE, "Красить светлые сайты принудительно");
+        putOne("ru", DARK_FORCE_LIGHT_SUMMARY, "Принудительно красить сайты в тёмный, если у них нет своей тёмной темы");
         putOne("uk", EXT_DL_IMAGES_TITLE, "Завантажувати й картинки через менеджер");
         putOne("uk", EXT_DL_IMAGES_SUMMARY, "УВІМК: усе (включно з картинками) йде у сторонній менеджер. ВИМК: картинки зберігає браузер");
         putOne("uk", DARK_BRIGHT_IMG_TITLE, "Яскраві картинки у темній темі");
         putOne("uk", DARK_BRIGHT_IMG_SUMMARY, "Вимикає NightDim і 50%-фільтр, зберігає кольори сайтів і яскравість фото (взаємовиключно з «Яскравість веб-сторінки в темному режимі»)");
+        putOne("uk", TEXT_REFLOW_TITLE, "Перенесення тексту при зумі (як в Opera)");
+        putOne("uk", TEXT_REFLOW_SUMMARY, "Автоматично підганяє ширину тексту під екран після масштабування щипком");
+        putOne("uk", DARK_FORCE_LIGHT_TITLE, "Примусово затемнювати світлі сайти");
+        putOne("uk", DARK_FORCE_LIGHT_SUMMARY, "Примусово перефарбовувати сайти в темний, якщо вони не мають власної темної теми");
         for (String lang : new String[] {"es", "pt", "de", "fr", "it", "pl", "tr", "ar", "hi", "zh", "ja", "ko"}) {
             putOne(lang, EXT_DL_IMAGES_TITLE, "Also forward images to downloader");
             putOne(lang, EXT_DL_IMAGES_SUMMARY, "ON: images, videos & files go to external downloader. OFF: browser saves images natively");
             putOne(lang, DARK_BRIGHT_IMG_TITLE, "Vivid images in Dark Mode");
             putOne(lang, DARK_BRIGHT_IMG_SUMMARY, "Disables NightDim & 50% dim veil, preserves true site colors & vivid photos (mutually exclusive with Samsung Webpage brightness in dark mode)");
+            putOne(lang, TEXT_REFLOW_TITLE, "Text reflow on zoom (Opera-style)");
+            putOne(lang, TEXT_REFLOW_SUMMARY, "Automatically wraps text to screen width after pinch-to-zoom on mobile websites");
+            putOne(lang, DARK_FORCE_LIGHT_TITLE, "Force dark mode on light websites");
+            putOne(lang, DARK_FORCE_LIGHT_SUMMARY, "Darken websites automatically when they do not have a native dark theme");
         }
         putOne("en", LAYOUT_TRANSPARENCY_TITLE, "Panel & address bar translucency");
         putOne("en", COMPACT_AI_BTN_TITLE, "Compact bar button (replaces Samsung AI)");

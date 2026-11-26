@@ -21,7 +21,25 @@ val externalDownloaderPatch = bytecodePatch(
     dependsOn(sbrowserXCorePatch)
 
     execute {
-        // 1. Standard file downloads (DownloadHandler.startDownload(Activity)V)
+        // 1a. Early file download interception BEFORE Samsung's save-as dialog (DownloadHandler.startDownloadRequest(Activity)V, .locals 4)
+        findMethodOrThrow(
+            classType = DOWNLOAD_HANDLER_CLASS,
+            methodName = "startDownloadRequest",
+            parameterTypes = listOf("Landroid/app/Activity;"),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {p0, p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->tryHandOffDownload(Ljava/lang/Object;Landroid/app/Activity;)Z
+                move-result v0
+                if-eqz v0, :sbrowserx_stock_dl_req
+                return-void
+                :sbrowserx_stock_dl_req
+                nop
+            """.trimIndent(),
+        )
+
+        // 1b. Standard file downloads (DownloadHandler.startDownload(Activity)V)
         val method = findMethodOrThrow(
             classType = DOWNLOAD_HANDLER_CLASS,
             methodName = "startDownload",

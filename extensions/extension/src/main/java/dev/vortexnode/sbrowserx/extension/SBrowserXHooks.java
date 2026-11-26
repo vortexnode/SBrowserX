@@ -107,10 +107,80 @@ public final class SBrowserXHooks {
         }
     }
 
+    private static final String COMPACT_STATUS_SCRIM_TAG = "sbrowserx_compact_status_scrim";
+
     public static void onMainActivityResume(Activity activity) {
         if (activity != null) {
             sMainActivityRef = new WeakReference<>(activity);
+            applyCompactSystemBarPolish(activity);
         }
+    }
+
+    public static boolean tryOpenNativeExtensionsManager(Activity activity, String extensionId) {
+        // Only intercept the Extensions popup gear icon (null/empty extensionId); keep specific ?id=... WebUI intact
+        if (activity == null || (extensionId != null && !extensionId.isEmpty())) return false;
+        try {
+            Intent intent = new Intent(activity, dev.vortexnode.sbrowserx.extension.settings.SBrowserXExtensionsActivity.class);
+            activity.startActivity(intent);
+            return true;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    private static void applyCompactSystemBarPolish(Activity activity) {
+        try {
+            android.view.Window win = activity.getWindow();
+            if (win == null) return;
+            if (android.os.Build.VERSION.SDK_INT >= 29) {
+                // Eliminates Android 15/16 translucent white/grey contrast scrims at top & bottom bars
+                win.setNavigationBarContrastEnforced(false);
+                win.setStatusBarContrastEnforced(false);
+            }
+            boolean compact = isCompactLayoutActive();
+            if (compact) {
+                win.setNavigationBarColor(0x00000000);
+                win.setStatusBarColor(0x00000000);
+            }
+            View decorObj = win.getDecorView();
+            if (!(decorObj instanceof android.view.ViewGroup)) return;
+            android.view.ViewGroup decor = (android.view.ViewGroup) decorObj;
+            View existing = decor.findViewWithTag(COMPACT_STATUS_SCRIM_TAG);
+            if (!compact) {
+                if (existing != null && existing.getParent() instanceof android.view.ViewGroup) {
+                    ((android.view.ViewGroup) existing.getParent()).removeView(existing);
+                }
+                return;
+            }
+            boolean night = isBrowserNightMode(activity);
+            int statusH = 0;
+            int resId = activity.getResources().getIdentifier("status_bar_height", "dimen", "android");
+            if (resId > 0) statusH = activity.getResources().getDimensionPixelSize(resId);
+            if (statusH <= 0) {
+                statusH = Math.round(android.util.TypedValue.applyDimension(
+                        android.util.TypedValue.COMPLEX_UNIT_DIP, 28, activity.getResources().getDisplayMetrics()));
+            }
+            View scrim = existing;
+            if (scrim == null) {
+                scrim = new View(activity);
+                scrim.setTag(COMPACT_STATUS_SCRIM_TAG);
+                scrim.setClickable(false);
+                scrim.setFocusable(false);
+                scrim.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+                android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(
+                        android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                        statusH + Math.round(statusH * 0.25f),
+                        android.view.Gravity.TOP
+                );
+                decor.addView(scrim, lp);
+            }
+            GradientDrawable gd = new GradientDrawable(
+                    GradientDrawable.Orientation.TOP_BOTTOM,
+                    night ? new int[] { 0xCC000000, 0x66000000, 0x00000000 }
+                          : new int[] { 0x44FFFFFF, 0x18FFFFFF, 0x00FFFFFF }
+            );
+            scrim.setBackground(gd);
+        } catch (Throwable ignored) {}
     }
 
     public static boolean openExtensionsManager(Context context) {
@@ -266,6 +336,10 @@ public final class SBrowserXHooks {
     }
 
     private static int normalizeGlassBaseRgb(int baseColor) {
+        Context ctx = SBrowserXPrefs.getAppContext();
+        if (isBrowserNightMode(ctx)) {
+            return isAmoledBlackEnabled() ? 0xFF000000 : 0xFF141418;
+        }
         if (isAmoledBlackEnabled() && isDarkColor(baseColor)) {
             return 0xFF000000;
         }
@@ -299,6 +373,11 @@ public final class SBrowserXHooks {
     }
 
     public static GradientDrawable createToolbarGlassDrawable(Context ctx, int baseColor) {
+        if (isCompactLayoutActive()) {
+            GradientDrawable clear = new GradientDrawable();
+            clear.setColor(0x00000000);
+            return clear;
+        }
         if (!isBottomBarBlurEnabled()) return null;
         try {
             int rgb = normalizeGlassBaseRgb(baseColor);
@@ -323,6 +402,11 @@ public final class SBrowserXHooks {
     }
 
     public static GradientDrawable createBottombarGlassDrawable(Context ctx, int baseColor) {
+        if (isCompactLayoutActive()) {
+            GradientDrawable clear = new GradientDrawable();
+            clear.setColor(0x00000000);
+            return clear;
+        }
         try {
             int rgb = normalizeGlassBaseRgb(baseColor);
             GradientDrawable gd = new GradientDrawable();
@@ -864,6 +948,23 @@ public final class SBrowserXHooks {
             }
         } catch (Throwable ignored) {}
         try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            if (ctx != null && SBrowserXPrefs.isTextReflowOnZoomEnabled(ctx)) {
+                Field f = sFieldTabWebDarkHandler;
+                if (f != null) {
+                    Object handler = f.get(tabEventHandler);
+                    if (handler != null) {
+                        Method evalM = sMethodWebDarkEvalJs;
+                        if (evalM == null) {
+                            evalM = handler.getClass().getMethod("evaluateJavaScript", String.class);
+                            sMethodWebDarkEvalJs = evalM;
+                        }
+                        evalM.invoke(handler, SBROWSERX_TEXT_REFLOW_JS);
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+        try {
             if (isGoogleTranslateEnabled()) {
                 SBrowserXDomTranslator.maybeAutoTranslateOnLoad();
             }
@@ -890,6 +991,42 @@ public final class SBrowserXHooks {
         } catch (Throwable ignored) {}
         return false;
     }
+
+    private static final String SBROWSERX_TEXT_REFLOW_JS =
+            "(function(){"
+            + "if(window.__sbxReflowInit)return;window.__sbxReflowInit=1;"
+            + "var reflowed=[];var active=false;var touchCount=0;var tm=null;"
+            + "var reset=function(){"
+            + "for(var i=0;i<reflowed.length;i++){try{reflowed[i].style.maxWidth='';reflowed[i].style.boxSizing='';}catch(e){}}"
+            + "reflowed=[];active=false;"
+            + "};"
+            + "var applyReflow=function(){"
+            + "try{"
+            + "var vv=window.visualViewport;if(!vv)return;"
+            + "if(vv.scale<=1.06){if(active)reset();return;}"
+            + "var targetW=Math.max(180,Math.floor(vv.width-16));"
+            + "var els=document.querySelectorAll('p,li,dd,dt,blockquote,td,article,section,div');"
+            + "var lim=Math.min(els.length,900);"
+            + "for(var i=0;i<lim;i++){"
+            + "var el=els[i];"
+            + "if(el.tagName==='DIV'){"
+            + "var hasTxt=false;for(var c=0;c<el.childNodes.length;c++){if(el.childNodes[c].nodeType===3&&el.childNodes[c].nodeValue.trim().length>24){hasTxt=true;break;}}"
+            + "if(!hasTxt)continue;"
+            + "}"
+            + "var r=el.getBoundingClientRect();"
+            + "if(r.width>targetW+12){"
+            + "el.style.maxWidth=targetW+'px';"
+            + "el.style.boxSizing='border-box';"
+            + "if(reflowed.indexOf(el)<0)reflowed.push(el);"
+            + "}"
+            + "}"
+            + "active=true;"
+            + "}catch(e){}};"
+            + "var sched=function(){if(tm)clearTimeout(tm);tm=setTimeout(applyReflow,220);};"
+            + "window.addEventListener('touchstart',function(e){if(e.touches)touchCount=Math.max(touchCount,e.touches.length);},{passive:true});"
+            + "window.addEventListener('touchend',function(e){if(touchCount>=2&&(!e.touches||e.touches.length===0)){touchCount=0;sched();}},{passive:true});"
+            + "if(window.visualViewport){window.visualViewport.addEventListener('resize',sched);}"
+            + "})();";
 
     private static final String SBROWSERX_AMOLED_JS =
             "(function(){"
@@ -1022,17 +1159,8 @@ public final class SBrowserXHooks {
             boolean darkSubVisible = true;
             if (applyPref != null) {
                 darkSubVisible = Boolean.TRUE.equals(applyPref.getClass().getMethod("isVisible").invoke(applyPref));
-                String lang = java.util.Locale.getDefault().getLanguage();
-                String title = "ru".equals(lang)
-                        ? "Красить светлые сайты принудительно"
-                        : ("uk".equals(lang)
-                        ? "Примусово затемнювати світлі сайти"
-                        : "Force dark mode on light websites");
-                String summary = "ru".equals(lang)
-                        ? "Принудительно красить сайты в тёмный, если у них нет своей тёмной темы"
-                        : ("uk".equals(lang)
-                        ? "Примусово перефарбовувати сайти в темний, якщо вони не мають власної темної теми"
-                        : "Darken websites automatically when they don't have a native dark theme");
+                String title = SBrowserXStrings.get(SBrowserXStrings.DARK_FORCE_LIGHT_TITLE);
+                String summary = SBrowserXStrings.get(SBrowserXStrings.DARK_FORCE_LIGHT_SUMMARY);
                 applyPref.getClass().getMethod("setTitle", CharSequence.class).invoke(applyPref, title);
                 applyPref.getClass().getMethod("setSummary", CharSequence.class).invoke(applyPref, summary);
             }
@@ -1573,6 +1701,56 @@ public final class SBrowserXHooks {
         }
     }
 
+    private static boolean launchSendDownloadIntent(Context ctx, String targetPkg, String url, String filename) {
+        try {
+            Intent sendIntent = new Intent(Intent.ACTION_SEND);
+            sendIntent.setType("text/plain");
+            sendIntent.putExtra(Intent.EXTRA_TEXT, url);
+            if (filename != null && !filename.isEmpty()) {
+                sendIntent.putExtra(Intent.EXTRA_TITLE, filename);
+                sendIntent.putExtra(Intent.EXTRA_SUBJECT, filename);
+            }
+            sendIntent.setPackage(targetPkg);
+            sendIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            ctx.startActivity(sendIntent);
+            return true;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    private static boolean launchViewDownloadIntent(Context ctx, String targetPkg, String url, String mime, String filename) {
+        try {
+            Intent viewIntent = new Intent(Intent.ACTION_VIEW);
+            if (mime != null && !mime.isEmpty() && !mime.equals("application/octet-stream")) {
+                viewIntent.setDataAndType(Uri.parse(url), mime);
+            } else {
+                viewIntent.setData(Uri.parse(url));
+            }
+            if (filename != null && !filename.isEmpty()) {
+                viewIntent.putExtra(Intent.EXTRA_TITLE, filename);
+            }
+            viewIntent.setPackage(targetPkg);
+            viewIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            ctx.startActivity(viewIntent);
+            return true;
+        } catch (Throwable ignored) {
+            // Retry plain ACTION_VIEW without MIME (some managers like ABDM/1DM reject specific MIME types)
+            try {
+                Intent plainView = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                if (filename != null && !filename.isEmpty()) {
+                    plainView.putExtra(Intent.EXTRA_TITLE, filename);
+                }
+                plainView.setPackage(targetPkg);
+                plainView.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                ctx.startActivity(plainView);
+                return true;
+            } catch (Throwable ignored2) {
+                return false;
+            }
+        }
+    }
+
     public static boolean tryHandOffDownload(Object downloadHandler, Activity activity) {
         if (downloadHandler == null || activity == null) return false;
         try {
@@ -1588,10 +1766,29 @@ public final class SBrowserXHooks {
             if (url == null || !(url.startsWith("http://") || url.startsWith("https://"))) {
                 return false;
             }
+            if (url.contains("webapk-cdn.internet.apps.samsung.com") || url.contains("webapk-api.internet.apps.samsung.com")) {
+                return false;
+            }
             String mime = (String) info.getClass().getMethod("getMimetype").invoke(info);
             String filename = (String) info.getClass().getMethod("getFilename").invoke(info);
             if (isLikelyImageDownload(url, mime, filename, false)
                     && !SBrowserXPrefs.isExternalDownloaderImagesEnabled(ctx)) {
+                return false;
+            }
+
+            String targetPkg = SBrowserXPrefs.getExternalDownloaderPackage(ctx);
+            if (targetPkg != null && !targetPkg.isEmpty()) {
+                String lowPkg = targetPkg.toLowerCase(java.util.Locale.US);
+                boolean preferSend = lowPkg.contains("abdownloadmanager") || lowPkg.contains("abdm") || lowPkg.contains("seal");
+                if (preferSend && launchSendDownloadIntent(activity, targetPkg, url, filename)) {
+                    return true;
+                }
+                if (launchViewDownloadIntent(activity, targetPkg, url, mime, filename)) {
+                    return true;
+                }
+                if (!preferSend && launchSendDownloadIntent(activity, targetPkg, url, filename)) {
+                    return true;
+                }
                 return false;
             }
 
@@ -1605,27 +1802,6 @@ public final class SBrowserXHooks {
                 viewIntent.putExtra(Intent.EXTRA_TITLE, filename);
             }
             viewIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-
-            String targetPkg = SBrowserXPrefs.getExternalDownloaderPackage(ctx);
-            if (targetPkg != null && !targetPkg.isEmpty()) {
-                viewIntent.setPackage(targetPkg);
-                try {
-                    activity.startActivity(viewIntent);
-                    return true;
-                } catch (Throwable viewErr) {
-                    // Fallback to ACTION_SEND (used by ABDM, Seal, etc.)
-                    Intent sendIntent = new Intent(Intent.ACTION_SEND);
-                    sendIntent.setType("text/plain");
-                    sendIntent.putExtra(Intent.EXTRA_TEXT, url);
-                    if (filename != null && !filename.isEmpty()) {
-                        sendIntent.putExtra(Intent.EXTRA_TITLE, filename);
-                    }
-                    sendIntent.setPackage(targetPkg);
-                    sendIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    activity.startActivity(sendIntent);
-                    return true;
-                }
-            }
 
             Intent chooser = Intent.createChooser(viewIntent, SBrowserXStrings.get(SBrowserXStrings.EXT_DL_CHOOSER));
             chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);

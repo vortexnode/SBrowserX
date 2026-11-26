@@ -162,6 +162,11 @@ public final class SBrowserXSettingsActivity extends Activity {
                 SBrowserXStrings.get(SBrowserXStrings.UNLIMITED_TABS_SUMMARY),
                 SBrowserXPrefs.isUnlimitedTabsEnabled(this), night, textPrimary, textSecondary, null,
                 (btn, checked) -> SBrowserXPrefs.setUnlimitedTabsEnabled(this, checked));
+        dlTabsCard.addView(divider(night));
+        addSwitchRow(dlTabsCard, SBrowserXStrings.get(SBrowserXStrings.TEXT_REFLOW_TITLE),
+                SBrowserXStrings.get(SBrowserXStrings.TEXT_REFLOW_SUMMARY),
+                SBrowserXPrefs.isTextReflowOnZoomEnabled(this), night, textPrimary, textSecondary, null,
+                (btn, checked) -> SBrowserXPrefs.setTextReflowOnZoomEnabled(this, checked));
         root.addView(dlTabsCard);
 
         // --- Card C: Backup & Sync ---
