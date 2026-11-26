@@ -381,7 +381,7 @@ public final class SBrowserXHooks {
             if (c == null) continue;
             try {
                 android.view.autofill.AutofillManager afm = c.getSystemService(android.view.autofill.AutofillManager.class);
-                if (afm != null && afm.isEnabled() && afm.hasEnabledAutofillServices()) {
+                if (afm != null && afm.isEnabled()) {
                     return true;
                 }
             } catch (Throwable ignored) {}
