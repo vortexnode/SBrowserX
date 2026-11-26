@@ -154,6 +154,19 @@ public final class SBrowserXHooks {
         } catch (Throwable ignored) {}
     }
 
+    private static void syncSystemBarIconAppearance(android.view.Window window, boolean darkBg) {
+        if (window == null) return;
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= 30) {
+                android.view.WindowInsetsController wic = window.getInsetsController();
+                if (wic != null) {
+                    int mask = android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+                    wic.setSystemBarsAppearance(darkBg ? 0 : mask, mask);
+                }
+            }
+        } catch (Throwable ignored) {}
+    }
+
     public static int adjustApi35NavBarColor(android.view.Window window, int stockColor) {
         try {
             if (window != null) {
@@ -165,14 +178,20 @@ public final class SBrowserXHooks {
                 }
             }
             Context ctx = window != null ? window.getContext() : SBrowserXPrefs.getAppContext();
+            boolean night = isBrowserNightMode(ctx);
             if (isCompactLayoutActive()) {
-                int c = isBrowserNightMode(ctx)
+                syncSystemBarIconAppearance(window, night);
+                clearSystemBarFadeWindow(window);
+                if (isWindowOnQuickAccess(window)) {
+                    return 0x00000000;
+                }
+                int c = night
                         ? (isAmoledBlackEnabled() ? 0xFF000000 : 0xFF121212)
                         : 0xFFFFFFFF;
                 syncMainWindowBackground(window, c);
-                return 0x00000000;
+                return c;
             }
-            if (isBrowserNightMode(ctx)) {
+            if (night) {
                 return isAmoledBlackEnabled() ? 0xFF000000 : 0xFF141418;
             }
         } catch (Throwable ignored) {}
@@ -196,6 +215,7 @@ public final class SBrowserXHooks {
             }
             Context ctx = window != null ? window.getContext() : SBrowserXPrefs.getAppContext();
             if (isCompactLayoutActive()) {
+                clearSystemBarFadeWindow(window);
                 if (isWindowOnQuickAccess(window)) {
                     return 0x00000000;
                 }
@@ -271,7 +291,8 @@ public final class SBrowserXHooks {
                     if (child instanceof android.view.ViewGroup) continue;
                     android.graphics.drawable.Drawable bg = child.getBackground();
                     if (bg instanceof android.graphics.drawable.GradientDrawable
-                            || bg instanceof android.graphics.drawable.BitmapDrawable) {
+                            || bg instanceof android.graphics.drawable.BitmapDrawable
+                            || bg instanceof android.graphics.drawable.LayerDrawable) {
                         child.setBackgroundColor(0x00000000);
                         child.setVisibility(View.GONE);
                     }
@@ -292,13 +313,15 @@ public final class SBrowserXHooks {
             boolean compact = isCompactLayoutActive();
             if (compact) {
                 boolean qa = isWindowOnQuickAccess(win);
-                int themeColor = isBrowserNightMode(activity)
+                boolean night = isBrowserNightMode(activity);
+                int themeColor = night
                         ? (isAmoledBlackEnabled() ? 0xFF000000 : 0xFF121212)
                         : 0xFFFFFFFF;
-                int statusColor = qa ? 0x00000000 : themeColor;
+                int barColor = qa ? 0x00000000 : themeColor;
+                syncSystemBarIconAppearance(win, night);
                 syncMainWindowBackground(win, themeColor);
-                win.setNavigationBarColor(0x00000000);
-                win.setStatusBarColor(statusColor);
+                win.setNavigationBarColor(barColor);
+                win.setStatusBarColor(barColor);
                 clearSystemBarFadeWindow(win);
                 View decor = win.getDecorView();
                 String pkg = activity.getPackageName();
@@ -306,13 +329,14 @@ public final class SBrowserXHooks {
                     int navId = activity.getResources().getIdentifier("navigation_bar_background", "id", pkg);
                     if (navId != 0) {
                         View navView = decor.findViewById(navId);
-                        if (navView != null) navView.setBackgroundColor(0x00000000);
+                        if (navView != null) navView.setBackgroundColor(barColor);
                     }
                     int stId = activity.getResources().getIdentifier("status_bar_background", "id", pkg);
                     if (stId != 0) {
                         View stView = decor.findViewById(stId);
-                        if (stView != null) stView.setBackgroundColor(statusColor);
+                        if (stView != null) stView.setBackgroundColor(barColor);
                     }
+                    decor.post(() -> clearSystemBarFadeWindow(win));
                 }
             }
             View decorObj = win.getDecorView();
