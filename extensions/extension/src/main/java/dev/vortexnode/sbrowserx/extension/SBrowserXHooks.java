@@ -436,8 +436,8 @@ public final class SBrowserXHooks {
             return 0x00000000;
         }
         int rgb = normalizeGlassBaseRgb(0xFF000000);
-        int botAlpha = clampByte(Math.round(getGlassBaseAlpha() * 1.08f));
-        return withAlpha(rgb, botAlpha);
+        int navAlpha = clampByte(Math.round(getGlassBaseAlpha() * 0.88f));
+        return withAlpha(rgb, navAlpha);
     }
 
     private static void applyOneUiNavBlur(View navView, boolean enable, int tintColor) {
@@ -497,7 +497,7 @@ public final class SBrowserXHooks {
                         View navView = decor.findViewById(navId);
                         if (navView != null) {
                             if (blurred != null && !blurred.isRecycled()) {
-                                navView.setBackground(new WindowSliceWallpaperDrawable(blurred, dim, navColor, true, fullW, fullH));
+                                navView.setBackground(new WindowSliceWallpaperDrawable(blurred, Math.min(dim, 15), navColor, true, fullW, fullH));
                             } else {
                                 navView.setBackgroundColor(navColor);
                             }
@@ -3193,7 +3193,9 @@ public final class SBrowserXHooks {
                 Object curUrlObj = getUrl.invoke(tab);
                 String curUrl = curUrlObj instanceof String ? ((String) curUrlObj).trim() : "";
 
-                if (spEnabled && isTabQuickAccessOrNewTab(tab)) {
+                if (spEnabled && isStartPageOmniboxUrl(curUrl)) {
+                    syncStartPageWindowBackdrop(true);
+                } else if (spEnabled && isTabQuickAccessOrNewTab(tab)) {
                     String spUrl = SBrowserXStartPageServer.getBaseUrl();
                     if (!spUrl.equals(curUrl)) {
                         tab.getClass().getMethod("loadUrl", String.class).invoke(tab, spUrl);
@@ -3267,13 +3269,7 @@ public final class SBrowserXHooks {
                     }
                 }
             }
-            View rootView = (View) fragment.getClass().getMethod("getView").invoke(fragment);
-            if (rootView != null) {
-                final Context fCtx = ctx;
-                rootView.post(() -> {
-                    try { updateOrAttachStartPageHeaderCard(fCtx, rootView); } catch (Throwable ignored) {}
-                });
-            }
+
         } catch (Throwable ignored) {}
     }
 
@@ -3476,136 +3472,68 @@ public final class SBrowserXHooks {
         } catch (Throwable ignored) {}
     }
 
-    private static final String START_PAGE_HEADER_CARD_TAG = "sbrowserx_sp_header_card";
-    private static final String START_PAGE_HEADER_SUMMARY_TAG = "sbrowserx_sp_header_summary";
+    public static Object getHomepageRadioPreference(Object prefGroup, int logicalIndex) {
+        if (prefGroup == null) return null;
+        try {
+            int count = (Integer) prefGroup.getClass().getMethod("getPreferenceCount").invoke(prefGroup);
+            Method getPref = prefGroup.getClass().getMethod("getPreference", int.class);
+            Class<?> radioCls = Class.forName("com.sec.android.app.sbrowser.settings.CheckBoxPreferenceRadio");
+            int seen = 0;
+            for (int i = 0; i < count; i++) {
+                Object p = getPref.invoke(prefGroup, i);
+                if (radioCls.isInstance(p)) {
+                    if (seen == logicalIndex) return p;
+                    seen++;
+                }
+            }
+            if (logicalIndex >= 0 && logicalIndex < count) {
+                return getPref.invoke(prefGroup, logicalIndex);
+            }
+        } catch (Throwable ignored) {}
+        return null;
+    }
 
     public static void injectStartPageIntoHomepageSettings(Object fragment) {
         if (fragment == null) return;
         try {
-            // Remove any old injected preference so PreferenceScreen indices 0..2 stay 100% native CheckBoxPreferenceRadio!
-            try {
-                Object screen = fragment.getClass().getMethod("getPreferenceScreen").invoke(fragment);
-                if (screen != null) {
-                    Method findPref = screen.getClass().getMethod("findPreference", CharSequence.class);
-                    Class<?> prefCls = Class.forName("androidx.preference.Preference");
-                    Method removePref = screen.getClass().getMethod("removePreference", prefCls);
-                    Object oldEntry = findPref.invoke(screen, "sbrowserx_start_page_entry");
-                    if (oldEntry != null) removePref.invoke(screen, oldEntry);
-                    Object oldDiv = findPref.invoke(screen, "sbrowserx_start_page_divider");
-                    if (oldDiv != null) removePref.invoke(screen, oldDiv);
-                }
-            } catch (Throwable ignored) {}
+            Object screen = fragment.getClass().getMethod("getPreferenceScreen").invoke(fragment);
+            if (screen == null) return;
+            Context ctx = (Context) fragment.getClass().getMethod("getContext").invoke(fragment);
+            if (ctx == null) return;
 
-            final Context ctx = (Context) fragment.getClass().getMethod("getContext").invoke(fragment);
-            final View rootView = (View) fragment.getClass().getMethod("getView").invoke(fragment);
-            if (ctx == null || rootView == null) return;
+            Method findPref = screen.getClass().getMethod("findPreference", CharSequence.class);
+            Class<?> prefCls = Class.forName("androidx.preference.Preference");
 
-            rootView.post(() -> {
-                try {
-                    updateOrAttachStartPageHeaderCard(ctx, rootView);
-                } catch (Throwable ignored) {}
-            });
-        } catch (Throwable ignored) {}
-    }
-
-    private static void updateOrAttachStartPageHeaderCard(Context ctx, View rootView) {
-        if (ctx == null || !(rootView instanceof android.view.ViewGroup)) return;
-        android.view.ViewGroup root = (android.view.ViewGroup) rootView;
-        boolean spOn = SBrowserXPrefs.isStartPageEnabled(ctx);
-        String title = SBrowserXStrings.get(SBrowserXStrings.SP_TITLE);
-        String summary = spOn
-                ? SBrowserXStrings.get(SBrowserXStrings.SP_ENABLED_TOAST)
-                : SBrowserXStrings.get(SBrowserXStrings.SP_SUMMARY);
-
-        View existingCard = root.findViewWithTag(START_PAGE_HEADER_CARD_TAG);
-        if (existingCard != null) {
-            View sumView = existingCard.findViewWithTag(START_PAGE_HEADER_SUMMARY_TAG);
-            if (sumView instanceof android.widget.TextView) {
-                ((android.widget.TextView) sumView).setText(summary);
-            }
-            return;
-        }
-
-        // Find the LinearLayout holding the list container or wrap inside a vertical LinearLayout at index 0
-        android.view.ViewGroup targetParent = null;
-        if (root instanceof android.widget.LinearLayout
-                && ((android.widget.LinearLayout) root).getOrientation() == android.widget.LinearLayout.VERTICAL) {
-            targetParent = root;
-        } else {
-            for (int i = 0; i < root.getChildCount(); i++) {
-                View ch = root.getChildAt(i);
-                if (ch instanceof android.widget.LinearLayout
-                        && ((android.widget.LinearLayout) ch).getOrientation() == android.widget.LinearLayout.VERTICAL) {
-                    targetParent = (android.widget.LinearLayout) ch;
-                    break;
-                }
-            }
-        }
-        if (targetParent == null) {
-            // Create a vertical wrapper around existing children so the card sits cleanly above the list
-            android.widget.LinearLayout wrapper = new android.widget.LinearLayout(ctx);
-            wrapper.setOrientation(android.widget.LinearLayout.VERTICAL);
-            wrapper.setLayoutParams(new android.view.ViewGroup.LayoutParams(
-                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                    android.view.ViewGroup.LayoutParams.MATCH_PARENT));
-            while (root.getChildCount() > 0) {
-                View ch = root.getChildAt(0);
-                root.removeViewAt(0);
-                wrapper.addView(ch);
-            }
-            root.addView(wrapper);
-            targetParent = wrapper;
-        }
-
-        float d = ctx.getResources().getDisplayMetrics().density;
-        int dp12 = Math.round(12f * d);
-        int dp16 = Math.round(16f * d);
-        int dp20 = Math.round(20f * d);
-        int dp26 = Math.round(26f * d);
-        boolean night = isBrowserNightMode(ctx);
-        int cardBgColor = night ? 0xFF1C1C1F : 0xFFFFFFFF;
-        int textPrimary = night ? 0xFFFAFAFA : 0xFF111111;
-        int textSecondary = night ? 0xFF9EA2AA : 0xFF666A73;
-
-        android.widget.LinearLayout card = new android.widget.LinearLayout(ctx);
-        card.setTag(START_PAGE_HEADER_CARD_TAG);
-        card.setOrientation(android.widget.LinearLayout.VERTICAL);
-        card.setPadding(dp20, dp16, dp20, dp16);
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(cardBgColor);
-        bg.setCornerRadius(dp26);
-        card.setBackground(bg);
-        card.setClickable(true);
-        card.setFocusable(true);
-        android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(dp12, dp12, dp12, dp12);
-        card.setLayoutParams(lp);
-
-        android.widget.TextView tvTitle = new android.widget.TextView(ctx);
-        tvTitle.setText(title);
-        tvTitle.setTextColor(textPrimary);
-        tvTitle.setTextSize(17f);
-        card.addView(tvTitle);
-
-        android.widget.TextView tvSum = new android.widget.TextView(ctx);
-        tvSum.setTag(START_PAGE_HEADER_SUMMARY_TAG);
-        tvSum.setText(summary);
-        tvSum.setTextColor(textSecondary);
-        tvSum.setTextSize(13.5f);
-        tvSum.setPadding(0, Math.round(3f * d), 0, 0);
-        card.addView(tvSum);
-
-        card.setOnClickListener(v -> {
-            try {
+            Object pref = findPref.invoke(screen, "sbrowserx_start_page_entry");
+            if (pref == null) {
+                pref = prefCls.getConstructor(Context.class).newInstance(ctx);
+                prefCls.getMethod("setKey", String.class).invoke(pref, "sbrowserx_start_page_entry");
+                prefCls.getMethod("setOrder", int.class).invoke(pref, -100);
                 Intent intent = new Intent(ctx, dev.vortexnode.sbrowserx.extension.settings.SBrowserXStartPageSettingsActivity.class);
-                if (!(ctx instanceof Activity)) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                ctx.startActivity(intent);
-            } catch (Throwable ignored) {}
-        });
+                prefCls.getMethod("setIntent", Intent.class).invoke(pref, intent);
+                screen.getClass().getMethod("addPreference", prefCls).invoke(screen, pref);
+            } else {
+                prefCls.getMethod("setOrder", int.class).invoke(pref, -100);
+            }
 
-        targetParent.addView(card, 0);
+            Object divider = findPref.invoke(screen, "sbrowserx_start_page_divider");
+            if (divider == null) {
+                try {
+                    Class<?> catCls = Class.forName("androidx.preference.PreferenceCategory");
+                    Object cat = catCls.getConstructor(Context.class).newInstance(ctx);
+                    prefCls.getMethod("setKey", String.class).invoke(cat, "sbrowserx_start_page_divider");
+                    prefCls.getMethod("setOrder", int.class).invoke(cat, -50);
+                    prefCls.getMethod("setTitle", CharSequence.class).invoke(cat, "");
+                    screen.getClass().getMethod("addPreference", prefCls).invoke(screen, cat);
+                } catch (Throwable ignored) {}
+            }
+
+            prefCls.getMethod("setTitle", CharSequence.class).invoke(pref, SBrowserXStrings.get(SBrowserXStrings.SP_TITLE));
+            String sum = SBrowserXPrefs.isStartPageEnabled(ctx)
+                    ? SBrowserXStrings.get(SBrowserXStrings.SP_ENABLED_TOAST)
+                    : SBrowserXStrings.get(SBrowserXStrings.SP_SUMMARY);
+            prefCls.getMethod("setSummary", CharSequence.class).invoke(pref, sum);
+        } catch (Throwable ignored) {}
     }
 
     public static Activity getMainActivity() {

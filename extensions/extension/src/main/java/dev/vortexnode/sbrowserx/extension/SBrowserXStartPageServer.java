@@ -242,6 +242,24 @@ public final class SBrowserXStartPageServer {
             obj.put("wallpaperDim", dim);
             obj.put("hasWallpaper", hasWallpaper);
             obj.put("wallpaperVer", ctx != null ? SBrowserXPrefs.getStartPageWallpaperVersion(ctx) : 1);
+            if (ctx != null) {
+                try {
+                    android.util.DisplayMetrics dm = ctx.getResources().getDisplayMetrics();
+                    float dens = dm.density > 0f ? dm.density : 3.0f;
+                    int stPx = 0;
+                    int resId = ctx.getResources().getIdentifier("status_bar_height", "dimen", "android");
+                    if (resId > 0) stPx = ctx.getResources().getDimensionPixelSize(resId);
+                    int fullHpx = dm.heightPixels;
+                    try {
+                        android.view.WindowManager wm = (android.view.WindowManager) ctx.getSystemService(Context.WINDOW_SERVICE);
+                        if (wm != null && android.os.Build.VERSION.SDK_INT >= 30) {
+                            fullHpx = wm.getCurrentWindowMetrics().getBounds().height();
+                        }
+                    } catch (Throwable ignored2) {}
+                    obj.put("statusBarCss", Math.round(stPx / dens));
+                    obj.put("fullHeightCss", Math.round(fullHpx / dens));
+                } catch (Throwable ignored) {}
+            }
             obj.put("weatherEnabled", weatherOn);
             obj.put("weatherCity", city);
             obj.put("weatherUnit", unit);
@@ -551,7 +569,7 @@ public final class SBrowserXStartPageServer {
                 + "    const r=await fetch('/api/state');STATE=await r.json();"
                 + "    const bg=document.getElementById('bg');const dim=document.getElementById('dim');"
                 + "    if(STATE.hasWallpaper&&STATE.wallpaperMode!=='amoled'){"
-                + "      const wpUrl='url(/api/wallpaper?v='+(STATE.wallpaperVer||1)+')';bg.style.backgroundImage=wpUrl;document.documentElement.style.backgroundImage=wpUrl;"
+                + "      const wpUrl='url(/api/wallpaper?v='+(STATE.wallpaperVer||1)+')';if(STATE.statusBarCss&&STATE.fullHeightCss){bg.style.top='-'+STATE.statusBarCss+'px';bg.style.height=STATE.fullHeightCss+'px';bg.style.minHeight=STATE.fullHeightCss+'px';}bg.style.backgroundImage=wpUrl;document.documentElement.style.backgroundImage=wpUrl;"
                 + "      dim.style.opacity=((STATE.wallpaperDim||0)/100).toFixed(2);"
                 + "    }else{bg.style.backgroundImage='none';document.documentElement.style.backgroundImage='none';dim.style.opacity='0';}"
                 + "    renderShortcuts();"
