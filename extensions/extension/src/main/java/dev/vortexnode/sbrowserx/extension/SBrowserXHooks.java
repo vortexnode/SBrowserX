@@ -1194,6 +1194,95 @@ public final class SBrowserXHooks {
         }
     }
 
+    public static void applyExtensionsPopupGlassStyle(Object popupController) {
+        if (popupController == null) return;
+        try {
+            Class<?> cls = popupController.getClass();
+            Field fAct = cls.getDeclaredField("mActivity");
+            fAct.setAccessible(true);
+            Context ctx = (Context) fAct.get(popupController);
+            Field fView = cls.getDeclaredField("mExtensionView");
+            fView.setAccessible(true);
+            View extView = (View) fView.get(popupController);
+            Field fPopup = cls.getDeclaredField("mPopupWindow");
+            fPopup.setAccessible(true);
+            android.widget.PopupWindow popup = (android.widget.PopupWindow) fPopup.get(popupController);
+            if (ctx == null || extView == null) return;
+
+            Context appCtx = SBrowserXPrefs.getAppContext();
+            boolean compact = isCompactLayoutActive();
+            boolean enabled;
+            int transparency;
+            if (compact) {
+                enabled = appCtx == null || SBrowserXPrefs.isCompactBarBlurEnabled(appCtx);
+                transparency = appCtx != null ? SBrowserXPrefs.getCompactBarTransparency(appCtx) : 50;
+            } else {
+                enabled = appCtx == null || SBrowserXPrefs.isBottomBarBlurEnabled(appCtx);
+                transparency = appCtx != null ? SBrowserXPrefs.getBottomBarTransparency(appCtx) : 50;
+            }
+
+            android.content.res.Resources res = ctx.getResources();
+            String pkg = ctx.getPackageName();
+            boolean night = isBrowserNightMode(ctx);
+            float density = res.getDisplayMetrics().density;
+            int radiusId = res.getIdentifier("toolbar_option_menu_dialog_radius", "dimen", pkg);
+            if (radiusId == 0) radiusId = res.getIdentifier("search_window_popup_radius", "dimen", pkg);
+            int cornerPx = radiusId != 0 ? res.getDimensionPixelOffset(radiusId) : Math.round(26f * density);
+            int baseRgb = night ? (isAmoledBlackEnabled() ? 0x000000 : 0x1E1E22) : 0xF6F6F8;
+
+            if (popup != null) {
+                popup.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0x00000000));
+            }
+
+            if (!enabled) {
+                try {
+                    Class<?> vu = Class.forName("com.sec.android.app.sbrowser.common.utils.ViewUtil");
+                    vu.getMethod("clearBlurEffect", View.class).invoke(null, extView);
+                } catch (Throwable ignored) {}
+                GradientDrawable solid = new GradientDrawable();
+                solid.setShape(GradientDrawable.RECTANGLE);
+                solid.setCornerRadius(cornerPx);
+                solid.setColor(withAlpha(baseRgb, 0xFF));
+                int strokePx = Math.max(1, Math.round(density * 0.75f));
+                solid.setStroke(strokePx, night ? 0x26FFFFFF : 0x1A000000);
+                extView.setBackground(solid);
+                return;
+            }
+
+            int opacity = 100 - transparency; // 15..85
+            int alpha = clampByte(Math.round(255f * opacity / 100f));
+            GradientDrawable gd = new GradientDrawable();
+            gd.setShape(GradientDrawable.RECTANGLE);
+            gd.setCornerRadius(cornerPx);
+            gd.setColor(withAlpha(baseRgb, alpha));
+            int strokePx = Math.max(1, Math.round(density * 0.75f));
+            gd.setStroke(strokePx, night ? 0x26FFFFFF : 0x1A000000);
+            extView.setBackground(gd);
+            extView.setClipToOutline(true);
+
+            int blurRadius = Math.round(60f + transparency * 1.4f); // 81..179
+            int tintAlpha = clampByte(Math.round(alpha * 0.45f));
+            int tintColor = withAlpha(baseRgb, tintAlpha);
+            try {
+                Class<?> semBlurCls = Class.forName("com.sec.sbrowser.spl.wrapper.SemBlurInfo");
+                Object modeField = semBlurCls.getField("BLUR_MODE_WINDOW").get(null);
+                int blurMode = (Integer) modeField.getClass().getMethod("get").invoke(modeField);
+                Class<?> builderCls = Class.forName("com.sec.sbrowser.spl.wrapper.SemBlurInfo$Builder");
+                Object builder = builderCls.getConstructor(int.class).newInstance(blurMode);
+                builderCls.getMethod("setRadius", int.class).invoke(builder, blurRadius);
+                builderCls.getMethod("setBackgroundColor", int.class).invoke(builder, tintColor);
+                builderCls.getMethod("setBackgroundCornerRadius", float.class).invoke(builder, (float) cornerPx);
+                Object blurInfo = builderCls.getMethod("build").invoke(builder);
+                Class<?> majoCls = Class.forName("com.sec.sbrowser.spl.wrapper.MajoView");
+                majoCls.getMethod("semSetBlurInfo", View.class, Object.class).invoke(null, extView, blurInfo);
+            } catch (Throwable t) {
+                Log.w(TAG, "applyExtensionsPopupGlassStyle SemBlurInfo fallback", t);
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "applyExtensionsPopupGlassStyle failed", t);
+        }
+    }
+
 
     private static final ThreadLocal<Object> sCustomizeMenuModelTL = new ThreadLocal<>();
     private static final ThreadLocal<Object> sDarkModeFragmentTL = new ThreadLocal<>();

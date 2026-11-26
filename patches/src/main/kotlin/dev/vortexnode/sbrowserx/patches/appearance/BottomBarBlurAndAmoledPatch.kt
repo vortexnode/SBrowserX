@@ -2,6 +2,8 @@ package dev.vortexnode.sbrowserx.patches.appearance
 
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.patch.bytecodePatch
+import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
+import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 import dev.vortexnode.sbrowserx.patches.core.sbrowserXCorePatch
 import dev.vortexnode.sbrowserx.shared.Constants.COMPATIBILITY_SBROWSER
 import dev.vortexnode.sbrowserx.shared.findMethodOrThrow
@@ -246,6 +248,47 @@ val bottomBarBlurAndAmoledPatch = bytecodePatch(
             menuBindInsns.size - 1,
             """
                 invoke-static {p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->enhanceMoreMenuItemCrispness(Ljava/lang/Object;)V
+            """.trimIndent(),
+        )
+
+        // 12. ExtensionContainerPopupWindow.show()Z
+        // Match the Extensions popup appearance (AMOLED/dark glass, transparency & blur) 1-to-1 with MoreMenu.
+        val extPopupShow = findMethodOrThrow(
+            classType = "Lcom/sec/android/app/sbrowser/extensions/ExtensionContainerPopupWindow;",
+            methodName = "show",
+            parameterTypes = emptyList(),
+            returnType = "Z",
+        )
+        val extPopupInsns = extPopupShow.implementation?.instructions
+            ?: error("Missing instructions in ExtensionContainerPopupWindow.show")
+        var extPopupPatched = false
+        for (i in extPopupInsns.indices) {
+            val mRef = (extPopupInsns[i] as? ReferenceInstruction)?.reference as? MethodReference ?: continue
+            if (mRef.name == "showAtLocation") {
+                extPopupShow.addInstructions(
+                    i,
+                    """
+                        invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->applyExtensionsPopupGlassStyle(Ljava/lang/Object;)V
+                    """.trimIndent(),
+                )
+                extPopupPatched = true
+                break
+            }
+        }
+        check(extPopupPatched) { "Failed to locate showAtLocation in ExtensionContainerPopupWindow.show" }
+
+        // 13. AppMenu.getOptionMenuBadgeCount()I (.locals 2)
+        // Hides the persistent orange notification dot on the bottom-right More (⋮) button.
+        findMethodOrThrow(
+            classType = "Lcom/sec/android/app/sbrowser/main_view/menu/AppMenu;",
+            methodName = "getOptionMenuBadgeCount",
+            parameterTypes = emptyList(),
+            returnType = "I",
+        ).addInstructions(
+            0,
+            """
+                const/4 v0, 0x0
+                return v0
             """.trimIndent(),
         )
     }
