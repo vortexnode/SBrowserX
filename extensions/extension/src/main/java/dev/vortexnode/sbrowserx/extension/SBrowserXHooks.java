@@ -182,6 +182,10 @@ public final class SBrowserXHooks {
             if (isCompactLayoutActive()) {
                 syncSystemBarIconAppearance(window, night);
                 clearSystemBarFadeWindow(window);
+                if (window != null && window.getDecorView() != null) {
+                    final android.view.Window wRef = window;
+                    window.getDecorView().post(() -> clearSystemBarFadeWindow(wRef));
+                }
                 if (isWindowOnQuickAccess(window)) {
                     return 0x00000000;
                 }
@@ -216,6 +220,10 @@ public final class SBrowserXHooks {
             Context ctx = window != null ? window.getContext() : SBrowserXPrefs.getAppContext();
             if (isCompactLayoutActive()) {
                 clearSystemBarFadeWindow(window);
+                if (window != null && window.getDecorView() != null) {
+                    final android.view.Window wRef = window;
+                    window.getDecorView().post(() -> clearSystemBarFadeWindow(wRef));
+                }
                 if (isWindowOnQuickAccess(window)) {
                     return 0x00000000;
                 }
@@ -313,27 +321,31 @@ public final class SBrowserXHooks {
                         || vid == mainLayoutId || vid == contentLayoutId || vid == tabHolderId
                         || vid == toolbarId || vid == bottombarId || vid == bottombarMainId
                         || vid == toolbarCompactId);
-                if (!protectedId && !(v instanceof android.view.ViewGroup)) {
+                if (vid == android.R.id.navigationBarBackground || vid == android.R.id.statusBarBackground) {
+                    v.setBackgroundColor(0x00000000);
+                    v.setVisibility(View.GONE);
+                } else if (!protectedId) {
                     android.graphics.drawable.Drawable bg = v.getBackground();
-                    boolean isOverlayDrawable = (bg instanceof android.graphics.drawable.GradientDrawable
-                            || bg instanceof android.graphics.drawable.BitmapDrawable
-                            || bg instanceof android.graphics.drawable.LayerDrawable
-                            || bg instanceof android.graphics.drawable.NinePatchDrawable
-                            || bg instanceof android.graphics.drawable.InsetDrawable);
-                    if (isOverlayDrawable) {
+                    android.graphics.drawable.Drawable fg = v.getForeground();
+                    boolean isOverlayBg = isSuspiciousOverlayDrawable(bg);
+                    boolean isOverlayFg = isSuspiciousOverlayDrawable(fg);
+                    if (isOverlayBg || isOverlayFg) {
                         int vw = v.getWidth();
                         int vh = v.getHeight();
                         int[] loc = new int[2];
                         v.getLocationInWindow(loc);
                         int bottom = loc[1] + vh;
-                        boolean isDecorDirect = (v.getParent() == decor);
+                        boolean isDecorDirect = (v.getParent() == decor && !(v instanceof android.view.ViewGroup));
                         boolean isBottomStrip = (decorW > 0 && decorH > 0
                                 && vw >= (decorW * 9) / 10
                                 && vh > 0 && vh <= maxBarH
                                 && (bottom >= decorH - edgeTol || loc[1] <= edgeTol));
                         if (isDecorDirect || isBottomStrip) {
-                            v.setBackgroundColor(0x00000000);
-                            v.setVisibility(View.GONE);
+                            if (isOverlayBg) v.setBackgroundColor(0x00000000);
+                            if (isOverlayFg) v.setForeground(null);
+                            if (!(v instanceof android.view.ViewGroup)) {
+                                v.setVisibility(View.GONE);
+                            }
                         }
                     }
                 }
@@ -348,22 +360,43 @@ public final class SBrowserXHooks {
         }
     }
 
+    private static boolean isSuspiciousOverlayDrawable(android.graphics.drawable.Drawable d) {
+        if (d == null) return false;
+        return (d instanceof android.graphics.drawable.GradientDrawable
+                || d instanceof android.graphics.drawable.BitmapDrawable
+                || d instanceof android.graphics.drawable.LayerDrawable
+                || d instanceof android.graphics.drawable.NinePatchDrawable
+                || d instanceof android.graphics.drawable.InsetDrawable
+                || d instanceof android.graphics.drawable.StateListDrawable
+                || d instanceof android.graphics.drawable.DrawableWrapper);
+    }
+
     public static boolean isAnyAutofillServiceAllowed(String serviceComponentName) {
         return serviceComponentName != null && !serviceComponentName.isEmpty();
     }
 
-    public static boolean shouldUseTerraceAutofill(boolean stockPersonalDataSyncFlag) {
-        if (stockPersonalDataSyncFlag) return true;
-        try {
-            Context ctx = SBrowserXPrefs.getAppContext();
-            if (ctx != null) {
-                android.view.autofill.AutofillManager afm = ctx.getSystemService(android.view.autofill.AutofillManager.class);
+    private static boolean hasActiveSystemAutofillService(Context ctx) {
+        Context[] candidates = new Context[] { ctx, sMainActivityRef.get(), SBrowserXPrefs.getAppContext() };
+        for (Context c : candidates) {
+            if (c == null) continue;
+            try {
+                android.view.autofill.AutofillManager afm = c.getSystemService(android.view.autofill.AutofillManager.class);
                 if (afm != null && afm.isEnabled() && afm.hasEnabledAutofillServices()) {
                     return true;
                 }
-            }
-        } catch (Throwable ignored) {}
+            } catch (Throwable ignored) {}
+        }
         return false;
+    }
+
+    public static boolean shouldUseTerraceAutofill(View view, boolean stockPersonalDataSyncFlag) {
+        if (stockPersonalDataSyncFlag) return true;
+        return hasActiveSystemAutofillService(view != null ? view.getContext() : null);
+    }
+
+    public static boolean adjustImportantForAutofill(View view, boolean stockImportant) {
+        if (stockImportant) return true;
+        return hasActiveSystemAutofillService(view != null ? view.getContext() : null);
     }
 
     private static void applyCompactSystemBarPolish(Activity activity) {

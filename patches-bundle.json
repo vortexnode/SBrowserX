@@ -1,7 +1,7 @@
 {
   "created_at": "2026-11-26T17:52:00",
   "description": "SBrowserX v1.2.10: убрана нижняя полоса над панелью навигации на сайтах в компактном режиме.",
-  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v1.2.12/patches-1.2.12.mpp",
+  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v1.2.13/patches-1.2.13.mpp",
   "signature_download_url": "",
-  "version": "v1.2.12"
+  "version": "v1.2.13"
 }

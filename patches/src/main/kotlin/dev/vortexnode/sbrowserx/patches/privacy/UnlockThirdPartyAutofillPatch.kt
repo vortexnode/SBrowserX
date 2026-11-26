@@ -42,6 +42,20 @@ val unlockThirdPartyAutofillPatch = bytecodePatch(
             """.trimIndent(),
         )
 
+        val importantMethod = findMethodOrThrow(
+            classType = TIN_CONTENT_VIEW_WITH_AUTOFILL_CLASS,
+            methodName = "setImportantForAutofillForVirtualView",
+            parameterTypes = listOf("Z"),
+            returnType = "V",
+        )
+        importantMethod.addInstructions(
+            0,
+            """
+                invoke-static {p0, p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->adjustImportantForAutofill(Landroid/view/View;Z)Z
+                move-result p1
+            """.trimIndent(),
+        )
+
         for (methodName in listOf("autofill", "onProvideAutofillVirtualStructure")) {
             val method = findMethodOrThrow(
                 classType = TIN_CONTENT_VIEW_WITH_AUTOFILL_CLASS,
@@ -60,7 +74,7 @@ val unlockThirdPartyAutofillPatch = bytecodePatch(
                 method.addInstructions(
                     i + 2,
                     """
-                        invoke-static {v$reg}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->shouldUseTerraceAutofill(Z)Z
+                        invoke-static {p0, v$reg}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->shouldUseTerraceAutofill(Landroid/view/View;Z)Z
                         move-result v$reg
                     """.trimIndent(),
                 )
