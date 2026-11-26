@@ -1,7 +1,7 @@
 {
   "created_at": "2026-11-25T15:10:00",
-  "description": "SBrowserX v1.2.2: полностью убраны белые/серые полосы статус-бара и панели навигации Android 15/16 на всех сайтах и стартовой странице, убрана матовая полоса поверх обоев под компактной панелью (ToolbarCompact.shouldApplyBlurEffect -> false), допилен перенос текста при зуме (заголовки h1-h6, автовыравнивание экрана по точке щипка и мгновенный сброс при отдалении).",
-  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v1.2.2/patches-1.2.2.mpp",
+  "description": "SBrowserX v1.2.3: окончательно вырезаны XML-градиенты белых/серых полос сверху и снизу (navigationbar_gradient_background и statusbar_gradient_background) — теперь обои стартовой страницы и все сайты в компактном режиме идеально чистые до краёв, а перенос текста при зуме выравнивает визуальный вьюпорт ровно к левому краю текста без обрезания.",
+  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v1.2.3/patches-1.2.3.mpp",
   "signature_download_url": "",
-  "version": "1.2.2"
+  "version": "1.2.3"
 }
