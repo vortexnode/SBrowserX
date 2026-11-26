@@ -436,7 +436,7 @@ public final class SBrowserXHooks {
             return 0x00000000;
         }
         int rgb = normalizeGlassBaseRgb(0xFF000000);
-        int navAlpha = clampByte(Math.round(getGlassBaseAlpha() * 1.04f));
+        int navAlpha = clampByte(Math.round(getGlassBaseAlpha() * 0.72f));
         return withAlpha(rgb, navAlpha);
     }
 
@@ -496,8 +496,15 @@ public final class SBrowserXHooks {
                     if (navId != 0) {
                         View navView = decor.findViewById(navId);
                         if (navView != null) {
-                            if (blurred != null && !blurred.isRecycled()) {
-                                navView.setBackground(new WindowSliceWallpaperDrawable(blurred, 0, navColor, true, fullW, fullH));
+                            boolean useGpuBlur = android.os.Build.VERSION.SDK_INT >= 31 && isBottomBarBlurEnabled() && !isCompactLayoutActive();
+                            if (useGpuBlur && bmp != null && !bmp.isRecycled()) {
+                                navView.setBackground(new WindowSliceWallpaperDrawable(bmp, dim, navColor, true, fullW, fullH));
+                                try {
+                                    navView.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(
+                                            48f, 48f, android.graphics.Shader.TileMode.CLAMP));
+                                } catch (Throwable ignored) {}
+                            } else if (blurred != null && !blurred.isRecycled()) {
+                                navView.setBackground(new WindowSliceWallpaperDrawable(blurred, dim, navColor, true, fullW, fullH));
                             } else {
                                 navView.setBackgroundColor(navColor);
                             }
@@ -521,6 +528,9 @@ public final class SBrowserXHooks {
                     if (navId != 0) {
                         View navView = decor.findViewById(navId);
                         if (navView != null) {
+                            if (android.os.Build.VERSION.SDK_INT >= 31) {
+                                try { navView.setRenderEffect(null); } catch (Throwable ignored) {}
+                            }
                             applyOneUiNavBlur(navView, false, 0);
                             navView.setBackgroundColor(c);
                         }
@@ -530,45 +540,20 @@ public final class SBrowserXHooks {
         } catch (Throwable ignored) {}
     }
 
+    private static final java.util.concurrent.ExecutorService sBackdropExecutor =
+            java.util.concurrent.Executors.newSingleThreadExecutor();
+
     public static void syncStartPageWindowBackdrop(final boolean onStartPage) {
         try {
             final Activity act = sMainActivityRef.get();
             if (act == null || act.isFinishing() || act.isDestroyed()) return;
-            act.runOnUiThread(() -> {
-                try {
-                    android.view.Window win = act.getWindow();
-                    if (win == null) return;
-                    if (onStartPage) {
-                        String mode = SBrowserXPrefs.getStartPageWallpaperMode(act);
-                        java.io.File wpFile = null;
-                        if (SBrowserXStartPageServer.WALLPAPER_LOCAL.equals(mode)) {
-                            wpFile = SBrowserXStartPageServer.getLocalWallpaperFile(act);
-                        } else if (SBrowserXStartPageServer.WALLPAPER_ONLINE.equals(mode)) {
-                            wpFile = SBrowserXStartPageServer.getOnlineWallpaperFile(act);
-                        }
-                        if (wpFile != null && wpFile.exists() && wpFile.length() > 0L) {
-                            Bitmap bmp = loadStartPageBackdropBitmap(act, wpFile);
-                            if (bmp != null) {
-                                int dim = SBrowserXPrefs.getStartPageWallpaperDim(act);
-                                boolean brightTop = isTopStripBright(bmp, dim);
-                                sStartPageBackdropActive = true;
-                                sStartPageTopBright = brightTop;
-                                sLastMainWindowBgColor = 0;
-                                win.setBackgroundDrawable(new CenterCropWallpaperDrawable(bmp, dim));
-                                applyStartPageSystemBarViews(act, true, brightTop);
-                                View dView = win.getDecorView();
-                                if (dView != null) {
-                                    dView.postDelayed(() -> {
-                                        if (sStartPageBackdropActive) {
-                                            applyStartPageSystemBarViews(act, true, sStartPageTopBright);
-                                        }
-                                    }, 160L);
-                                }
-                                return;
-                            }
-                        }
-                    }
-                    if (sStartPageBackdropActive) {
+            if (!onStartPage) {
+                if (!sStartPageBackdropActive) return;
+                act.runOnUiThread(() -> {
+                    try {
+                        if (!sStartPageBackdropActive) return;
+                        android.view.Window win = act.getWindow();
+                        if (win == null) return;
                         sStartPageBackdropActive = false;
                         sLastMainWindowBgColor = 0;
                         boolean night = isBrowserNightMode(act);
@@ -576,7 +561,45 @@ public final class SBrowserXHooks {
                         win.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(c));
                         sLastMainWindowBgColor = c;
                         applyStartPageSystemBarViews(act, false, false);
+                    } catch (Throwable ignored) {}
+                });
+                return;
+            }
+            final Context appCtx = act.getApplicationContext();
+            sBackdropExecutor.execute(() -> {
+                try {
+                    String mode = SBrowserXPrefs.getStartPageWallpaperMode(appCtx);
+                    java.io.File wpFile = null;
+                    if (SBrowserXStartPageServer.WALLPAPER_LOCAL.equals(mode)) {
+                        wpFile = SBrowserXStartPageServer.getLocalWallpaperFile(appCtx);
+                    } else if (SBrowserXStartPageServer.WALLPAPER_ONLINE.equals(mode)) {
+                        wpFile = SBrowserXStartPageServer.getOnlineWallpaperFile(appCtx);
                     }
+                    if (wpFile == null || !wpFile.exists() || wpFile.length() == 0L) return;
+                    final Bitmap bmp = loadStartPageBackdropBitmap(appCtx, wpFile);
+                    if (bmp == null) return;
+                    final int dim = SBrowserXPrefs.getStartPageWallpaperDim(appCtx);
+                    final boolean brightTop = isTopStripBright(bmp, dim);
+                    act.runOnUiThread(() -> {
+                        try {
+                            if (act.isFinishing() || act.isDestroyed()) return;
+                            android.view.Window win = act.getWindow();
+                            if (win == null) return;
+                            sStartPageBackdropActive = true;
+                            sStartPageTopBright = brightTop;
+                            sLastMainWindowBgColor = 0;
+                            win.setBackgroundDrawable(new CenterCropWallpaperDrawable(bmp, dim));
+                            applyStartPageSystemBarViews(act, true, brightTop);
+                            View dView = win.getDecorView();
+                            if (dView != null) {
+                                dView.postDelayed(() -> {
+                                    if (sStartPageBackdropActive) {
+                                        applyStartPageSystemBarViews(act, true, sStartPageTopBright);
+                                    }
+                                }, 140L);
+                            }
+                        } catch (Throwable ignored) {}
+                    });
                 } catch (Throwable ignored) {}
             });
         } catch (Throwable ignored) {}
