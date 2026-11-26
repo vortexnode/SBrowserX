@@ -260,6 +260,144 @@ public final class SBrowserXHooks {
         }
     }
 
+    private static boolean isTopStripBright(Bitmap bmp, int dimPercent) {
+        if (bmp == null || bmp.isRecycled()) return false;
+        try {
+            int w = bmp.getWidth();
+            int h = bmp.getHeight();
+            if (w <= 0 || h <= 0) return false;
+            int stripH = Math.max(1, Math.round(h * 0.08f));
+            int stepX = Math.max(1, w / 24);
+            int stepY = Math.max(1, stripH / 8);
+            long lumSum = 0L;
+            int samples = 0;
+            for (int y = 0; y < stripH; y += stepY) {
+                for (int x = 0; x < w; x += stepX) {
+                    int px = bmp.getPixel(x, y);
+                    int r = (px >> 16) & 0xFF;
+                    int g = (px >> 8) & 0xFF;
+                    int b = px & 0xFF;
+                    lumSum += (r * 299L + g * 587L + b * 114L) / 1000L;
+                    samples++;
+                }
+            }
+            if (samples == 0) return false;
+            float avgLum = (float) lumSum / samples;
+            float factor = 1.0f - Math.max(0, Math.min(80, dimPercent)) / 100.0f;
+            return (avgLum * factor) >= 165.0f;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    private static void syncStatusBarIconAppearance(android.view.Window window, boolean darkIcons) {
+        if (window == null) return;
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= 30) {
+                android.view.WindowInsetsController wic = window.getInsetsController();
+                if (wic != null) {
+                    int mask = android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS;
+                    wic.setSystemBarsAppearance(darkIcons ? mask : 0, mask);
+                }
+            } else {
+                View decor = window.getDecorView();
+                if (decor != null) {
+                    int flags = decor.getSystemUiVisibility();
+                    if (darkIcons) {
+                        flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+                    } else {
+                        flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+                    }
+                    decor.setSystemUiVisibility(flags);
+                }
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    private static int getStartPageNavGlassColor(Context ctx) {
+        if (!isBottomBarBlurEnabled() || isCompactLayoutActive()) {
+            return 0x00000000;
+        }
+        int rgb = normalizeGlassBaseRgb(0xFF000000);
+        int botAlpha = clampByte(Math.round(getGlassBaseAlpha() * 1.08f));
+        return withAlpha(rgb, botAlpha);
+    }
+
+    private static void applyOneUiNavBlur(View navView, boolean enable, int tintColor) {
+        if (navView == null) return;
+        try {
+            Method setBlur = View.class.getMethod("semSetBlurInfo", Class.forName("android.view.SemBlurInfo"));
+            if (!enable) {
+                setBlur.invoke(navView, new Object[] { null });
+                return;
+            }
+            Class<?> builderCls = Class.forName("android.view.SemBlurInfo$Builder");
+            Object builder = builderCls.getConstructor(int.class).newInstance(0); // BLUR_MODE_WINDOW = 0
+            try { builderCls.getMethod("setRadius", int.class).invoke(builder, 64); } catch (Throwable ignored) {}
+            try { builderCls.getMethod("setBackgroundColor", int.class).invoke(builder, tintColor); } catch (Throwable ignored) {}
+            Object info = builderCls.getMethod("build").invoke(builder);
+            setBlur.invoke(navView, info);
+        } catch (Throwable ignored) {}
+    }
+
+    private static void applyStartPageSystemBarViews(Activity act, boolean onStartPage, boolean brightTop) {
+        if (act == null) return;
+        try {
+            android.view.Window win = act.getWindow();
+            if (win == null) return;
+            if (android.os.Build.VERSION.SDK_INT >= 29) {
+                win.setStatusBarContrastEnforced(false);
+                win.setNavigationBarContrastEnforced(false);
+            }
+            View decor = win.getDecorView();
+            String pkg = act.getPackageName();
+            if (onStartPage) {
+                int navColor = getStartPageNavGlassColor(act);
+                win.setStatusBarColor(0x00000000);
+                win.setNavigationBarColor(navColor);
+                syncStatusBarIconAppearance(win, brightTop);
+                syncSystemBarIconAppearance(win, true); // white nav buttons on dark frosted glass
+                if (decor != null && pkg != null) {
+                    int stId = act.getResources().getIdentifier("status_bar_background", "id", pkg);
+                    if (stId != 0) {
+                        View stView = decor.findViewById(stId);
+                        if (stView != null) stView.setBackgroundColor(0x00000000);
+                    }
+                    int navId = act.getResources().getIdentifier("navigation_bar_background", "id", pkg);
+                    if (navId != 0) {
+                        View navView = decor.findViewById(navId);
+                        if (navView != null) {
+                            navView.setBackgroundColor(navColor);
+                            applyOneUiNavBlur(navView, isBottomBarBlurEnabled() && !isCompactLayoutActive(), navColor);
+                        }
+                    }
+                }
+            } else {
+                boolean night = isBrowserNightMode(act);
+                int c = night ? (isAmoledBlackEnabled() ? 0xFF000000 : 0xFF141418) : 0xFFFFFFFF;
+                win.setStatusBarColor(c);
+                win.setNavigationBarColor(c);
+                syncStatusBarIconAppearance(win, !night);
+                syncSystemBarIconAppearance(win, night);
+                if (decor != null && pkg != null) {
+                    int stId = act.getResources().getIdentifier("status_bar_background", "id", pkg);
+                    if (stId != 0) {
+                        View stView = decor.findViewById(stId);
+                        if (stView != null) stView.setBackgroundColor(c);
+                    }
+                    int navId = act.getResources().getIdentifier("navigation_bar_background", "id", pkg);
+                    if (navId != 0) {
+                        View navView = decor.findViewById(navId);
+                        if (navView != null) {
+                            applyOneUiNavBlur(navView, false, 0);
+                            navView.setBackgroundColor(c);
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+    }
+
     public static void syncStartPageWindowBackdrop(final boolean onStartPage) {
         try {
             final Activity act = sMainActivityRef.get();
@@ -280,11 +418,11 @@ public final class SBrowserXHooks {
                             Bitmap bmp = loadStartPageBackdropBitmap(act, wpFile);
                             if (bmp != null) {
                                 int dim = SBrowserXPrefs.getStartPageWallpaperDim(act);
+                                boolean brightTop = isTopStripBright(bmp, dim);
                                 sStartPageBackdropActive = true;
                                 sLastMainWindowBgColor = 0;
                                 win.setBackgroundDrawable(new CenterCropWallpaperDrawable(bmp, dim));
-                                win.setNavigationBarColor(0x00000000);
-                                win.setStatusBarColor(0x00000000);
+                                applyStartPageSystemBarViews(act, true, brightTop);
                                 return;
                             }
                         }
@@ -296,6 +434,7 @@ public final class SBrowserXHooks {
                         int c = night ? (isAmoledBlackEnabled() ? 0xFF000000 : 0xFF121212) : 0xFFFFFFFF;
                         win.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(c));
                         sLastMainWindowBgColor = c;
+                        applyStartPageSystemBarViews(act, false, false);
                     }
                 } catch (Throwable ignored) {}
             });
@@ -327,15 +466,15 @@ public final class SBrowserXHooks {
             }
             Context ctx = window != null ? window.getContext() : SBrowserXPrefs.getAppContext();
             boolean night = isBrowserNightMode(ctx);
+            if (isWindowOnQuickAccess(window)) {
+                return sStartPageBackdropActive ? getStartPageNavGlassColor(ctx) : 0x00000000;
+            }
             if (isCompactLayoutActive()) {
                 syncSystemBarIconAppearance(window, night);
                 clearSystemBarFadeWindow(window);
                 if (window != null && window.getDecorView() != null) {
                     final android.view.Window wRef = window;
                     window.getDecorView().post(() -> clearSystemBarFadeWindow(wRef));
-                }
-                if (isWindowOnQuickAccess(window)) {
-                    return 0x00000000;
                 }
                 int c = night
                         ? (isAmoledBlackEnabled() ? 0xFF000000 : 0xFF121212)
@@ -366,14 +505,14 @@ public final class SBrowserXHooks {
                 window.setStatusBarContrastEnforced(false);
             }
             Context ctx = window != null ? window.getContext() : SBrowserXPrefs.getAppContext();
+            if (isWindowOnQuickAccess(window)) {
+                return 0x00000000;
+            }
             if (isCompactLayoutActive()) {
                 clearSystemBarFadeWindow(window);
                 if (window != null && window.getDecorView() != null) {
                     final android.view.Window wRef = window;
                     window.getDecorView().post(() -> clearSystemBarFadeWindow(wRef));
-                }
-                if (isWindowOnQuickAccess(window)) {
-                    return 0x00000000;
                 }
                 int c = isBrowserNightMode(ctx)
                         ? (isAmoledBlackEnabled() ? 0xFF000000 : 0xFF121212)
@@ -2873,6 +3012,10 @@ public final class SBrowserXHooks {
                 boolean spEnabled = SBrowserXPrefs.isStartPageEnabled(ctx);
                 if (spEnabled) {
                     SBrowserXStartPageServer.ensureStarted(ctx);
+                    if (!SBrowserXPrefs.isStartPageDefaultApplied(ctx)) {
+                        SBrowserXPrefs.markStartPageDefaultApplied(ctx);
+                        applyStartPageHomepageSetting(ctx, true);
+                    }
                 }
                 Method getTab = sActGetCurrentTab;
                 if (getTab == null || !getTab.getDeclaringClass().isInstance(act)) {
@@ -3182,10 +3325,23 @@ public final class SBrowserXHooks {
             if (pref == null) {
                 pref = prefCls.getConstructor(Context.class).newInstance(ctx);
                 prefCls.getMethod("setKey", String.class).invoke(pref, "sbrowserx_start_page_entry");
-                prefCls.getMethod("setOrder", int.class).invoke(pref, 999);
+                prefCls.getMethod("setOrder", int.class).invoke(pref, -100);
                 Intent intent = new Intent(ctx, dev.vortexnode.sbrowserx.extension.settings.SBrowserXStartPageSettingsActivity.class);
                 prefCls.getMethod("setIntent", Intent.class).invoke(pref, intent);
                 screen.getClass().getMethod("addPreference", prefCls).invoke(screen, pref);
+            } else {
+                prefCls.getMethod("setOrder", int.class).invoke(pref, -100);
+            }
+            Object divider = findPref.invoke(screen, "sbrowserx_start_page_divider");
+            if (divider == null) {
+                try {
+                    Class<?> catCls = Class.forName("androidx.preference.PreferenceCategory");
+                    Object cat = catCls.getConstructor(Context.class).newInstance(ctx);
+                    prefCls.getMethod("setKey", String.class).invoke(cat, "sbrowserx_start_page_divider");
+                    prefCls.getMethod("setOrder", int.class).invoke(cat, -50);
+                    prefCls.getMethod("setTitle", CharSequence.class).invoke(cat, "");
+                    screen.getClass().getMethod("addPreference", prefCls).invoke(screen, cat);
+                } catch (Throwable ignored) {}
             }
             prefCls.getMethod("setTitle", CharSequence.class).invoke(pref, SBrowserXStrings.get(SBrowserXStrings.SP_TITLE));
             String sum = SBrowserXPrefs.isStartPageEnabled(ctx)
