@@ -299,8 +299,8 @@ public final class SBrowserXHooks {
     private static Bitmap createFastBlurredBitmap(Bitmap src) {
         if (src == null || src.isRecycled()) return null;
         try {
-            int tw = Math.max(24, src.getWidth() / 12);
-            int th = Math.max(24, src.getHeight() / 12);
+            int tw = Math.max(20, src.getWidth() / 16);
+            int th = Math.max(20, src.getHeight() / 16);
             Bitmap small = Bitmap.createScaledBitmap(src, tw, th, true);
             Bitmap out = small.copy(Bitmap.Config.ARGB_8888, true);
             if (small != src) small.recycle();
@@ -310,7 +310,7 @@ public final class SBrowserXHooks {
             int[] tmp = new int[w * h];
             out.getPixels(pix, 0, w, 0, 0, w, h);
             // 2-pass 5x5 box blur on 1/12th scale gives silky ~60px frosted-glass blur in <3ms
-            for (int pass = 0; pass < 2; pass++) {
+            for (int pass = 0; pass < 3; pass++) {
                 for (int y = 0; y < h; y++) {
                     int row = y * w;
                     for (int x = 0; x < w; x++) {
@@ -436,7 +436,7 @@ public final class SBrowserXHooks {
             return 0x00000000;
         }
         int rgb = normalizeGlassBaseRgb(0xFF000000);
-        int navAlpha = clampByte(Math.round(getGlassBaseAlpha() * 0.88f));
+        int navAlpha = clampByte(Math.round(getGlassBaseAlpha() * 1.04f));
         return withAlpha(rgb, navAlpha);
     }
 
@@ -497,7 +497,7 @@ public final class SBrowserXHooks {
                         View navView = decor.findViewById(navId);
                         if (navView != null) {
                             if (blurred != null && !blurred.isRecycled()) {
-                                navView.setBackground(new WindowSliceWallpaperDrawable(blurred, Math.min(dim, 15), navColor, true, fullW, fullH));
+                                navView.setBackground(new WindowSliceWallpaperDrawable(blurred, 0, navColor, true, fullW, fullH));
                             } else {
                                 navView.setBackgroundColor(navColor);
                             }
