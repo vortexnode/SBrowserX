@@ -320,9 +320,9 @@ public final class SBrowserXExtensionsActivity extends Activity {
     private static void disableHiddenSystemExtQuietly(String id) {
         if (id == null || id.isEmpty()) return;
         try {
-            Class<?> mgrCls = Class.forName("com.sec.terrace.browser.extensions.TerraceExtensionsManager");
-            Object mgr = mgrCls.getMethod("getInstance").invoke(null);
-            mgrCls.getMethod("setExtensionEnabled", String.class, boolean.class).invoke(mgr, id, false);
+            Class<?> loader = Class.forName("com.sec.terrace.browser.extensions.TerraceExtensionsLoader");
+            Object inst = loader.getMethod("getInstance").invoke(null);
+            loader.getMethod("changeExtensionStatus", String.class, boolean.class).invoke(inst, id, false);
         } catch (Throwable ignored) {}
     }
 
@@ -411,7 +411,14 @@ public final class SBrowserXExtensionsActivity extends Activity {
             }
         } catch (Throwable ignored) {}
 
-        List<ExtItem> out = new ArrayList<>(byId.values());
+        List<ExtItem> out = new ArrayList<>();
+        for (ExtItem it : byId.values()) {
+            if (isHiddenSystemExt(it.id, it.name)) {
+                if (it.enabled) disableHiddenSystemExtQuietly(it.id);
+                continue;
+            }
+            out.add(it);
+        }
         Collections.sort(out, (a, b) -> a.name.compareToIgnoreCase(b.name));
         return out;
     }

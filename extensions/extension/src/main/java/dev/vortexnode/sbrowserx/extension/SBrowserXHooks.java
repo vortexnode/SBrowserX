@@ -435,7 +435,11 @@ public final class SBrowserXHooks {
     }
 
     public static Bitmap createGlassGradientBitmapOrNull(int baseColor, int width, int height, boolean fadeToBottom) {
-        if (!isBottomBarBlurEnabled() || width <= 0 || height <= 0) return null;
+        if (width <= 0 || height <= 0) return null;
+        if (isCompactLayoutActive()) {
+            return Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
+        }
+        if (!isBottomBarBlurEnabled()) return null;
         try {
             int rgb = normalizeGlassBaseRgb(baseColor);
             int baseAlpha = getGlassBaseAlpha();
@@ -997,7 +1001,7 @@ public final class SBrowserXHooks {
             + "if(window.__sbxReflowInit)return;window.__sbxReflowInit=1;"
             + "var reflowed=[];var active=false;var touchCount=0;var tm=null;"
             + "var reset=function(){"
-            + "for(var i=0;i<reflowed.length;i++){try{reflowed[i].style.maxWidth='';reflowed[i].style.boxSizing='';}catch(e){}}"
+            + "for(var i=0;i<reflowed.length;i++){try{var s=reflowed[i].style;s.maxWidth='';s.boxSizing='';s.tableLayout='';s.wordBreak='';}catch(e){}}"
             + "reflowed=[];active=false;"
             + "};"
             + "var applyReflow=function(){"
@@ -1005,18 +1009,23 @@ public final class SBrowserXHooks {
             + "var vv=window.visualViewport;if(!vv)return;"
             + "if(vv.scale<=1.06){if(active)reset();return;}"
             + "var targetW=Math.max(180,Math.floor(vv.width-16));"
-            + "var els=document.querySelectorAll('p,li,dd,dt,blockquote,td,article,section,div');"
-            + "var lim=Math.min(els.length,900);"
+            + "var els=document.querySelectorAll('p,li,dd,dt,blockquote,table,td,th,article,section,div');"
+            + "var lim=Math.min(els.length,1000);"
             + "for(var i=0;i<lim;i++){"
-            + "var el=els[i];"
-            + "if(el.tagName==='DIV'){"
+            + "var el=els[i];var tn=el.tagName;"
+            + "if(tn==='DIV'){"
             + "var hasTxt=false;for(var c=0;c<el.childNodes.length;c++){if(el.childNodes[c].nodeType===3&&el.childNodes[c].nodeValue.trim().length>24){hasTxt=true;break;}}"
             + "if(!hasTxt)continue;"
             + "}"
             + "var r=el.getBoundingClientRect();"
-            + "if(r.width>targetW+12){"
-            + "el.style.maxWidth=targetW+'px';"
-            + "el.style.boxSizing='border-box';"
+            + "if(tn==='TABLE'&&r.width>targetW+8){"
+            + "el.style.maxWidth=targetW+'px';el.style.tableLayout='fixed';el.style.boxSizing='border-box';"
+            + "if(reflowed.indexOf(el)<0)reflowed.push(el);"
+            + "}else if((tn==='TD'||tn==='TH')&&r.width>targetW/2){"
+            + "el.style.wordBreak='break-word';el.style.boxSizing='border-box';"
+            + "if(reflowed.indexOf(el)<0)reflowed.push(el);"
+            + "}else if(r.width>targetW+12){"
+            + "el.style.maxWidth=targetW+'px';el.style.boxSizing='border-box';"
             + "if(reflowed.indexOf(el)<0)reflowed.push(el);"
             + "}"
             + "}"
