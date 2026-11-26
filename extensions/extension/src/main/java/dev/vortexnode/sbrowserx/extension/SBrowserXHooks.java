@@ -403,17 +403,22 @@ public final class SBrowserXHooks {
         return forMultiTab && isCompactLayoutActive();
     }
 
-    private static volatile boolean sTerraceRememberPasswordsSynced = false;
+    private static volatile boolean sTerracePersonalDataSyncSynced = false;
 
     public static void ensureTerraceAutofillEnabled(Context ctx) {
         if (!hasActiveSystemAutofillService(ctx)) return;
-        if (sTerraceRememberPasswordsSynced) return;
+        if (sTerracePersonalDataSyncSynced) return;
         try {
             Class<?> bridge = Class.forName("com.sec.terrace.browser.prefs.TerracePrefServiceBridge");
-            Method setRemember = bridge.getMethod("setRememberPasswordsEnabled", boolean.class);
-            setRemember.invoke(null, true);
-            sTerraceRememberPasswordsSynced = true;
+            Method setSyncFlag = bridge.getMethod("setPersonalDataSyncSetFlag", boolean.class);
+            setSyncFlag.invoke(null, true);
+            sTerracePersonalDataSyncSynced = true;
         } catch (Throwable ignored) {}
+    }
+
+    public static boolean adjustPersonalDataSyncSetFlag(boolean stockValue) {
+        if (stockValue) return true;
+        return hasActiveSystemAutofillService(null);
     }
 
     public static boolean shouldSuppressSamsungPasswordUi(Context ctx) {

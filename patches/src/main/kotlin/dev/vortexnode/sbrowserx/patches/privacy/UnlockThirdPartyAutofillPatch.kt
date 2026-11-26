@@ -17,6 +17,10 @@ private const val TIN_CONTENT_VIEW_WITH_AUTOFILL_CLASS =
     "Lcom/sec/terrace/content/browser/TinContentViewWithAutofill;"
 private const val TERRACE_CLASS =
     "Lcom/sec/terrace/Terrace;"
+private const val TERRACE_PREF_SERVICE_BRIDGE_CLASS =
+    "Lcom/sec/terrace/browser/prefs/TerracePrefServiceBridge;"
+private const val DEBUG_SETTINGS_CLASS =
+    "Lcom/sec/android/app/sbrowser/common/device/DebugSettings;"
 private const val SAVE_PASSWORD_INFOBAR_CLASS =
     "Lcom/sec/android/app/sbrowser/infobars/SavePasswordInfoBar;"
 private const val UPDATE_PASSWORD_INFOBAR_CLASS =
@@ -29,7 +33,7 @@ private const val AUTOFILL_POPUP_EXTENSION_CLASS =
 @Suppress("unused")
 val unlockThirdPartyAutofillPatch = bytecodePatch(
     name = "Third-Party Autofill Support",
-    description = "Allows password managers such as Bitwarden to detect login and password fields and autofill directly in the browser.",
+    description = "Enables native Android Autofill (Bitwarden, Gboard inline suggestions), removes Samsung Pass prompts, and unlocks local credit cards without Knox.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)
@@ -95,8 +99,9 @@ val unlockThirdPartyAutofillPatch = bytecodePatch(
             check(patched) { "Failed to patch getPersonalDataSyncSetFlag in $methodName" }
         }
 
-        // Ensure native libterrace.so credentials_enable_service pref is enabled when a system Android Autofill service
-        // is active, so PasswordManager allows AutofillProviderAndroid::OnAskForValuesToFillImpl to start sessions.
+        // Native libterrace.so gates AutofillProvider::OnAskForValuesToFill / startAutofillSession on the C++
+        // PrefService boolean "personal_data_sync_set" (default false). Sync it to true when a system Android
+        // Autofill service is active and prevent anything from resetting it to false.
         findMethodOrThrow(
             classType = TERRACE_CLASS,
             methodName = "initializeAutofillProviderIfNecessary",
@@ -107,6 +112,47 @@ val unlockThirdPartyAutofillPatch = bytecodePatch(
                 invoke-virtual {p0}, Lcom/sec/terrace/Terrace;->getContext()Landroid/content/Context;
                 move-result-object v0
                 invoke-static {v0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->ensureTerraceAutofillEnabled(Landroid/content/Context;)V
+            """.trimIndent(),
+        )
+
+        findMethodOrThrow(
+            classType = TERRACE_PREF_SERVICE_BRIDGE_CLASS,
+            methodName = "setPersonalDataSyncSetFlag",
+            parameterTypes = listOf("Z"),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->adjustPersonalDataSyncSetFlag(Z)Z
+                move-result p0
+            """.trimIndent(),
+        )
+
+        // Disable Samsung Pass UI/storage integration cleanly via Samsung's built-in switch,
+        // and bypass the broken Knox biometric gate on Credit/Debit Cards so local cards work.
+        findMethodOrThrow(
+            classType = DEBUG_SETTINGS_CLASS,
+            methodName = "isSamsungPassDisabled",
+            parameterTypes = emptyList(),
+            returnType = "Z",
+        ).addInstructions(
+            0,
+            """
+                const/4 p0, 0x1
+                return p0
+            """.trimIndent(),
+        )
+
+        findMethodOrThrow(
+            classType = DEBUG_SETTINGS_CLASS,
+            methodName = "isCreditCardAuthenticationDisabled",
+            parameterTypes = emptyList(),
+            returnType = "Z",
+        ).addInstructions(
+            0,
+            """
+                const/4 v0, 0x1
+                return v0
             """.trimIndent(),
         )
 
