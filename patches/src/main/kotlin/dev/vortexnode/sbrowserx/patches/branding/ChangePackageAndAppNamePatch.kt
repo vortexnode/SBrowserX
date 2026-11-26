@@ -92,6 +92,19 @@ internal val changePackageAndAppNameResourcePatch = resourcePatch(
             application.setAttributeNS(ANDROID_NS, "android:label", newAppName)
             rewriteAppLabels(application, newAppName)
         }
+
+        // Apply custom SBrowserX launcher icon ("X" badge) across all densities + monochrome theme
+        val iconClassLoader = SBrowserPackageRenameTarget::class.java.classLoader
+        for (density in listOf("mdpi", "xhdpi", "xxhdpi")) {
+            for (fileName in listOf("internet_foreground.webp", "internet_color_theme.webp")) {
+                val targetFile = get("res/drawable-$density/$fileName")
+                if (targetFile.exists()) {
+                    iconClassLoader.getResourceAsStream("sbrowserx/icon/drawable-$density/$fileName")?.use { input ->
+                        targetFile.outputStream().use { output -> input.copyTo(output) }
+                    }
+                }
+            }
+        }
     }
 }
 
