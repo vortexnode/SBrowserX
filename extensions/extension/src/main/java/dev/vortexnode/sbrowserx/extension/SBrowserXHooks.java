@@ -145,8 +145,13 @@ public final class SBrowserXHooks {
 
     public static int adjustApi35NavBarColor(android.view.Window window, int stockColor) {
         try {
-            if (window != null && android.os.Build.VERSION.SDK_INT >= 29) {
-                window.setNavigationBarContrastEnforced(false);
+            if (window != null) {
+                if (android.os.Build.VERSION.SDK_INT >= 28) {
+                    window.setNavigationBarDividerColor(0x00000000);
+                }
+                if (android.os.Build.VERSION.SDK_INT >= 29) {
+                    window.setNavigationBarContrastEnforced(false);
+                }
             }
             Context ctx = window != null ? window.getContext() : SBrowserXPrefs.getAppContext();
             if (isCompactLayoutActive()) {
@@ -217,6 +222,9 @@ public final class SBrowserXHooks {
     public static void clearSystemBarFadeWindow(android.view.Window win) {
         if (win == null) return;
         try {
+            if (android.os.Build.VERSION.SDK_INT >= 28) {
+                win.setNavigationBarDividerColor(0x00000000);
+            }
             if (android.os.Build.VERSION.SDK_INT >= 29) {
                 win.setNavigationBarContrastEnforced(false);
                 win.setStatusBarContrastEnforced(false);
@@ -227,8 +235,6 @@ public final class SBrowserXHooks {
             String pkg = ctx != null ? ctx.getPackageName() : null;
             if (pkg == null) return;
             for (String idName : new String[] {
-                    "navigation_bar_background",
-                    "status_bar_background",
                     "navigation_bar_background_for_multi_tab",
                     "status_bar_background_for_multi_tab"
             }) {
@@ -262,6 +268,19 @@ public final class SBrowserXHooks {
                 win.setNavigationBarColor(barColor);
                 win.setStatusBarColor(barColor);
                 clearSystemBarFadeWindow(win);
+                View decor = win.getDecorView();
+                String pkg = activity.getPackageName();
+                if (decor != null && pkg != null) {
+                    for (String idName : new String[] { "navigation_bar_background", "status_bar_background" }) {
+                        int id = activity.getResources().getIdentifier(idName, "id", pkg);
+                        if (id != 0) {
+                            View barView = decor.findViewById(id);
+                            if (barView != null) {
+                                barView.setBackgroundColor(barColor);
+                            }
+                        }
+                    }
+                }
             }
             View decorObj = win.getDecorView();
             if (decorObj instanceof android.view.ViewGroup) {
