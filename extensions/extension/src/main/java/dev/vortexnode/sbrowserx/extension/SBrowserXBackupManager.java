@@ -177,7 +177,13 @@ public final class SBrowserXBackupManager {
                         long last = SBrowserXPrefs.getLocalBackupLastTs(appCtx);
                         long intervalMs = intervalToMillis(SBrowserXPrefs.getLocalAutoBackupInterval(appCtx));
                         if (now - last >= intervalMs) {
-                            if (writeBackupToTreeUri(appCtx, Uri.parse(uriStr), suggestedFileName())) {
+                            Uri tree = Uri.parse(uriStr);
+                            boolean ok = writeBackupToTreeUri(appCtx, tree, suggestedFileName());
+                            if (SBrowserXPrefs.isLocalAutoBackupBookmarksEnabled(appCtx)) {
+                                SBrowserXBookmarkBackup.writeBookmarksToTreeUri(
+                                        appCtx, tree, SBrowserXBookmarkBackup.suggestedHtmlFileName());
+                            }
+                            if (ok) {
                                 SBrowserXPrefs.setLocalBackupLastTs(appCtx, now);
                             }
                         }
@@ -190,7 +196,13 @@ public final class SBrowserXBackupManager {
                         long last = SBrowserXPrefs.getDriveBackupLastTs(appCtx);
                         long intervalMs = intervalToMillis(SBrowserXPrefs.getDriveAutoBackupInterval(appCtx));
                         if (now - last >= intervalMs) {
-                            if (writeBackupToTreeUri(appCtx, Uri.parse(uriStr), suggestedFileName())) {
+                            Uri tree = Uri.parse(uriStr);
+                            boolean ok = writeBackupToTreeUri(appCtx, tree, suggestedFileName());
+                            if (SBrowserXPrefs.isDriveAutoBackupBookmarksEnabled(appCtx)) {
+                                SBrowserXBookmarkBackup.writeBookmarksToTreeUri(
+                                        appCtx, tree, SBrowserXBookmarkBackup.suggestedHtmlFileName());
+                            }
+                            if (ok) {
                                 SBrowserXPrefs.setDriveBackupLastTs(appCtx, now);
                             }
                         }

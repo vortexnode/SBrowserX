@@ -181,6 +181,11 @@ public final class SBrowserXSettingsActivity extends Activity {
         // --- Appearance & UI ---
         root.addView(sectionHeader(SBrowserXStrings.get(SBrowserXStrings.CAT_APPEARANCE), textSecondary));
         LinearLayout appearanceCard = card(cardColor);
+        addActionRow(appearanceCard, SBrowserXStrings.get(SBrowserXStrings.SP_TITLE),
+                SBrowserXStrings.get(SBrowserXStrings.SP_SUMMARY),
+                textPrimary, textSecondary, null,
+                v -> startActivity(new Intent(this, SBrowserXStartPageSettingsActivity.class)));
+        appearanceCard.addView(divider(night));
         amoledDot = createTealDot();
         addSwitchRow(appearanceCard, SBrowserXStrings.get(SBrowserXStrings.AMOLED_TITLE),
                 SBrowserXStrings.get(SBrowserXStrings.AMOLED_SUMMARY),

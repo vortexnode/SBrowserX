@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-11-26T21:18:00",
-  "description": "SBrowserX v1.2.20: фирменная иконка приложения SBrowserX с аккуратным бейджем X (включая поддержку тематических значков One UI), обновлённая иконка Morphe Manager и полное оформление GitHub (EN/RU, 13 скриншотов).",
-  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v1.2.20/patches-1.2.20.mpp",
+  "created_at": "2026-11-26T23:25:00",
+  "description": "SBrowserX v1.3.0 — Custom Start Page & Universal Bookmarks Export/Import:\n• New SBrowserX Start Page (in Settings → Homepage & Settings → SBrowserX): completely empty minimal canvas when no shortcuts are added, custom shortcuts with auto-favicons, 3 wallpaper sources (Pure AMOLED Black, Phone Gallery photo, Bing Daily HD online wallpapers with daily auto-change toggle + dimming slider), and optional Open-Meteo weather widget (OFF by default, free, no API key).\n• Standalone Bookmarks Export & Import (Local + Google Drive + Auto-Backup): export bookmarks & folders to universal Netscape HTML (Chrome, Firefox, Edge, Brave, Opera, Vivaldi, Safari), auto-detect HTML/JSON/TXT on import without duplicates, exclude Secret Mode bookmarks, and toggle bookmarks in scheduled auto-backup.\n\nRU: Новая чистая стартовая страница SBrowserX (пустой экран без ярлыков, свои ярлыки, обои AMOLED / с телефона / онлайн-обои дня с автосменой, отключаемая погода Open-Meteo по умолчанию выключена) + отдельный экспорт/импорт закладок (Локально, Google Диск и Автобэкап) в универсальном HTML/JSON без дублей.",
+  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v1.3.0/patches-1.3.0.mpp",
   "signature_download_url": "",
-  "version": "v1.2.20"
+  "version": "v1.3.0"
 }

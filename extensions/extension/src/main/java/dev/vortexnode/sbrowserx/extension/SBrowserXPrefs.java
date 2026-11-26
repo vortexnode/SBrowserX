@@ -31,6 +31,19 @@ public final class SBrowserXPrefs {
     public static final String KEY_BACKUP_DRIVE_INTERVAL = "backup_drive_interval";
     public static final String KEY_BACKUP_DRIVE_TREE = "backup_drive_tree_uri";
     public static final String KEY_BACKUP_DRIVE_TS = "backup_last_ts_drive";
+    public static final String KEY_BACKUP_LOCAL_INCLUDE_BOOKMARKS = "backup_local_include_bookmarks";
+    public static final String KEY_BACKUP_DRIVE_INCLUDE_BOOKMARKS = "backup_drive_include_bookmarks";
+    public static final String KEY_SP_ENABLED = "start_page_enabled";
+    public static final String KEY_SP_WP_MODE = "start_page_wp_mode";
+    public static final String KEY_SP_WP_DIM = "start_page_wp_dim";
+    public static final String KEY_SP_WP_DAILY = "start_page_wp_daily";
+    public static final String KEY_SP_WP_DATE = "start_page_wp_date";
+    public static final String KEY_SP_WP_IDX = "start_page_wp_idx";
+    public static final String KEY_SP_WP_VER = "start_page_wp_ver";
+    public static final String KEY_SP_WX_ENABLED = "start_page_wx_enabled";
+    public static final String KEY_SP_WX_CITY = "start_page_wx_city";
+    public static final String KEY_SP_WX_UNIT = "start_page_wx_unit";
+    public static final String KEY_SP_SHORTCUTS = "start_page_shortcuts_json";
     public static final String KEY_AMOLED_BLACK = "amoled_black_enabled";
     public static final String KEY_FORCE_ADAPTIVE_DARK = "force_adaptive_dark_enabled";
     public static final String KEY_DARK_BRIGHT_IMAGES = "dark_bright_images_enabled";
@@ -307,6 +320,112 @@ public final class SBrowserXPrefs {
 
     public static void setDriveBackupLastTs(Context context, long ts) {
         prefs(context).edit().putLong(KEY_BACKUP_DRIVE_TS, ts).apply();
+    }
+
+    public static boolean isLocalAutoBackupBookmarksEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_BACKUP_LOCAL_INCLUDE_BOOKMARKS, true);
+    }
+
+    public static void setLocalAutoBackupBookmarksEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_BACKUP_LOCAL_INCLUDE_BOOKMARKS, enabled).apply();
+    }
+
+    public static boolean isDriveAutoBackupBookmarksEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_BACKUP_DRIVE_INCLUDE_BOOKMARKS, true);
+    }
+
+    public static void setDriveAutoBackupBookmarksEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_BACKUP_DRIVE_INCLUDE_BOOKMARKS, enabled).apply();
+    }
+
+    public static boolean isStartPageEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_SP_ENABLED, false);
+    }
+
+    public static void setStartPageEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_SP_ENABLED, enabled).apply();
+    }
+
+    public static String getStartPageWallpaperMode(Context context) {
+        return prefs(context).getString(KEY_SP_WP_MODE, SBrowserXStartPageServer.WALLPAPER_AMOLED);
+    }
+
+    public static void setStartPageWallpaperMode(Context context, String mode) {
+        prefs(context).edit().putString(KEY_SP_WP_MODE, mode != null ? mode : SBrowserXStartPageServer.WALLPAPER_AMOLED).apply();
+    }
+
+    public static int getStartPageWallpaperDim(Context context) {
+        return prefs(context).getInt(KEY_SP_WP_DIM, 30);
+    }
+
+    public static void setStartPageWallpaperDim(Context context, int dim) {
+        int clamped = Math.max(0, Math.min(80, dim));
+        prefs(context).edit().putInt(KEY_SP_WP_DIM, clamped).apply();
+    }
+
+    public static boolean isStartPageDailyWallpaperEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_SP_WP_DAILY, true);
+    }
+
+    public static void setStartPageDailyWallpaperEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_SP_WP_DAILY, enabled).apply();
+    }
+
+    public static String getStartPageOnlineWallpaperDate(Context context) {
+        return prefs(context).getString(KEY_SP_WP_DATE, "");
+    }
+
+    public static void setStartPageOnlineWallpaperDate(Context context, String date) {
+        prefs(context).edit().putString(KEY_SP_WP_DATE, date != null ? date : "").apply();
+    }
+
+    public static int getStartPageOnlineWallpaperIndex(Context context) {
+        return prefs(context).getInt(KEY_SP_WP_IDX, 0);
+    }
+
+    public static void setStartPageOnlineWallpaperIndex(Context context, int idx) {
+        prefs(context).edit().putInt(KEY_SP_WP_IDX, idx).apply();
+    }
+
+    public static int getStartPageWallpaperVersion(Context context) {
+        return prefs(context).getInt(KEY_SP_WP_VER, 1);
+    }
+
+    public static void bumpStartPageWallpaperVersion(Context context) {
+        int next = getStartPageWallpaperVersion(context) + 1;
+        prefs(context).edit().putInt(KEY_SP_WP_VER, next).apply();
+    }
+
+    public static boolean isStartPageWeatherEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_SP_WX_ENABLED, false);
+    }
+
+    public static void setStartPageWeatherEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_SP_WX_ENABLED, enabled).apply();
+    }
+
+    public static String getStartPageWeatherCity(Context context) {
+        return prefs(context).getString(KEY_SP_WX_CITY, "");
+    }
+
+    public static void setStartPageWeatherCity(Context context, String city) {
+        prefs(context).edit().putString(KEY_SP_WX_CITY, city != null ? city : "").apply();
+    }
+
+    public static String getStartPageWeatherUnit(Context context) {
+        return prefs(context).getString(KEY_SP_WX_UNIT, "C");
+    }
+
+    public static void setStartPageWeatherUnit(Context context, String unit) {
+        prefs(context).edit().putString(KEY_SP_WX_UNIT, "F".equalsIgnoreCase(unit) ? "F" : "C").apply();
+    }
+
+    public static String getStartPageShortcutsJson(Context context) {
+        return prefs(context).getString(KEY_SP_SHORTCUTS, "[]");
+    }
+
+    public static void setStartPageShortcutsJson(Context context, String json) {
+        prefs(context).edit().putString(KEY_SP_SHORTCUTS, json != null ? json : "[]").apply();
     }
 
     public static boolean isExternalDownloaderEnabled(Context context) {

@@ -19,6 +19,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import dev.vortexnode.sbrowserx.extension.SBrowserXBackupManager;
+import dev.vortexnode.sbrowserx.extension.SBrowserXBookmarkBackup;
 import dev.vortexnode.sbrowserx.extension.SBrowserXHooks;
 import dev.vortexnode.sbrowserx.extension.SBrowserXPrefs;
 import dev.vortexnode.sbrowserx.extension.SBrowserXStrings;
@@ -31,6 +32,10 @@ public final class SBrowserXBackupActivity extends Activity {
     private static final int REQ_DRIVE_EXPORT = 5104;
     private static final int REQ_DRIVE_IMPORT = 5105;
     private static final int REQ_DRIVE_TREE = 5106;
+    private static final int REQ_LOCAL_BM_EXPORT = 5107;
+    private static final int REQ_LOCAL_BM_IMPORT = 5108;
+    private static final int REQ_DRIVE_BM_EXPORT = 5109;
+    private static final int REQ_DRIVE_BM_IMPORT = 5110;
 
     private TextView localFolderSummary;
     private TextView localIntervalSummary;
@@ -40,6 +45,8 @@ public final class SBrowserXBackupActivity extends Activity {
     private TextView driveLastSummary;
     private LinearLayout localIntervalRow;
     private LinearLayout driveIntervalRow;
+    private LinearLayout localAutoBmRow;
+    private LinearLayout driveAutoBmRow;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -81,6 +88,14 @@ public final class SBrowserXBackupActivity extends Activity {
                 SBrowserXStrings.get(SBrowserXStrings.BACKUP_IMPORT_LOCAL_SUM),
                 textPrimary, textSecondary, v -> launchImport(REQ_LOCAL_IMPORT, false));
         localCard.addView(divider(night));
+        addRow(localCard, SBrowserXStrings.get(SBrowserXStrings.BACKUP_BM_EXPORT_LOCAL),
+                SBrowserXStrings.get(SBrowserXStrings.BACKUP_BM_EXPORT_LOCAL_SUM),
+                textPrimary, textSecondary, v -> launchBookmarksExport(REQ_LOCAL_BM_EXPORT, false));
+        localCard.addView(divider(night));
+        addRow(localCard, SBrowserXStrings.get(SBrowserXStrings.BACKUP_BM_IMPORT_LOCAL),
+                SBrowserXStrings.get(SBrowserXStrings.BACKUP_BM_IMPORT_LOCAL_SUM),
+                textPrimary, textSecondary, v -> launchImport(REQ_LOCAL_BM_IMPORT, false));
+        localCard.addView(divider(night));
         localFolderSummary = addRow(localCard, SBrowserXStrings.get(SBrowserXStrings.BACKUP_FOLDER_TITLE),
                 folderLabel(SBrowserXPrefs.getLocalBackupTreeUri(this)),
                 textPrimary, textSecondary, v -> launchFolderPicker(REQ_LOCAL_TREE, false));
@@ -103,6 +118,14 @@ public final class SBrowserXBackupActivity extends Activity {
                 textPrimary, textSecondary, v -> showIntervalDialog(true, night));
         localCard.addView(localIntervalRow);
         localCard.addView(divider(night));
+        localAutoBmRow = new LinearLayout(this);
+        localAutoBmRow.setOrientation(LinearLayout.VERTICAL);
+        addSwitchRow(localAutoBmRow, SBrowserXStrings.get(SBrowserXStrings.BACKUP_BM_AUTO_TITLE),
+                SBrowserXStrings.get(SBrowserXStrings.BACKUP_BM_AUTO_SUM),
+                SBrowserXPrefs.isLocalAutoBackupBookmarksEnabled(this), night, textPrimary, textSecondary,
+                (btn, checked) -> SBrowserXPrefs.setLocalAutoBackupBookmarksEnabled(this, checked));
+        localCard.addView(localAutoBmRow);
+        localCard.addView(divider(night));
         localLastSummary = addRow(localCard, SBrowserXStrings.get(SBrowserXStrings.BACKUP_LAST_TITLE),
                 SBrowserXBackupManager.formatTimestamp(
                         SBrowserXPrefs.getLocalBackupLastTs(this), SBrowserXStrings.get(SBrowserXStrings.BACKUP_NEVER)),
@@ -119,6 +142,14 @@ public final class SBrowserXBackupActivity extends Activity {
         addRow(driveCard, SBrowserXStrings.get(SBrowserXStrings.BACKUP_IMPORT_DRIVE),
                 SBrowserXStrings.get(SBrowserXStrings.BACKUP_IMPORT_DRIVE_SUM),
                 textPrimary, textSecondary, v -> launchImport(REQ_DRIVE_IMPORT, true));
+        driveCard.addView(divider(night));
+        addRow(driveCard, SBrowserXStrings.get(SBrowserXStrings.BACKUP_BM_EXPORT_DRIVE),
+                SBrowserXStrings.get(SBrowserXStrings.BACKUP_BM_EXPORT_DRIVE_SUM),
+                textPrimary, textSecondary, v -> launchGoogleDriveBookmarksExport());
+        driveCard.addView(divider(night));
+        addRow(driveCard, SBrowserXStrings.get(SBrowserXStrings.BACKUP_BM_IMPORT_DRIVE),
+                SBrowserXStrings.get(SBrowserXStrings.BACKUP_BM_IMPORT_DRIVE_SUM),
+                textPrimary, textSecondary, v -> launchImport(REQ_DRIVE_BM_IMPORT, true));
         driveCard.addView(divider(night));
         driveFolderSummary = addRow(driveCard, SBrowserXStrings.get(SBrowserXStrings.BACKUP_DRIVE_FOLDER_TITLE),
                 folderLabel(SBrowserXPrefs.getDriveBackupTreeUri(this)),
@@ -142,6 +173,14 @@ public final class SBrowserXBackupActivity extends Activity {
                 textPrimary, textSecondary, v -> showIntervalDialog(false, night));
         driveCard.addView(driveIntervalRow);
         driveCard.addView(divider(night));
+        driveAutoBmRow = new LinearLayout(this);
+        driveAutoBmRow.setOrientation(LinearLayout.VERTICAL);
+        addSwitchRow(driveAutoBmRow, SBrowserXStrings.get(SBrowserXStrings.BACKUP_BM_AUTO_TITLE),
+                SBrowserXStrings.get(SBrowserXStrings.BACKUP_BM_AUTO_SUM),
+                SBrowserXPrefs.isDriveAutoBackupBookmarksEnabled(this), night, textPrimary, textSecondary,
+                (btn, checked) -> SBrowserXPrefs.setDriveAutoBackupBookmarksEnabled(this, checked));
+        driveCard.addView(driveAutoBmRow);
+        driveCard.addView(divider(night));
         driveLastSummary = addRow(driveCard, SBrowserXStrings.get(SBrowserXStrings.BACKUP_LAST_TITLE),
                 SBrowserXBackupManager.formatTimestamp(
                         SBrowserXPrefs.getDriveBackupLastTs(this), SBrowserXStrings.get(SBrowserXStrings.BACKUP_NEVER)),
@@ -159,10 +198,18 @@ public final class SBrowserXBackupActivity extends Activity {
             localIntervalRow.setEnabled(localOn);
             localIntervalRow.setAlpha(localOn ? 1.0f : 0.45f);
         }
+        if (localAutoBmRow != null) {
+            localAutoBmRow.setEnabled(localOn);
+            localAutoBmRow.setAlpha(localOn ? 1.0f : 0.45f);
+        }
         boolean driveOn = SBrowserXPrefs.isDriveAutoBackupEnabled(this);
         if (driveIntervalRow != null) {
             driveIntervalRow.setEnabled(driveOn);
             driveIntervalRow.setAlpha(driveOn ? 1.0f : 0.45f);
+        }
+        if (driveAutoBmRow != null) {
+            driveAutoBmRow.setEnabled(driveOn);
+            driveAutoBmRow.setAlpha(driveOn ? 1.0f : 0.45f);
         }
         if (localFolderSummary != null) {
             localFolderSummary.setText(folderLabel(SBrowserXPrefs.getLocalBackupTreeUri(this)));
@@ -219,6 +266,56 @@ public final class SBrowserXBackupActivity extends Activity {
         } catch (Throwable ignored) {}
         // 2. Fallback: SAF pointing directly to Google Drive provider
         launchExport(REQ_DRIVE_EXPORT, true);
+    }
+
+    private void launchGoogleDriveBookmarksExport() {
+        new Thread(() -> {
+            try {
+                SBrowserXBookmarkBackup.ExportResult res = SBrowserXBookmarkBackup.exportBookmarksToHtml(this);
+                java.io.File dir = new java.io.File(getFilesDir(), "Download");
+                if (!dir.exists()) dir.mkdirs();
+                java.io.File outFile = new java.io.File(dir, SBrowserXBookmarkBackup.suggestedHtmlFileName());
+                try (java.io.FileOutputStream fos = new java.io.FileOutputStream(outFile)) {
+                    fos.write(res.html.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    fos.flush();
+                }
+                Class<?> fpCls = Class.forName("androidx.core.content.FileProvider");
+                Uri contentUri = (Uri) fpCls.getMethod("getUriForFile", android.content.Context.class, String.class, java.io.File.class)
+                        .invoke(null, this, getPackageName() + ".FileProvider", outFile);
+                Intent send = new Intent(Intent.ACTION_SEND);
+                send.setType("text/html");
+                send.putExtra(Intent.EXTRA_STREAM, contentUri);
+                send.putExtra(Intent.EXTRA_SUBJECT, outFile.getName());
+                send.setPackage("com.google.android.apps.docs");
+                send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                if (send.resolveActivity(getPackageManager()) != null) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(this,
+                                SBrowserXStrings.get(SBrowserXStrings.BACKUP_BM_EXPORT_OK)
+                                        + " (" + res.bookmarkCount + ")",
+                                Toast.LENGTH_SHORT).show();
+                        startActivity(send);
+                    });
+                    return;
+                }
+            } catch (Throwable ignored) {}
+            runOnUiThread(() -> launchBookmarksExport(REQ_DRIVE_BM_EXPORT, true));
+        }, "SBrowserX-BmDriveExport").start();
+    }
+
+    private void launchBookmarksExport(int reqCode, boolean preferGoogleDrive) {
+        Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        i.addCategory(Intent.CATEGORY_OPENABLE);
+        i.setType("text/html");
+        i.putExtra(Intent.EXTRA_TITLE, SBrowserXBookmarkBackup.suggestedHtmlFileName());
+        if (preferGoogleDrive && android.os.Build.VERSION.SDK_INT >= 26) {
+            i.putExtra(android.provider.DocumentsContract.EXTRA_INITIAL_URI, GOOGLE_DRIVE_INITIAL_URI);
+        }
+        try {
+            startActivityForResult(i, reqCode);
+        } catch (Throwable t) {
+            Toast.makeText(this, "SAF unavailable: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void launchExport(int reqCode) {
@@ -346,6 +443,35 @@ public final class SBrowserXBackupActivity extends Activity {
             if (requestCode == REQ_LOCAL_TREE) SBrowserXPrefs.setLocalBackupTreeUri(this, uri.toString());
             else SBrowserXPrefs.setDriveBackupTreeUri(this, uri.toString());
             refreshState();
+        } else if (requestCode == REQ_LOCAL_BM_EXPORT || requestCode == REQ_DRIVE_BM_EXPORT) {
+            new Thread(() -> {
+                try {
+                    SBrowserXBookmarkBackup.ExportResult res = SBrowserXBookmarkBackup.writeBookmarksToUri(this, uri);
+                    runOnUiThread(() -> Toast.makeText(this,
+                            SBrowserXStrings.get(SBrowserXStrings.BACKUP_BM_EXPORT_OK)
+                                    + " (" + res.bookmarkCount + ")",
+                            Toast.LENGTH_SHORT).show());
+                } catch (Throwable t) {
+                    runOnUiThread(() -> Toast.makeText(this,
+                            SBrowserXStrings.get(SBrowserXStrings.BACKUP_ERR) + ": " + t.getMessage(),
+                            Toast.LENGTH_LONG).show());
+                }
+            }, "SBrowserX-BmExport").start();
+        } else if (requestCode == REQ_LOCAL_BM_IMPORT || requestCode == REQ_DRIVE_BM_IMPORT) {
+            new Thread(() -> {
+                try {
+                    SBrowserXBookmarkBackup.ImportResult res = SBrowserXBookmarkBackup.readBookmarksFromUri(this, uri);
+                    String msg = SBrowserXStrings.get(SBrowserXStrings.BACKUP_BM_IMPORT_OK)
+                            + ": +" + res.addedBookmarks
+                            + (res.addedFolders > 0 ? " / " + res.addedFolders + " dir" : "")
+                            + (res.skippedDuplicates > 0 ? " (skip: " + res.skippedDuplicates + ")" : "");
+                    runOnUiThread(() -> Toast.makeText(this, msg, Toast.LENGTH_LONG).show());
+                } catch (Throwable t) {
+                    runOnUiThread(() -> Toast.makeText(this,
+                            SBrowserXStrings.get(SBrowserXStrings.BACKUP_ERR) + ": " + t.getMessage(),
+                            Toast.LENGTH_LONG).show());
+                }
+            }, "SBrowserX-BmImport").start();
         }
     }
 

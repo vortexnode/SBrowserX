@@ -41,6 +41,8 @@ private const val BROWSING_ASSIST_ACTIVITY_CLASS =
     "dev.vortexnode.sbrowserx.extension.settings.SBrowserXBrowsingAssistActivity"
 private const val AI_SUMMARY_ACTIVITY_CLASS =
     "dev.vortexnode.sbrowserx.extension.settings.SBrowserXAiSummaryActivity"
+private const val START_PAGE_ACTIVITY_CLASS =
+    "dev.vortexnode.sbrowserx.extension.settings.SBrowserXStartPageSettingsActivity"
 private const val APP_MENU_HANDLER_CLASS =
     "Lcom/sec/android/app/sbrowser/main_view/menu/AppMenuHandler;"
 private const val PRIVACY_PREF_FRAGMENT_CLASS =
@@ -113,6 +115,7 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
             ensureActivity(manifest, application, BACKUP_ACTIVITY_CLASS, "@android:style/Theme.DeviceDefault.NoActionBar")
             ensureActivity(manifest, application, BROWSING_ASSIST_ACTIVITY_CLASS, "@android:style/Theme.DeviceDefault.NoActionBar")
             ensureActivity(manifest, application, AI_SUMMARY_ACTIVITY_CLASS, "@android:style/Theme.Translucent.NoTitleBar")
+            ensureActivity(manifest, application, START_PAGE_ACTIVITY_CLASS, "@android:style/Theme.DeviceDefault.NoActionBar")
         }
 
         // 1. Main Settings: Standalone SBrowserX card -> Sync & Backup + Browsing Assist card -> Extensions inside Privacy card
@@ -452,5 +455,16 @@ val sbrowserXCorePatch = bytecodePatch(
             parameterTypes = emptyList(),
             returnType = "V",
         ).addInstruction(0, "return-void")
+
+        // Inject "SBrowserX Start Page" option inside native Settings -> Homepage screen
+        findMethodOrThrow(
+            classType = "Lcom/sec/android/app/sbrowser/settings/homepage/HomePagePreferenceFragment;",
+            methodName = "onResume",
+            parameterTypes = emptyList(),
+            returnType = "V",
+        ).addInstruction(
+            0,
+            "invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->injectStartPageIntoHomepageSettings(Ljava/lang/Object;)V",
+        )
     }
 }

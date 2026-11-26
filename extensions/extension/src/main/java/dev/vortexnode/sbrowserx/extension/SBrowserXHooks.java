@@ -118,6 +118,7 @@ public final class SBrowserXHooks {
             SBrowserXRestartManager.init(app);
             SBrowserXWebRtcManager.applyToProfile(app);
             SBrowserXBackupManager.runAutoBackupIfDue(app);
+            SBrowserXStartPageServer.ensureStarted(app);
         } catch (Throwable t) {
             Log.e(TAG, "onApplicationCreate failed", t);
         }
@@ -2653,6 +2654,54 @@ public final class SBrowserXHooks {
             } catch (Throwable ignored) {}
         }
         return code;
+    }
+
+    public static void applyStartPageHomepageSetting(Context ctx, boolean enable) {
+        if (ctx == null) return;
+        try {
+            SBrowserXStartPageServer.ensureStarted(ctx);
+            Class<?> hpsCls = Class.forName("com.sec.android.app.sbrowser.homepage.HomePageSettings");
+            Object inst = hpsCls.getMethod("getInstance").invoke(null);
+            if (inst == null) return;
+            if (enable) {
+                hpsCls.getMethod("setHomePageType", String.class).invoke(inst, "other");
+                hpsCls.getMethod("setHomePage", String.class).invoke(inst, SBrowserXStartPageServer.getBaseUrl());
+            } else {
+                hpsCls.getMethod("setHomePageType", String.class).invoke(inst, "quickaccess");
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "applyStartPageHomepageSetting failed", t);
+        }
+    }
+
+    public static void injectStartPageIntoHomepageSettings(Object fragment) {
+        if (fragment == null) return;
+        try {
+            Method getScreen = fragment.getClass().getMethod("getPreferenceScreen");
+            Object screen = getScreen.invoke(fragment);
+            if (screen == null) return;
+            Method getCtx = fragment.getClass().getMethod("getContext");
+            Context ctx = (Context) getCtx.invoke(fragment);
+            if (ctx == null) return;
+
+            Method findPref = screen.getClass().getMethod("findPreference", CharSequence.class);
+            Object existing = findPref.invoke(screen, "sbrowserx_start_page_entry");
+            Class<?> prefCls = Class.forName("androidx.preference.Preference");
+            Object pref = existing;
+            if (pref == null) {
+                pref = prefCls.getConstructor(Context.class).newInstance(ctx);
+                prefCls.getMethod("setKey", String.class).invoke(pref, "sbrowserx_start_page_entry");
+                prefCls.getMethod("setOrder", int.class).invoke(pref, 999);
+                Intent intent = new Intent(ctx, dev.vortexnode.sbrowserx.extension.settings.SBrowserXStartPageSettingsActivity.class);
+                prefCls.getMethod("setIntent", Intent.class).invoke(pref, intent);
+                screen.getClass().getMethod("addPreference", prefCls).invoke(screen, pref);
+            }
+            prefCls.getMethod("setTitle", CharSequence.class).invoke(pref, SBrowserXStrings.get(SBrowserXStrings.SP_TITLE));
+            String sum = SBrowserXPrefs.isStartPageEnabled(ctx)
+                    ? SBrowserXStrings.get(SBrowserXStrings.SP_ENABLED_TOAST)
+                    : SBrowserXStrings.get(SBrowserXStrings.SP_SUMMARY);
+            prefCls.getMethod("setSummary", CharSequence.class).invoke(pref, sum);
+        } catch (Throwable ignored) {}
     }
 
     public static Activity getMainActivity() {

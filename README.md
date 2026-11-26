@@ -54,8 +54,9 @@
 - 🤖 **Gemini AI Summaries & Built-in Translator** — Summarize any article into crisp bullet points in one tap with your free Gemini API key, and translate entire pages seamlessly using **Google Translate**, **Microsoft Edge**, **DeepL**, or **Gemini**.
 - 🛡️ **Private, Fast & Bloat-Free** — Strips analytics, shopping/coupon banners, promotional badges, and store update prompts; blocks third-party cookies by default; adds WebRTC IP leak protection and anti-fingerprinting.
 - ⚡ **Power-User Browsing** — Opera-style automatic text reflow when zooming, up to **9,999 open tabs** (instead of 99), an extra *"After 1 day"* auto-close option, and the unlocked **Compact** floating toolbar with a customizable button.
+- 🏠 **Clean SBrowserX Start Page** — Replaces Samsung's ad-heavy New Tab with an ultra-clean empty canvas, custom shortcuts, AMOLED / phone photo / daily online HD wallpapers with dimming, and an optional Open-Meteo weather widget (off by default).
 - 📥 **External Download Manager Support** — Hand off files, videos, and optionally images straight to **AB Download Manager**, **Seal**, **1DM**, or any downloader installed on your phone.
-- ☁️ **Scheduled Local & Google Drive Backup** — Back up and restore your SBrowserX settings locally or to Google Drive, plus a one-tap **Restart** button right in Settings.
+- ☁️ **Settings & Universal Bookmarks Backup (Local + Google Drive)** — Back up and restore SBrowserX settings plus standalone **HTML/JSON bookmarks export & import** compatible with Chrome, Firefox, Edge, Brave, Opera, and Safari (including scheduled auto-backup).
 
 ---
 
