@@ -1,7 +1,7 @@
 {
   "created_at": "2026-11-25T15:10:00",
-  "description": "SBrowserX v1.2.1: полностью скрыт и отключён встроенный web-agent, убрана тёмная полоса под обоями стартовой страницы в компактном режиме, улучшен перенос широких таблиц при зуме (как в Opera), шестерёнка расширений ведёт в нативный менеджер, убраны белые полосы статус-бара и навигации, удалён промо-баннер Windows и исправлена передача загрузок в ABDM.",
-  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v1.2.1/patches-1.2.1.mpp",
+  "description": "SBrowserX v1.2.2: полностью убраны белые/серые полосы статус-бара и панели навигации Android 15/16 на всех сайтах и стартовой странице, убрана матовая полоса поверх обоев под компактной панелью (ToolbarCompact.shouldApplyBlurEffect -> false), допилен перенос текста при зуме (заголовки h1-h6, автовыравнивание экрана по точке щипка и мгновенный сброс при отдалении).",
+  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v1.2.2/patches-1.2.2.mpp",
   "signature_download_url": "",
-  "version": "1.2.1"
+  "version": "1.2.2"
 }

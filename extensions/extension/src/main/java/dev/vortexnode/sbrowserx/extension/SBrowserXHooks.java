@@ -128,6 +128,47 @@ public final class SBrowserXHooks {
         }
     }
 
+    public static int adjustApi35NavBarColor(android.view.Window window, int stockColor) {
+        try {
+            if (window != null && android.os.Build.VERSION.SDK_INT >= 29) {
+                window.setNavigationBarContrastEnforced(false);
+            }
+            Context ctx = window != null ? window.getContext() : SBrowserXPrefs.getAppContext();
+            if (isCompactLayoutActive()) {
+                return 0x00000000;
+            }
+            if (isBrowserNightMode(ctx)) {
+                return isAmoledBlackEnabled() ? 0xFF000000 : 0xFF141418;
+            }
+        } catch (Throwable ignored) {}
+        return stockColor;
+    }
+
+    public static boolean adjustApi35NavBarDarkIconFlag(boolean stockDarkIcon) {
+        try {
+            if (isCompactLayoutActive()) {
+                return false;
+            }
+        } catch (Throwable ignored) {}
+        return stockDarkIcon;
+    }
+
+    public static int adjustApi35StatusBarColor(android.view.Window window, int stockColor) {
+        try {
+            if (window != null && android.os.Build.VERSION.SDK_INT >= 29) {
+                window.setStatusBarContrastEnforced(false);
+            }
+            Context ctx = window != null ? window.getContext() : SBrowserXPrefs.getAppContext();
+            if (isCompactLayoutActive()) {
+                return 0x00000000;
+            }
+            if (isBrowserNightMode(ctx)) {
+                return isAmoledBlackEnabled() ? 0xFF000000 : 0xFF141418;
+            }
+        } catch (Throwable ignored) {}
+        return stockColor;
+    }
+
     private static void applyCompactSystemBarPolish(Activity activity) {
         try {
             android.view.Window win = activity.getWindow();
@@ -999,40 +1040,60 @@ public final class SBrowserXHooks {
     private static final String SBROWSERX_TEXT_REFLOW_JS =
             "(function(){"
             + "if(window.__sbxReflowInit)return;window.__sbxReflowInit=1;"
-            + "var reflowed=[];var active=false;var touchCount=0;var tm=null;"
+            + "var reflowed=[];var active=false;var touchCount=0;var focalEl=null;var tm=null;"
             + "var reset=function(){"
+            + "if(!active&&!reflowed.length)return;"
             + "for(var i=0;i<reflowed.length;i++){try{var s=reflowed[i].style;s.maxWidth='';s.boxSizing='';s.tableLayout='';s.wordBreak='';}catch(e){}}"
             + "reflowed=[];active=false;"
             + "};"
+            + "var pickFocal=function(e){"
+            + "try{"
+            + "if(!e.touches||e.touches.length<2)return;"
+            + "var mx=(e.touches[0].clientX+e.touches[1].clientX)/2;"
+            + "var my=(e.touches[0].clientY+e.touches[1].clientY)/2;"
+            + "var hit=document.elementFromPoint(mx,my);"
+            + "if(hit)focalEl=hit.closest('p,h1,h2,h3,h4,h5,h6,li,blockquote,td,th,article,section,div')||hit;"
+            + "}catch(err){}};"
             + "var applyReflow=function(){"
             + "try{"
             + "var vv=window.visualViewport;if(!vv)return;"
-            + "if(vv.scale<=1.06){if(active)reset();return;}"
-            + "var targetW=Math.max(180,Math.floor(vv.width-16));"
-            + "var els=document.querySelectorAll('p,li,dd,dt,blockquote,table,td,th,article,section,div');"
-            + "var lim=Math.min(els.length,1000);"
+            + "if(vv.scale<=1.04){reset();return;}"
+            + "var targetW=Math.max(170,Math.floor(vv.width-16));"
+            + "var els=document.querySelectorAll('h1,h2,h3,h4,h5,h6,p,li,dd,dt,blockquote,figcaption,pre,table,td,th,article,section,div');"
+            + "var lim=Math.min(els.length,1200);"
             + "for(var i=0;i<lim;i++){"
             + "var el=els[i];var tn=el.tagName;"
-            + "if(tn==='DIV'){"
-            + "var hasTxt=false;for(var c=0;c<el.childNodes.length;c++){if(el.childNodes[c].nodeType===3&&el.childNodes[c].nodeValue.trim().length>24){hasTxt=true;break;}}"
+            + "if(tn==='DIV'||tn==='SECTION'||tn==='ARTICLE'){"
+            + "var hasTxt=false;for(var c=0;c<el.childNodes.length;c++){if(el.childNodes[c].nodeType===3&&el.childNodes[c].nodeValue.trim().length>16){hasTxt=true;break;}}"
             + "if(!hasTxt)continue;"
             + "}"
             + "var r=el.getBoundingClientRect();"
-            + "if(tn==='TABLE'&&r.width>targetW+8){"
+            + "if(r.width<=0)continue;"
+            + "if(tn==='TABLE'&&r.width>targetW+6){"
             + "el.style.maxWidth=targetW+'px';el.style.tableLayout='fixed';el.style.boxSizing='border-box';"
             + "if(reflowed.indexOf(el)<0)reflowed.push(el);"
             + "}else if((tn==='TD'||tn==='TH')&&r.width>targetW/2){"
             + "el.style.wordBreak='break-word';el.style.boxSizing='border-box';"
             + "if(reflowed.indexOf(el)<0)reflowed.push(el);"
-            + "}else if(r.width>targetW+12){"
-            + "el.style.maxWidth=targetW+'px';el.style.boxSizing='border-box';"
+            + "}else if(r.width>targetW+8){"
+            + "el.style.maxWidth=targetW+'px';el.style.boxSizing='border-box';el.style.wordBreak='break-word';"
             + "if(reflowed.indexOf(el)<0)reflowed.push(el);"
             + "}"
             + "}"
             + "active=true;"
+            + "if(focalEl&&focalEl.isConnected){"
+            + "var fr=focalEl.getBoundingClientRect();"
+            + "var targetLeft=Math.max(0,Math.floor(fr.left+window.scrollX-8));"
+            + "try{window.scrollTo({left:targetLeft,top:window.scrollY,behavior:'instant'});}catch(se){window.scrollTo(targetLeft,window.scrollY);}"
+            + "}"
             + "}catch(e){}};"
-            + "var sched=function(){if(tm)clearTimeout(tm);tm=setTimeout(applyReflow,220);};"
-            + "window.addEventListener('touchstart',function(e){if(e.touches)touchCount=Math.max(touchCount,e.touches.length);},{passive:true});"
+            + "var sched=function(){"
+            + "var vv=window.visualViewport;"
+            + "if(vv&&vv.scale<=1.04){if(tm){clearTimeout(tm);tm=null;}reset();return;}"
+            + "if(tm)clearTimeout(tm);tm=setTimeout(applyReflow,140);"
+            + "};"
+            + "window.addEventListener('touchstart',function(e){if(e.touches){touchCount=Math.max(touchCount,e.touches.length);if(e.touches.length>=2)pickFocal(e);}},{passive:true});"
+            + "window.addEventListener('touchmove',function(e){if(e.touches&&e.touches.length>=2)pickFocal(e);},{passive:true});"
             + "window.addEventListener('touchend',function(e){if(touchCount>=2&&(!e.touches||e.touches.length===0)){touchCount=0;sched();}},{passive:true});"
             + "if(window.visualViewport){window.visualViewport.addEventListener('resize',sched);}"
             + "})();";
