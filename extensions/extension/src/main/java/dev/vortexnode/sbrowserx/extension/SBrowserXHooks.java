@@ -2803,9 +2803,101 @@ public final class SBrowserXHooks {
         return origForceBlank || isStartPageOmniboxUrl(url);
     }
 
+    private static volatile long sAllowStartPagePreviewUntilMs;
+    private static volatile long sLastAutoRedirectMs;
+
+    public static void allowStartPagePreviewBriefly() {
+        sAllowStartPagePreviewUntilMs = System.currentTimeMillis() + 12000L;
+    }
+
+    private static String resolveNativeHomepageUrl() {
+        try {
+            Class<?> hpsCls = Class.forName("com.sec.android.app.sbrowser.homepage.HomePageSettings");
+            Object inst = hpsCls.getMethod("getInstance").invoke(null);
+            if (inst != null) {
+                Object typeObj = hpsCls.getMethod("getHomePageType").invoke(inst);
+                if ("quick_access".equals(typeObj)) {
+                    return "internet-native://newtab/";
+                }
+                Object urlObj = hpsCls.getMethod("getHomePage").invoke(inst);
+                if (urlObj instanceof String) {
+                    String u = ((String) urlObj).trim();
+                    if (!u.isEmpty() && !isStartPageOmniboxUrl(u)) return u;
+                }
+            }
+        } catch (Throwable ignored) {}
+        return "internet-native://newtab/";
+    }
+
+    public static void navigateCurrentTabIfOnStartPage(final String targetUrl) {
+        if (targetUrl == null || targetUrl.isEmpty()) return;
+        try {
+            final Activity act = sMainActivityRef.get();
+            if (act == null || act.isFinishing() || act.isDestroyed()) return;
+            act.runOnUiThread(() -> {
+                try {
+                    Method getTab = sActGetCurrentTab;
+                    if (getTab == null || !getTab.getDeclaringClass().isInstance(act)) {
+                        getTab = act.getClass().getMethod("getCurrentTab");
+                        sActGetCurrentTab = getTab;
+                    }
+                    Object tab = getTab.invoke(act);
+                    if (tab == null) return;
+                    Method getUrl = sTabGetUrl;
+                    if (getUrl == null || !getUrl.getDeclaringClass().isInstance(tab)) {
+                        getUrl = tab.getClass().getMethod("getUrl");
+                        sTabGetUrl = getUrl;
+                    }
+                    Object curUrlObj = getUrl.invoke(tab);
+                    String curUrl = curUrlObj instanceof String ? (String) curUrlObj : "";
+                    if (isStartPageOmniboxUrl(curUrl) && !targetUrl.equals(curUrl)) {
+                        tab.getClass().getMethod("loadUrl", String.class).invoke(tab, targetUrl);
+                    }
+                } catch (Throwable ignored) {}
+            });
+        } catch (Throwable ignored) {}
+    }
+
+    private static void navigateCurrentTabIfOnQuickAccess(final String targetUrl) {
+        if (targetUrl == null || targetUrl.isEmpty()) return;
+        try {
+            final Activity act = sMainActivityRef.get();
+            if (act == null || act.isFinishing() || act.isDestroyed()) return;
+            act.runOnUiThread(() -> {
+                try {
+                    Method getTab = sActGetCurrentTab;
+                    if (getTab == null || !getTab.getDeclaringClass().isInstance(act)) {
+                        getTab = act.getClass().getMethod("getCurrentTab");
+                        sActGetCurrentTab = getTab;
+                    }
+                    Object tab = getTab.invoke(act);
+                    if (tab == null) return;
+                    Method isQa = sTabIsNewQuickAccess;
+                    if (isQa == null || !isQa.getDeclaringClass().isInstance(tab)) {
+                        isQa = tab.getClass().getMethod("isNewQuickAccessPage");
+                        sTabIsNewQuickAccess = isQa;
+                    }
+                    if (Boolean.TRUE.equals(isQa.invoke(tab))) {
+                        tab.getClass().getMethod("loadUrl", String.class).invoke(tab, targetUrl);
+                    }
+                } catch (Throwable ignored) {}
+            });
+        } catch (Throwable ignored) {}
+    }
+
     public static String sanitizeOmniboxUrl(String url) {
         if (url == null) return "";
         if (isStartPageOmniboxUrl(url)) {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            long now = System.currentTimeMillis();
+            if (ctx != null && !SBrowserXPrefs.isStartPageEnabled(ctx)
+                    && now > sAllowStartPagePreviewUntilMs
+                    && (now - sLastAutoRedirectMs) > 1500L) {
+                sLastAutoRedirectMs = now;
+                syncStartPageWindowBackdrop(false);
+                navigateCurrentTabIfOnStartPage(resolveNativeHomepageUrl());
+                return "";
+            }
             syncStartPageWindowBackdrop(true);
             return "";
         }
@@ -2837,6 +2929,7 @@ public final class SBrowserXHooks {
                 hpsCls.getMethod("setHomePageType", String.class).invoke(inst, "other");
                 try { hpsCls.getMethod("setOtherHomePage", String.class).invoke(inst, url); } catch (Throwable ignored) {}
                 hpsCls.getMethod("setHomePage", String.class).invoke(inst, url);
+                navigateCurrentTabIfOnQuickAccess(url);
             } else {
                 try {
                     hpsCls.getMethod("setHomepageAsQuickAccess").invoke(inst);
@@ -2845,6 +2938,7 @@ public final class SBrowserXHooks {
                     hpsCls.getMethod("setHomePage", String.class).invoke(inst, "internet-native://newtab/");
                 }
                 syncStartPageWindowBackdrop(false);
+                navigateCurrentTabIfOnStartPage("internet-native://newtab/");
             }
         } catch (Throwable t) {
             Log.w(TAG, "applyStartPageHomepageSetting failed", t);
@@ -2860,6 +2954,8 @@ public final class SBrowserXHooks {
             if (ctx != null && !"other".equals(type) && SBrowserXPrefs.isStartPageEnabled(ctx)) {
                 SBrowserXPrefs.setStartPageEnabled(ctx, false);
                 syncStartPageWindowBackdrop(false);
+                String target = "quick_access".equals(type) ? "internet-native://newtab/" : resolveNativeHomepageUrl();
+                navigateCurrentTabIfOnStartPage(target);
             }
         } catch (Throwable ignored) {}
     }
@@ -2871,6 +2967,7 @@ public final class SBrowserXHooks {
             if (ctx != null && !isStartPageOmniboxUrl(url) && SBrowserXPrefs.isStartPageEnabled(ctx)) {
                 SBrowserXPrefs.setStartPageEnabled(ctx, false);
                 syncStartPageWindowBackdrop(false);
+                navigateCurrentTabIfOnStartPage(url);
             }
         } catch (Throwable ignored) {}
     }

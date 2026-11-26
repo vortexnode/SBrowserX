@@ -92,6 +92,7 @@ public final class SBrowserXStartPageSettingsActivity extends Activity {
                 SBrowserXStrings.get(SBrowserXStrings.SP_OPEN_NOW_SUM),
                 textPrimary, textSecondary, v -> {
                     SBrowserXStartPageServer.ensureStarted(this);
+                    SBrowserXHooks.allowStartPagePreviewBriefly();
                     SBrowserXHooks.openInternalUrl(this, SBrowserXStartPageServer.getBaseUrl());
                     finish();
                 });

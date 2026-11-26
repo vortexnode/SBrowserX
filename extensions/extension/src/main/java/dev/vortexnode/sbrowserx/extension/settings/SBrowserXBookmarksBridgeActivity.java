@@ -12,6 +12,7 @@ public final class SBrowserXBookmarksBridgeActivity extends Activity {
         super.onCreate(savedInstanceState);
         try {
             SBrowserXBookmarkBackup.repairOrphanedImportedBookmarks(getApplicationContext());
+            SBrowserXBookmarkBackup.fetchMissingBookmarkIconsAsync(getApplicationContext());
         } catch (Throwable ignored) {}
         try {
             Class<?> helperCls = Class.forName("com.sec.android.app.sbrowser.sites.SitesIntentHelper");

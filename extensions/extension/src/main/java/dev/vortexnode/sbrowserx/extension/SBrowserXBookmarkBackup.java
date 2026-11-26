@@ -416,6 +416,7 @@ public final class SBrowserXBookmarkBackup {
             cr.notifyChange(uri, null);
         } catch (Throwable ignored) {}
 
+        fetchMissingBookmarkIconsAsync(ctx);
         return new ImportResult(stats[0], stats[1], stats[2]);
     }
 
@@ -766,6 +767,114 @@ public final class SBrowserXBookmarkBackup {
         } catch (Throwable t) {
             Log.w(TAG, "writeBookmarksToTreeUri failed", t);
             return false;
+        }
+    }
+
+    private static final java.util.concurrent.atomic.AtomicBoolean sFetchingIcons =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
+
+    public static void fetchMissingBookmarkIconsAsync(final Context ctx) {
+        if (ctx == null) return;
+        if (!sFetchingIcons.compareAndSet(false, true)) return;
+        final Context appCtx = ctx.getApplicationContext();
+        Thread t = new Thread(() -> {
+            try {
+                ContentResolver cr = appCtx.getContentResolver();
+                Uri uri = getBookmarkUri(appCtx);
+                Map<String, List<Long>> idsByHost = new HashMap<>();
+                Cursor c = null;
+                try {
+                    c = cr.query(
+                            uri,
+                            new String[] { "_ID", "URL", "TOUCH_ICON" },
+                            "FOLDER = 0 AND DELETED = 0 AND IS_COMMITED = 0",
+                            null,
+                            "_ID ASC");
+                    if (c != null) {
+                        while (c.moveToNext()) {
+                            long id = c.getLong(0);
+                            String url = c.getString(1);
+                            byte[] icon = c.getBlob(2);
+                            if (icon != null && icon.length > 0) continue;
+                            if (url == null || url.isEmpty()) continue;
+                            String host = null;
+                            try {
+                                host = Uri.parse(url).getHost();
+                            } catch (Throwable ignored) {}
+                            if (host == null || host.trim().isEmpty()) continue;
+                            host = host.trim().toLowerCase(Locale.US);
+                            List<Long> list = idsByHost.get(host);
+                            if (list == null) {
+                                list = new ArrayList<>();
+                                idsByHost.put(host, list);
+                            }
+                            list.add(id);
+                        }
+                    }
+                } finally {
+                    if (c != null) try { c.close(); } catch (Throwable ignored) {}
+                }
+
+                if (idsByHost.isEmpty()) return;
+                int updatedHosts = 0;
+                for (Map.Entry<String, List<Long>> entry : idsByHost.entrySet()) {
+                    byte[] png = downloadFaviconBytes(entry.getKey());
+                    if (png == null || png.length < 32) continue;
+                    for (Long id : entry.getValue()) {
+                        try {
+                            ContentValues cv = new ContentValues();
+                            cv.put("TOUCH_ICON", png);
+                            cv.put("FAVICON", png);
+                            cr.update(uri, cv, "_ID = ?", new String[] { String.valueOf(id) });
+                        } catch (Throwable ignored) {}
+                    }
+                    updatedHosts++;
+                    if (updatedHosts % 12 == 0) {
+                        try { cr.notifyChange(uri, null); } catch (Throwable ignored) {}
+                    }
+                }
+                if (updatedHosts > 0) {
+                    try { cr.notifyChange(uri, null); } catch (Throwable ignored) {}
+                    Log.i(TAG, "Fetched favicons for " + updatedHosts + " bookmark domains");
+                }
+            } catch (Throwable tErr) {
+                Log.w(TAG, "fetchMissingBookmarkIconsAsync failed", tErr);
+            } finally {
+                sFetchingIcons.set(false);
+            }
+        }, "SBrowserX-Favicons");
+        t.setPriority(Thread.MIN_PRIORITY);
+        t.setDaemon(true);
+        t.start();
+    }
+
+    private static byte[] downloadFaviconBytes(String host) {
+        java.net.HttpURLConnection conn = null;
+        try {
+            String urlStr = "https://www.google.com/s2/favicons?domain="
+                    + java.net.URLEncoder.encode(host, "UTF-8") + "&sz=64";
+            conn = (java.net.HttpURLConnection) new java.net.URL(urlStr).openConnection();
+            conn.setConnectTimeout(3500);
+            conn.setReadTimeout(3500);
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 Chrome/131.0");
+            int code = conn.getResponseCode();
+            if (code < 200 || code >= 300) return null;
+            try (InputStream is = conn.getInputStream();
+                 ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+                byte[] buf = new byte[2048];
+                int n;
+                int total = 0;
+                while ((n = is.read(buf)) > 0) {
+                    total += n;
+                    if (total > 131072) return null;
+                    baos.write(buf, 0, n);
+                }
+                return baos.toByteArray();
+            }
+        } catch (Throwable ignored) {
+            return null;
+        } finally {
+            if (conn != null) conn.disconnect();
         }
     }
 }
