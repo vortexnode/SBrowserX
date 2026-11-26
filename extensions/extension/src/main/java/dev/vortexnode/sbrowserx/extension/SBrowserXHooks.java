@@ -249,13 +249,34 @@ public final class SBrowserXHooks {
             if (pkg == null) return;
             for (String idName : new String[] {
                     "navigation_bar_background_for_multi_tab",
-                    "status_bar_background_for_multi_tab"
+                    "status_bar_background_for_multi_tab",
+                    "toolbar_shadow"
             }) {
                 int id = ctx.getResources().getIdentifier(idName, "id", pkg);
                 if (id != 0) {
                     View barView = decor.findViewById(id);
                     if (barView != null) {
                         barView.setBackgroundColor(0x00000000);
+                        barView.setVisibility(View.GONE);
+                    }
+                }
+            }
+            if (decor instanceof android.view.ViewGroup && isCompactLayoutActive()) {
+                android.view.ViewGroup vg = (android.view.ViewGroup) decor;
+                int n = vg.getChildCount();
+                int navId = ctx.getResources().getIdentifier("navigation_bar_background", "id", pkg);
+                int statusId = ctx.getResources().getIdentifier("status_bar_background", "id", pkg);
+                for (int i = 0; i < n; i++) {
+                    View child = vg.getChildAt(i);
+                    if (child == null) continue;
+                    int cid = child.getId();
+                    if (cid == android.R.id.content || cid == navId || cid == statusId) continue;
+                    if (child instanceof android.view.ViewGroup) continue;
+                    android.graphics.drawable.Drawable bg = child.getBackground();
+                    if (bg instanceof android.graphics.drawable.GradientDrawable
+                            || bg instanceof android.graphics.drawable.BitmapDrawable) {
+                        child.setBackgroundColor(0x00000000);
+                        child.setVisibility(View.GONE);
                     }
                 }
             }

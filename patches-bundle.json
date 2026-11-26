@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-11-26T17:08:00",
-  "description": "SBrowserX v1.2.8: убраны оставшиеся тонкие серые зазоры над навбаром и под статус-баром в компактном режиме — фон окна синхронизирован с цветом активной темы.",
-  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v1.2.8/patches-1.2.8.mpp",
+  "created_at": "2026-11-26T17:35:00",
+  "description": "SBrowserX v1.2.9: принудительное скрытие оставшихся градиентных слоёв и теней системных панелей в компактном режиме.",
+  "download_url": "https://github.com/vortexnode/SBrowserX/releases/download/v1.2.9/patches-1.2.9.mpp",
   "signature_download_url": "",
-  "version": "1.2.8"
+  "version": "1.2.9"
 }
