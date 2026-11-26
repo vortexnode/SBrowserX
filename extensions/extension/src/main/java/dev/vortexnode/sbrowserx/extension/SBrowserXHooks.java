@@ -279,26 +279,91 @@ public final class SBrowserXHooks {
                 }
             }
             if (decor instanceof android.view.ViewGroup && isCompactLayoutActive()) {
-                android.view.ViewGroup vg = (android.view.ViewGroup) decor;
-                int n = vg.getChildCount();
-                int navId = ctx.getResources().getIdentifier("navigation_bar_background", "id", pkg);
-                int statusId = ctx.getResources().getIdentifier("status_bar_background", "id", pkg);
-                for (int i = 0; i < n; i++) {
-                    View child = vg.getChildAt(i);
-                    if (child == null) continue;
-                    int cid = child.getId();
-                    if (cid == android.R.id.content || cid == navId || cid == statusId) continue;
-                    if (child instanceof android.view.ViewGroup) continue;
-                    android.graphics.drawable.Drawable bg = child.getBackground();
-                    if (bg instanceof android.graphics.drawable.GradientDrawable
+                sweepCompactBarOverlays(decor, ctx, pkg);
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    private static void sweepCompactBarOverlays(View root, Context ctx, String pkg) {
+        if (!(root instanceof android.view.ViewGroup) || ctx == null || pkg == null) return;
+        android.view.ViewGroup decor = (android.view.ViewGroup) root;
+        int decorW = decor.getWidth();
+        int decorH = decor.getHeight();
+        float density = ctx.getResources().getDisplayMetrics().density;
+        int maxBarH = Math.round(120f * density);
+        int edgeTol = Math.round(12f * density);
+        int navId = ctx.getResources().getIdentifier("navigation_bar_background", "id", pkg);
+        int statusId = ctx.getResources().getIdentifier("status_bar_background", "id", pkg);
+        int mainLayoutId = ctx.getResources().getIdentifier("main_layout", "id", pkg);
+        int contentLayoutId = ctx.getResources().getIdentifier("content_layout", "id", pkg);
+        int tabHolderId = ctx.getResources().getIdentifier("sbrowser_tab_holder", "id", pkg);
+        int toolbarId = ctx.getResources().getIdentifier("toolbar_main_layout", "id", pkg);
+        int bottombarId = ctx.getResources().getIdentifier("bottombar_layout", "id", pkg);
+        int bottombarMainId = ctx.getResources().getIdentifier("bottombar_main_layout", "id", pkg);
+        int toolbarCompactId = ctx.getResources().getIdentifier("toolbar_compact", "id", pkg);
+
+        java.util.ArrayDeque<View> queue = new java.util.ArrayDeque<>();
+        queue.add(decor);
+        while (!queue.isEmpty()) {
+            View v = queue.poll();
+            if (v == null) continue;
+            if (v != decor) {
+                int vid = v.getId();
+                boolean protectedId = (vid == android.R.id.content || vid == navId || vid == statusId
+                        || vid == mainLayoutId || vid == contentLayoutId || vid == tabHolderId
+                        || vid == toolbarId || vid == bottombarId || vid == bottombarMainId
+                        || vid == toolbarCompactId);
+                if (!protectedId && !(v instanceof android.view.ViewGroup)) {
+                    android.graphics.drawable.Drawable bg = v.getBackground();
+                    boolean isOverlayDrawable = (bg instanceof android.graphics.drawable.GradientDrawable
                             || bg instanceof android.graphics.drawable.BitmapDrawable
-                            || bg instanceof android.graphics.drawable.LayerDrawable) {
-                        child.setBackgroundColor(0x00000000);
-                        child.setVisibility(View.GONE);
+                            || bg instanceof android.graphics.drawable.LayerDrawable
+                            || bg instanceof android.graphics.drawable.NinePatchDrawable
+                            || bg instanceof android.graphics.drawable.InsetDrawable);
+                    if (isOverlayDrawable) {
+                        int vw = v.getWidth();
+                        int vh = v.getHeight();
+                        int[] loc = new int[2];
+                        v.getLocationInWindow(loc);
+                        int bottom = loc[1] + vh;
+                        boolean isDecorDirect = (v.getParent() == decor);
+                        boolean isBottomStrip = (decorW > 0 && decorH > 0
+                                && vw >= (decorW * 9) / 10
+                                && vh > 0 && vh <= maxBarH
+                                && (bottom >= decorH - edgeTol || loc[1] <= edgeTol));
+                        if (isDecorDirect || isBottomStrip) {
+                            v.setBackgroundColor(0x00000000);
+                            v.setVisibility(View.GONE);
+                        }
                     }
                 }
             }
+            if (v instanceof android.view.ViewGroup) {
+                android.view.ViewGroup vg = (android.view.ViewGroup) v;
+                int cnt = vg.getChildCount();
+                for (int i = 0; i < cnt; i++) {
+                    queue.add(vg.getChildAt(i));
+                }
+            }
+        }
+    }
+
+    public static boolean isAnyAutofillServiceAllowed(String serviceComponentName) {
+        return serviceComponentName != null && !serviceComponentName.isEmpty();
+    }
+
+    public static boolean shouldUseTerraceAutofill(boolean stockPersonalDataSyncFlag) {
+        if (stockPersonalDataSyncFlag) return true;
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            if (ctx != null) {
+                android.view.autofill.AutofillManager afm = ctx.getSystemService(android.view.autofill.AutofillManager.class);
+                if (afm != null && afm.isEnabled() && afm.hasEnabledAutofillServices()) {
+                    return true;
+                }
+            }
         } catch (Throwable ignored) {}
+        return false;
     }
 
     private static void applyCompactSystemBarPolish(Activity activity) {

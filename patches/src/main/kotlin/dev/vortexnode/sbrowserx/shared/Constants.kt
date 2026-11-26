@@ -13,6 +13,8 @@ internal object Constants {
     const val SBROWSER_OFFICIAL_SIGNATURE =
         "34df0e7a9f1cf1892e45c056b4973cd81ccf148a4050d11aea4ac5a65f900a42"
 
+    const val BITWARDEN_PACKAGE_NAME = "com.x8bit.bitwarden"
+
     val COMPATIBILITY_SBROWSER = Compatibility(
         name = "Samsung Internet",
         packageName = SBROWSER_PACKAGE_NAME,
@@ -25,5 +27,11 @@ internal object Constants {
                 isExperimental = false,
             ),
         ),
+    )
+
+    val COMPATIBILITY_BITWARDEN = Compatibility(
+        name = "Bitwarden",
+        packageName = BITWARDEN_PACKAGE_NAME,
+        appIconColor = 0x175DDC,
     )
 }
