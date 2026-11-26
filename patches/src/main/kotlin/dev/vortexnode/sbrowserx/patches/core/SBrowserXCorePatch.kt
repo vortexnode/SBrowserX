@@ -3,6 +3,8 @@ package dev.vortexnode.sbrowserx.patches.core
 import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.patch.bytecodePatch
+import com.android.tools.smali.dexlib2.Opcode
+import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import app.morphe.patcher.patch.resourcePatch
 import dev.vortexnode.sbrowserx.patches.branding.SBrowserPackageRenameTarget
 import dev.vortexnode.sbrowserx.shared.Constants.ANDROID_NS
@@ -466,5 +468,45 @@ val sbrowserXCorePatch = bytecodePatch(
             0,
             "invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->injectStartPageIntoHomepageSettings(Ljava/lang/Object;)V",
         )
+
+        // Hide internal 127.0.0.1 loopback address in both Standard/Bottom and Compact omniboxes
+        listOf(
+            "Lcom/sec/android/app/sbrowser/omnibox/LocationBar;",
+            "Lcom/sec/android/app/sbrowser/omnibox/UrlBar;",
+        ).forEach { omniboxCls ->
+            findMethodOrThrow(
+                classType = omniboxCls,
+                methodName = "setUrlToEditText",
+                parameterTypes = listOf("Ljava/lang/String;", "Z"),
+                returnType = "V",
+            ).addInstructions(
+                0,
+                """
+                    invoke-static {p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->sanitizeOmniboxUrl(Ljava/lang/String;)Ljava/lang/String;
+                    move-result-object p1
+                """.trimIndent(),
+            )
+        }
+
+        // Show clean "SBrowserX Start Page" label instead of http://127.0.0.1:47391/ in Settings -> Homepage
+        val hpSummaryMethod = findMethodOrThrow(
+            classType = "Lcom/sec/android/app/sbrowser/settings/homepage/HomePagePreferenceFragment;",
+            methodName = "getHomepageSummary",
+            parameterTypes = listOf("I"),
+            returnType = "Ljava/lang/String;",
+        )
+        val retIndices = hpSummaryMethod.implementation!!.instructions
+            .mapIndexedNotNull { idx, insn -> if (insn.opcode == Opcode.RETURN_OBJECT) idx else null }
+            .reversed()
+        for (retIdx in retIndices) {
+            val reg = (hpSummaryMethod.implementation!!.instructions.elementAt(retIdx) as OneRegisterInstruction).registerA
+            hpSummaryMethod.addInstructions(
+                retIdx,
+                """
+                    invoke-static {v$reg}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->formatStartPageDisplayUrl(Ljava/lang/String;)Ljava/lang/String;
+                    move-result-object v$reg
+                """.trimIndent(),
+            )
+        }
     }
 }

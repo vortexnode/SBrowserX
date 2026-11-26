@@ -423,6 +423,7 @@ public final class SBrowserXStartPageSettingsActivity extends Activity {
         SeekBar sb = new SeekBar(this);
         sb.setMax(80);
         sb.setProgress(curDim);
+        SBrowserXSettingsActivity.styleOneUiSeekBar(sb, SBrowserXHooks.isBrowserNightMode(this));
         sb.setPadding(0, dp(10), 0, 0);
         sb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
@@ -521,6 +522,7 @@ public final class SBrowserXStartPageSettingsActivity extends Activity {
         row.addView(textCol, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
         Switch sw = new Switch(this);
+        SBrowserXSettingsActivity.styleOneUiBlueSwitch(sw, night);
         sw.setChecked(checked);
         sw.setOnCheckedChangeListener(listener);
         row.addView(sw);
