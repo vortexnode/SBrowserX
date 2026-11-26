@@ -184,36 +184,7 @@ public final class SBrowserXSettingsActivity extends Activity {
                     SBrowserXPrefs.setAmoledBlackEnabled(this, checked);
                     refreshDynamicViews();
                 });
-        appearanceCard.addView(divider(night));
-        darkBrightSwitch = addSwitchRow(appearanceCard, SBrowserXStrings.get(SBrowserXStrings.DARK_BRIGHT_IMG_TITLE),
-                SBrowserXStrings.get(SBrowserXStrings.DARK_BRIGHT_IMG_SUMMARY),
-                SBrowserXPrefs.isDarkBrightImagesEnabled(this), night, textPrimary, textSecondary, null,
-                (btn, checked) -> {
-                    SBrowserXPrefs.setDarkBrightImagesEnabled(this, checked);
-                    SBrowserXHooks.applyDarkBrightImagesNow(checked);
 
-                    refreshDynamicViews();
-                });
-        appearanceCard.addView(divider(night));
-        addSwitchRow(appearanceCard, SBrowserXStrings.get(SBrowserXStrings.PURE_CSS_DARK_TITLE),
-                SBrowserXStrings.get(SBrowserXStrings.PURE_CSS_DARK_SUMMARY),
-                SBrowserXPrefs.isPureCssDarkEnabled(this), night, textPrimary, textSecondary, null,
-                (btn, checked) -> {
-                    SBrowserXPrefs.setPureCssDarkEnabled(this, checked);
-                    Toast.makeText(this, SBrowserXStrings.get(SBrowserXStrings.PURE_CSS_DARK_TOAST), Toast.LENGTH_SHORT).show();
-                    refreshDynamicViews();
-                });
-        appearanceCard.addView(divider(night));
-        forceDarkDot = createTealDot();
-        forceDarkSwitch = addSwitchRow(appearanceCard, SBrowserXStrings.get(SBrowserXStrings.FORCE_DARK_TITLE),
-                SBrowserXStrings.get(SBrowserXStrings.FORCE_DARK_SUMMARY),
-                SBrowserXPrefs.isForceAdaptiveDarkEnabled(this), night, textPrimary, textSecondary, forceDarkDot,
-                (btn, checked) -> {
-                    SBrowserXPrefs.setForceAdaptiveDarkEnabled(this, checked);
-                    SBrowserXHooks.applyForceAdaptiveDarkNow(checked);
-
-                    refreshDynamicViews();
-                });
         appearanceCard.addView(divider(night));
         boolean isCompactLayout = SBrowserXHooks.isCompactLayoutActivePublic();
         blurDot = createTealDot();
@@ -434,7 +405,6 @@ public final class SBrowserXSettingsActivity extends Activity {
         setDot(gtransDot, SBrowserXPrefs.FEATURE_GOOGLE_TRANSLATE);
         setDot(extDlDot, SBrowserXPrefs.FEATURE_EXT_DOWNLOADER);
         setDot(amoledDot, SBrowserXPrefs.FEATURE_AMOLED);
-        setDot(forceDarkDot, SBrowserXPrefs.FEATURE_FORCE_DARK);
         setDot(blurDot, SBrowserXPrefs.FEATURE_BOTTOM_BLUR);
         if (blurLevelValueView != null) {
             boolean blurOn = SBrowserXPrefs.isBottomBarBlurEnabled(this);

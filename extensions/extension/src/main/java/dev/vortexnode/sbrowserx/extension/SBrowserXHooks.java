@@ -45,6 +45,7 @@ public final class SBrowserXHooks {
     private static volatile Method sDmuIsDarkMode;
     private static volatile Method sDmuIsNightMode;
     private static volatile Method sDmuIsHighContrast;
+    private static volatile Method sDmuIsApplyDefaultDark;
     private static volatile boolean sDmuInitDone;
 
     private static volatile Object sDfuInstance;
@@ -77,6 +78,7 @@ public final class SBrowserXHooks {
             sDmuIsDarkMode = dmu.getMethod("isDarkModeEnabled");
             sDmuIsNightMode = dmu.getMethod("isNightModeEnabled");
             sDmuIsHighContrast = dmu.getMethod("isHighContrastModeEnabled");
+            sDmuIsApplyDefaultDark = dmu.getMethod("isApplyDefaultDarkModeEnabled");
         } catch (Throwable ignored) {}
     }
     private static volatile Object sActiveTransService;
@@ -173,15 +175,13 @@ public final class SBrowserXHooks {
                 appendSwitch.invoke(null, "enable-zero-copy");
                 appendSwitch.invoke(null, "enable-smooth-scrolling");
             } catch (Throwable ignored) {}
-            boolean pureCssDark = SBrowserXPrefs.isPureCssDarkEnabled(ctx);
-            boolean useChromiumDark = !pureCssDark && SBrowserXPrefs.isDarkBrightImagesEnabled(ctx);
-            boolean darkActive = isBrowserNightMode(ctx) || SBrowserXPrefs.isForceAdaptiveDarkEnabled(ctx);
-            if (pureCssDark) {
-                syncChromiumForceDarkSwitches(false);
-                Log.i(TAG, "Pure CSS Dark Mode active: Blink force-dark-mode disabled");
-            } else if (useChromiumDark && darkActive) {
+            boolean darkActive = isBrowserNightMode(ctx);
+            boolean forceLightSites = isApplyDefaultDarkSitesEnabled();
+            if (darkActive && forceLightSites) {
                 syncChromiumForceDarkSwitches(true);
                 Log.i(TAG, "Enabled native Chromium Blink force-dark-mode (CIELAB)");
+            } else {
+                syncChromiumForceDarkSwitches(false);
             }
         } catch (Throwable t) {
             Log.e(TAG, "onCommandLineCustomFeatures failed", t);
@@ -870,21 +870,25 @@ public final class SBrowserXHooks {
         } catch (Throwable ignored) {}
     }
 
-    public static boolean adjustTerraceNightMode(boolean requested) {
+    private static boolean isApplyDefaultDarkSitesEnabled() {
         try {
-            Context ctx = SBrowserXPrefs.getAppContext();
-            if (ctx != null && SBrowserXPrefs.isPureCssDarkEnabled(ctx)) {
-                syncChromiumForceDarkSwitches(false);
-                return false;
-            }
-            if (ctx != null && SBrowserXPrefs.isDarkBrightImagesEnabled(ctx)) {
-                boolean darkActive = requested || SBrowserXPrefs.isForceAdaptiveDarkEnabled(ctx);
-                syncChromiumForceDarkSwitches(darkActive);
-                // Always return false to disable Samsung's hue-shifting Terrace Night Mode shader
-                return false;
+            ensureDarkModeUtilsCache();
+            if (sDmuInstance != null && sDmuIsApplyDefaultDark != null) {
+                Object res = sDmuIsApplyDefaultDark.invoke(sDmuInstance);
+                if (res instanceof Boolean) return (Boolean) res;
             }
         } catch (Throwable ignored) {}
-        return requested;
+        return true;
+    }
+
+    public static boolean adjustTerraceNightMode(boolean requested) {
+        try {
+            boolean forceLightSites = requested && isApplyDefaultDarkSitesEnabled();
+            syncChromiumForceDarkSwitches(forceLightSites);
+            // Always return false to disable Samsung's hue-shifting Terrace Night Mode shader
+            return false;
+        } catch (Throwable ignored) {}
+        return false;
     }
 
     private static final String SBROWSERX_AMOLED_JS =
@@ -942,117 +946,6 @@ public final class SBrowserXHooks {
             + "st.textContent=css;"
             + "})();";
 
-    private static final String SBROWSERX_PURE_DARK_JS =
-            "(function(){"
-            + "var id='sbrowserx-amoled-css';"
-            + "var root=document.head||document.documentElement;"
-            + "if(!root)return;"
-            + "var st=document.getElementById(id);"
-            + "if(!st){st=document.createElement('style');st.id=id;root.appendChild(st);}"
-            + "var amoled=__AMOLED__;"
-            + "var BG=amoled?'#000000':'#121212';"
-            + "var SURF=amoled?'#0D0D10':'#1D1F24';"
-            + "var BDR=amoled?'#1C1E24':'#2A2D35';"
-            + "var TXT='#E8EAED',MUTED='#A8B0BC',LNK='#6BA6FF';"
-            + "var parseRgb=function(c){"
-            + "if(!c||c==='transparent'||c==='rgba(0, 0, 0, 0)')return null;"
-            + "var m=c.match(/^rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)(?:,\\s*([\\d.]+))?/);"
-            + "if(!m)return null;"
-            + "var a=m[4]!==undefined?parseFloat(m[4]):1;"
-            + "return {r:+m[1],g:+m[2],b:+m[3],a:a};"
-            + "};"
-            + "var getLum=function(o){return 0.299*o.r+0.587*o.g+0.114*o.b;};"
-            + "var isNativeDark=function(){"
-            + "try{"
-            + "var mc=document.querySelector('meta[name=color-scheme]');"
-            + "if(mc&&/dark/i.test(mc.content||'')&&!/light/i.test(mc.content||''))return true;"
-            + "var b=document.body;"
-            + "if(b&&!b.getAttribute('data-sbx-pd')){"
-            + "var bc=parseRgb(getComputedStyle(b).backgroundColor);"
-            + "if(bc&&bc.a>=0.7&&getLum(bc)<92)return true;"
-            + "}"
-            + "var hc=document.documentElement&&!document.documentElement.getAttribute('data-sbx-pd')?parseRgb(getComputedStyle(document.documentElement).backgroundColor):null;"
-            + "if(hc&&hc.a>=0.7&&getLum(hc)<92)return true;"
-            + "}catch(e){}"
-            + "return false;"
-            + "};"
-            + "if(window.__sbxNativeDark===undefined&&document.body){window.__sbxNativeDark=isNativeDark();}"
-            + "var baseCss='html{color-scheme:dark;background-color:'+BG+';}';"
-            + "if(!window.__sbxNativeDark){"
-            + "baseCss+='html,body{background-color:'+BG+' !important;color:'+TXT+' !important;}';"
-            + "baseCss+='input,textarea,select{background-color:'+SURF+' !important;color:'+TXT+' !important;border-color:'+BDR+' !important;}';"
-            + "baseCss+='hr{border-color:'+BDR+' !important;}';"
-            + "}else if(amoled){"
-            + "baseCss+='html,body{background-color:#000000 !important;}';"
-            + "}"
-            + "st.textContent=baseCss;"
-            + "var paint=function(){"
-            + "try{"
-            + "if(!document.body)return;"
-            + "if(window.__sbxNativeDark===undefined){"
-            + "window.__sbxNativeDark=isNativeDark();"
-            + "if(window.__sbxNativeDark){st.textContent=amoled?'html,body{background-color:#000000 !important;}':'';}"
-            + "}"
-            + "var nat=!!window.__sbxNativeDark;"
-            + "var sel=nat?'body,main,article,section,header,footer,nav,aside,ul,li,div':'body,main,article,section,header,footer,nav,aside,ul,ol,li,div,table,thead,tbody,tr,td,th,form,dl,dd,dt,blockquote,pre,code,p,span,a,h1,h2,h3,h4,h5,h6,label,small,strong,b,em,i,button';"
-            + "var els=document.querySelectorAll(sel);"
-            + "var lim=Math.min(els.length,2400);"
-            + "for(var i=0;i<lim;i++){"
-            + "var el=els[i];"
-            + "if(el.getAttribute('data-sbx-pd'))continue;"
-            + "el.setAttribute('data-sbx-pd','1');"
-            + "var tn=el.tagName;"
-            + "if(tn==='IMG'||tn==='PICTURE'||tn==='VIDEO'||tn==='CANVAS'||tn==='SVG')continue;"
-            + "var cs=getComputedStyle(el);"
-            + "var bg=parseRgb(cs.backgroundColor);"
-            + "var hasBgImg=cs.backgroundImage&&cs.backgroundImage!=='none';"
-            + "if(bg&&bg.a>=0.65&&!hasBgImg){"
-            + "var mx=Math.max(bg.r,bg.g,bg.b),mn=Math.min(bg.r,bg.g,bg.b),sat=mx-mn,lum=getLum(bg);"
-            + "if(sat>28){"
-            + "el.setAttribute('data-sbx-brand','1');"
-            + "continue;"
-            + "}"
-            + "if(nat){"
-            + "if(amoled&&lum<=58&&sat<=18){el.setAttribute('data-sbx-amoled','1');el.style.setProperty('background-color','#000000','important');}"
-            + "continue;"
-            + "}"
-            + "if(lum>=165&&sat<=28){"
-            + "var useSurf=(tn==='PRE'||tn==='CODE'||tn==='BLOCKQUOTE'||tn==='TH'||tn==='BUTTON');"
-            + "el.setAttribute('data-sbx-amoled','1');"
-            + "el.style.setProperty('background-color',useSurf?SURF:BG,'important');"
-            + "}else if(amoled&&lum<=58&&sat<=18){"
-            + "el.setAttribute('data-sbx-amoled','1');"
-            + "el.style.setProperty('background-color','#000000','important');"
-            + "}"
-            + "}"
-            + "if(nat)continue;"
-            + "if(el.closest&&el.closest('[data-sbx-brand]'))continue;"
-            + "var bc=parseRgb(cs.borderBottomColor);"
-            + "if(bc&&bc.a>=0.5&&getLum(bc)>=175&&(Math.max(bc.r,bc.g,bc.b)-Math.min(bc.r,bc.g,bc.b))<=25){"
-            + "el.style.setProperty('border-color',BDR,'important');"
-            + "}"
-            + "var fg=parseRgb(cs.color);"
-            + "if(fg&&fg.a>=0.5){"
-            + "var fmx=Math.max(fg.r,fg.g,fg.b),fmn=Math.min(fg.r,fg.g,fg.b),fsat=fmx-fmn,flum=getLum(fg);"
-            + "if(flum<125){"
-            + "if(tn==='A'&&fg.b>fg.r+18){el.style.setProperty('color',LNK,'important');}"
-            + "else if(fsat<=34){el.style.setProperty('color',flum<70?TXT:MUTED,'important');}"
-            + "else if(flum<100){el.style.setProperty('color','rgb('+Math.min(255,fg.r+90)+','+Math.min(255,fg.g+90)+','+Math.min(255,fg.b+90)+')','important');}"
-            + "}"
-            + "}"
-            + "}"
-            + "}catch(e){}};"
-            + "paint();"
-            + "if(!window.__sbxPureObs){"
-            + "window.__sbxPureObs=1;"
-            + "if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',paint,{once:true});}"
-            + "window.addEventListener('load',paint,{once:true});"
-            + "setTimeout(paint,300);setTimeout(paint,1000);"
-            + "var tm=null;var mo=new MutationObserver(function(){if(tm)return;tm=setTimeout(function(){tm=null;paint();},160);});"
-            + "if(document.documentElement)mo.observe(document.documentElement,{childList:true,subtree:true});"
-            + "}"
-            + "})();";
-
     private static final String SBROWSERX_REMOVE_AMOLED_JS =
             "(function(){var st=document.getElementById('sbrowserx-amoled-css');if(st&&st.parentNode)st.parentNode.removeChild(st);try{var prev=document.querySelectorAll('[data-sbx-amoled]');for(var j=0;j<prev.length;j++){prev[j].style.removeProperty('background-color');prev[j].removeAttribute('data-sbx-amoled');}}catch(e){}})();";
 
@@ -1066,9 +959,7 @@ public final class SBrowserXHooks {
                 return;
             }
             boolean amoled = isAmoledBlackEnabled();
-            boolean pureCss = ctx != null && SBrowserXPrefs.isPureCssDarkEnabled(ctx);
-            String template = pureCss ? SBROWSERX_PURE_DARK_JS : SBROWSERX_AMOLED_JS;
-            String js = template.replace("__AMOLED__", amoled ? "true" : "false");
+            String js = SBROWSERX_AMOLED_JS.replace("__AMOLED__", amoled ? "true" : "false");
             Method evalM = sMethodWebDarkEvalJs;
             if (evalM == null) {
                 evalM = webDarkHandler.getClass().getMethod("evaluateJavaScript", String.class);
@@ -1113,52 +1004,51 @@ public final class SBrowserXHooks {
     public static void syncDarkBrightnessExclusion(Object fragment) {
         if (fragment == null) return;
         try {
-            Context ctx = SBrowserXPrefs.getAppContext();
-            boolean brightOn = ctx != null && SBrowserXPrefs.isDarkBrightImagesEnabled(ctx);
             Method findPref = fragment.getClass().getMethod("findPreference", CharSequence.class);
-            Object titlePref = findPref.invoke(fragment, "pref_web_dark_mode_brightness_title");
-            Object thumbPref = findPref.invoke(fragment, "pref_web_dark_mode_brightness_thumbnail");
-            Object seekPref = findPref.invoke(fragment, "pref_web_dark_mode_brightness");
+            // Permanently hide Samsung's obsolete Web Dark Mode Brightness slider & thumbnail
+            for (String k : new String[] {
+                    "pref_web_dark_mode_brightness_title",
+                    "pref_web_dark_mode_brightness_thumbnail",
+                    "pref_web_dark_mode_brightness"
+            }) {
+                Object p = findPref.invoke(fragment, k);
+                if (p != null) {
+                    p.getClass().getMethod("setVisible", boolean.class).invoke(p, false);
+                }
+            }
 
-            if (brightOn) {
-                if (titlePref != null) {
-                    titlePref.getClass().getMethod("setEnabled", boolean.class).invoke(titlePref, false);
-                    String lang = java.util.Locale.getDefault().getLanguage();
-                    String note = "ru".equals(lang)
-                            ? "Отключено, пока активны «Яркие картинки в тёмной теме»"
-                            : ("uk".equals(lang)
-                            ? "Вимкнено, поки активні «Яскраві картинки в темній темі»"
-                            : "Disabled while Vivid images in Dark Mode is ON");
-                    titlePref.getClass().getMethod("setSummary", CharSequence.class).invoke(titlePref, note);
-                }
-                if (thumbPref != null) {
-                    thumbPref.getClass().getMethod("setEnabled", boolean.class).invoke(thumbPref, false);
-                }
-                if (seekPref != null) {
-                    seekPref.getClass().getMethod("setEnabled", boolean.class).invoke(seekPref, false);
-                }
-            } else {
-                if (titlePref != null) {
-                    titlePref.getClass().getMethod("setSummary", CharSequence.class).invoke(titlePref, (CharSequence) null);
-                }
+            // Localize the first sub-option cleanly & sync AMOLED visibility with Dark Mode state
+            Object applyPref = findPref.invoke(fragment, "pref_apply_default_dark_mode");
+            boolean darkSubVisible = true;
+            if (applyPref != null) {
+                darkSubVisible = Boolean.TRUE.equals(applyPref.getClass().getMethod("isVisible").invoke(applyPref));
+                String lang = java.util.Locale.getDefault().getLanguage();
+                String title = "ru".equals(lang)
+                        ? "Красить светлые сайты принудительно"
+                        : ("uk".equals(lang)
+                        ? "Примусово затемнювати світлі сайти"
+                        : "Force dark mode on light websites");
+                String summary = "ru".equals(lang)
+                        ? "Принудительно красить сайты в тёмный, если у них нет своей тёмной темы"
+                        : ("uk".equals(lang)
+                        ? "Примусово перефарбовувати сайти в темний, якщо вони не мають власної темної теми"
+                        : "Darken websites automatically when they don't have a native dark theme");
+                applyPref.getClass().getMethod("setTitle", CharSequence.class).invoke(applyPref, title);
+                applyPref.getClass().getMethod("setSummary", CharSequence.class).invoke(applyPref, summary);
+            }
+            Object amoledPref = findPref.invoke(fragment, "sbrowserx_dark_amoled");
+            if (amoledPref != null) {
+                amoledPref.getClass().getMethod("setVisible", boolean.class).invoke(amoledPref, darkSubVisible);
             }
         } catch (Throwable ignored) {}
     }
 
     public static void onNativeApplyDefaultDarkToggled(Object fragment, Object newValue) {
         try {
-            if (Boolean.TRUE.equals(newValue)) {
-                Context ctx = SBrowserXPrefs.getAppContext();
-                if (ctx != null && SBrowserXPrefs.isDarkBrightImagesEnabled(ctx)) {
-                    SBrowserXPrefs.setDarkBrightImagesEnabled(ctx, false);
-                    applyDarkBrightImagesNow(false);
-                    if (fragment != null) {
-                        Method findPref = fragment.getClass().getMethod("findPreference", CharSequence.class);
-                        syncSwitchChecked(findPref, fragment, "sbrowserx_dark_bright_images", false);
-                        syncDarkBrightnessExclusion(fragment);
-                    }
-                }
-            }
+            Context ctx = SBrowserXPrefs.getAppContext();
+            boolean enableSites = Boolean.TRUE.equals(newValue) && isBrowserNightMode(ctx);
+            syncChromiumForceDarkSwitches(enableSites);
+            syncDarkBrightnessExclusion(fragment);
         } catch (Throwable ignored) {}
     }
 
@@ -1617,12 +1507,7 @@ public final class SBrowserXHooks {
     }
 
     public static boolean isDarkBrightImagesEnabled() {
-        try {
-            Context ctx = SBrowserXPrefs.getAppContext();
-            return ctx == null || SBrowserXPrefs.isDarkBrightImagesEnabled(ctx);
-        } catch (Throwable t) {
-            return true;
-        }
+        return true;
     }
 
     public static boolean adjustNightDimEnabled(boolean stockEnabled) {
@@ -1894,32 +1779,7 @@ public final class SBrowserXHooks {
                     SBrowserXPrefs.isAmoledBlackEnabled(ctx),
                     checked -> SBrowserXPrefs.setAmoledBlackEnabled(ctx, checked));
 
-            bindNativeSwitch(findPref, fragment, "sbrowserx_dark_bright_images",
-                    SBrowserXStrings.get(SBrowserXStrings.DARK_BRIGHT_IMG_TITLE),
-                    SBrowserXStrings.get(SBrowserXStrings.DARK_BRIGHT_IMG_SUMMARY),
-                    SBrowserXPrefs.isDarkBrightImagesEnabled(ctx),
-                    checked -> {
-                        SBrowserXPrefs.setDarkBrightImagesEnabled(ctx, checked);
-                        applyDarkBrightImagesNow(checked);
-                        if (checked) {
-                            syncSwitchChecked(findPref, fragment, "pref_apply_default_dark_mode", false);
-                        }
-                        try {
-                            Method upd = fragment.getClass().getDeclaredMethod("updateBrightnessSettingEnabled", boolean.class);
-                            upd.setAccessible(true);
-                            upd.invoke(fragment, false);
-                        } catch (Throwable ignored) {}
-                        syncDarkBrightnessExclusion(fragment);
-                    });
 
-            bindNativeSwitch(findPref, fragment, "sbrowserx_dark_adaptive_sites",
-                    SBrowserXStrings.get(SBrowserXStrings.FORCE_DARK_TITLE),
-                    SBrowserXStrings.get(SBrowserXStrings.FORCE_DARK_SUMMARY),
-                    SBrowserXPrefs.isForceAdaptiveDarkEnabled(ctx),
-                    checked -> {
-                        SBrowserXPrefs.setForceAdaptiveDarkEnabled(ctx, checked);
-                        applyForceAdaptiveDarkNow(checked);
-                    });
 
             syncDarkBrightnessExclusion(fragment);
 

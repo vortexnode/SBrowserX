@@ -225,23 +225,10 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
         document("res/xml/manage_dark_mode_preference.xml").use { xml ->
             val screen = xml.documentElement ?: error("Missing PreferenceScreen in manage_dark_mode_preference.xml")
 
-            screen.appendChild(createCategory(xml, "sbrowserx_dark_category", "SBrowserX"))
             screen.appendChild(
                 createSwitchPref(
-                    xml, "sbrowserx_dark_amoled", "AMOLED Black Theme",
+                    xml, "sbrowserx_dark_amoled", "AMOLED Mode",
                     "Pure #000000 for browser UI and darkened websites", false,
-                ),
-            )
-            screen.appendChild(
-                createSwitchPref(
-                    xml, "sbrowserx_dark_bright_images", "Vivid images in Dark Mode",
-                    "Disables NightDim & 50% dim filter (disables Force Day Dark)", true,
-                ),
-            )
-            screen.appendChild(
-                createSwitchPref(
-                    xml, "sbrowserx_dark_adaptive_sites", "Force dark mode on sites even in Light UI",
-                    "Forces Chromium CIELAB dark mode during daytime (disables Vivid Images)", false,
                 ),
             )
         }

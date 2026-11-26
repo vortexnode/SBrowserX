@@ -19,6 +19,10 @@ private const val KINDRED_FACTORY_CLASS =
     "Lcom/sec/android/app/sbrowser/kindred/KindredControllerFactory;"
 private const val UPDATE_MANAGER_CLASS =
     "Lcom/sec/android/app/sbrowser/stub/UpdateManager;"
+private const val BIXBY_DELEGATE_CLASS =
+    "Lcom/sec/android/app/sbrowser/BixbyDelegate;"
+private const val SAMSUNG_PASS_CLASS =
+    "Lcom/samsung/android/authfw/pass/sdk/receiver/SamsungPassStateManager;"
 
 @Suppress("unused")
 val removeTelemetryAndPromotionsPatch = bytecodePatch(
@@ -82,6 +86,22 @@ val removeTelemetryAndPromotionsPatch = bytecodePatch(
             classType = UPDATE_MANAGER_CLASS,
             methodName = "checkUpdate",
             parameterTypes = emptyList(),
+            returnType = "V",
+        ).returnVoidEarly()
+
+        // 7. Samsung Bixby SDK cold-start initialization
+        findMethodOrThrow(
+            classType = BIXBY_DELEGATE_CLASS,
+            methodName = "initSbixby",
+            parameterTypes = listOf("Landroid/app/Application;"),
+            returnType = "V",
+        ).returnVoidEarly()
+
+        // 8. Samsung Pass SDK receiver cold-start initialization
+        findMethodOrThrow(
+            classType = SAMSUNG_PASS_CLASS,
+            methodName = "init",
+            parameterTypes = listOf("Landroid/content/Context;"),
             returnType = "V",
         ).returnVoidEarly()
     }

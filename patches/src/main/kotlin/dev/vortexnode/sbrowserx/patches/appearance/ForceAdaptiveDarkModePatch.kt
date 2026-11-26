@@ -131,6 +131,7 @@ val forceAdaptiveDarkModePatch = bytecodePatch(
             0,
             """
                 invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->applyAmoledAndColorFixCss(Ljava/lang/Object;)V
+                return-void
             """.trimIndent(),
         )
 
@@ -173,7 +174,7 @@ val forceAdaptiveDarkModePatch = bytecodePatch(
         )
 
         // 9. ManageDarkModePreferenceFragment.lambda$onCreate$1(Preference, Object)Z (.locals 0)
-        // Enabling Samsung's "Always apply dark mode" (which activates brightness slider) turns OFF Vivid Images.
+        // Syncs Blink force-dark-mode immediately when toggling "Force dark mode on light websites".
         val applyDefaultLambda = findMethodOrThrow(
             classType = MANAGE_DARK_FRAGMENT_CLASS,
             methodName = "lambda${'$'}onCreate${'$'}1",
@@ -184,21 +185,6 @@ val forceAdaptiveDarkModePatch = bytecodePatch(
             0,
             """
                 invoke-static {p0, p2}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onNativeApplyDefaultDarkToggled(Ljava/lang/Object;Ljava/lang/Object;)V
-            """.trimIndent(),
-        )
-
-        // 10. ManageDarkModePreferenceFragment.lambda$onCreate$0(Preference, Object)Z (.locals 0, static)
-        // Moving Samsung's brightness slider turns OFF Vivid Images.
-        val brightSliderLambda = findMethodOrThrow(
-            classType = MANAGE_DARK_FRAGMENT_CLASS,
-            methodName = "lambda${'$'}onCreate${'$'}0",
-            parameterTypes = listOf("Landroidx/preference/Preference;", "Ljava/lang/Object;"),
-            returnType = "Z",
-        )
-        brightSliderLambda.addInstructions(
-            0,
-            """
-                invoke-static {p0, p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onNativeWebBrightnessChanged(Ljava/lang/Object;Ljava/lang/Object;)V
             """.trimIndent(),
         )
 

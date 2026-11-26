@@ -80,9 +80,6 @@ public final class SBrowserXStrings {
     public static final String EXT_DL_IMAGES_SUMMARY = "ext_dl_images_summary";
     public static final String DARK_BRIGHT_IMG_TITLE = "dark_bright_img_title";
     public static final String DARK_BRIGHT_IMG_SUMMARY = "dark_bright_img_summary";
-    public static final String PURE_CSS_DARK_TITLE = "pure_css_dark_title";
-    public static final String PURE_CSS_DARK_SUMMARY = "pure_css_dark_summary";
-    public static final String PURE_CSS_DARK_TOAST = "pure_css_dark_toast";
     public static final String LAYOUT_TRANSPARENCY_TITLE = "layout_transparency_title";
     public static final String COMPACT_AI_BTN_TITLE = "compact_ai_btn_title";
     public static final String UNLIMITED_TABS_TITLE = "unlimited_tabs_title";
@@ -452,31 +449,19 @@ public final class SBrowserXStrings {
         putOne("en", EXT_DL_IMAGES_SUMMARY, "ON: images, videos & files go to external downloader. OFF: browser saves images natively");
         putOne("en", DARK_BRIGHT_IMG_TITLE, "Vivid images in Dark Mode");
         putOne("en", DARK_BRIGHT_IMG_SUMMARY, "Disables NightDim & 50% dim veil, preserves true site colors & vivid photos (mutually exclusive with Samsung Webpage brightness in dark mode)");
-        putOne("en", PURE_CSS_DARK_TITLE, "Pure CSS Dark Mode (no icon inversion)");
-        putOne("en", PURE_CSS_DARK_SUMMARY, "Disables Blink C++ inverter and darkens light sites via lightweight CSS — icons, emojis & brand headers stay 100% original (requires restart)");
-        putOne("en", PURE_CSS_DARK_TOAST, "Restart browser to apply dark mode engine change");
         putOne("ru", EXT_DL_IMAGES_TITLE, "Скачивать и картинки через менеджер");
         putOne("ru", EXT_DL_IMAGES_SUMMARY, "ВКЛ: всё (включая картинки) идёт в сторонний менеджер. ВЫКЛ: картинки сохраняет сам браузер");
         putOne("ru", DARK_BRIGHT_IMG_TITLE, "Яркие картинки в тёмной теме");
         putOne("ru", DARK_BRIGHT_IMG_SUMMARY, "Отключает NightDim и 50%-фильтр, сохраняет цвета сайтов и яркость фото (взаимоисключаемо с «Яркость веб-страницы в режиме затемнения»)");
-        putOne("ru", PURE_CSS_DARK_TITLE, "Чистый CSS тёмный режим (без инверсии иконок)");
-        putOne("ru", PURE_CSS_DARK_SUMMARY, "Выключает C++ инвертор Blink и затемняет светлые сайты через лёгкий CSS — иконки, смайлики и шапки всегда 100% оригинальные (нужен перезапуск)");
-        putOne("ru", PURE_CSS_DARK_TOAST, "Перезапустите браузер для смены движка тёмной темы");
         putOne("uk", EXT_DL_IMAGES_TITLE, "Завантажувати й картинки через менеджер");
         putOne("uk", EXT_DL_IMAGES_SUMMARY, "УВІМК: усе (включно з картинками) йде у сторонній менеджер. ВИМК: картинки зберігає браузер");
         putOne("uk", DARK_BRIGHT_IMG_TITLE, "Яскраві картинки у темній темі");
         putOne("uk", DARK_BRIGHT_IMG_SUMMARY, "Вимикає NightDim і 50%-фільтр, зберігає кольори сайтів і яскравість фото (взаємовиключно з «Яскравість веб-сторінки в темному режимі»)");
-        putOne("uk", PURE_CSS_DARK_TITLE, "Чистий CSS темний режим (без інверсії іконок)");
-        putOne("uk", PURE_CSS_DARK_SUMMARY, "Вимикає C++ інвертор Blink і затемнює світлі сайти через легкий CSS — іконки, смайлики та шапки завжди 100% оригінальні (потрібен перезапуск)");
-        putOne("uk", PURE_CSS_DARK_TOAST, "Перезапустіть браузер для зміни рушія темної теми");
         for (String lang : new String[] {"es", "pt", "de", "fr", "it", "pl", "tr", "ar", "hi", "zh", "ja", "ko"}) {
             putOne(lang, EXT_DL_IMAGES_TITLE, "Also forward images to downloader");
             putOne(lang, EXT_DL_IMAGES_SUMMARY, "ON: images, videos & files go to external downloader. OFF: browser saves images natively");
             putOne(lang, DARK_BRIGHT_IMG_TITLE, "Vivid images in Dark Mode");
             putOne(lang, DARK_BRIGHT_IMG_SUMMARY, "Disables NightDim & 50% dim veil, preserves true site colors & vivid photos (mutually exclusive with Samsung Webpage brightness in dark mode)");
-            putOne(lang, PURE_CSS_DARK_TITLE, "Pure CSS Dark Mode (no icon inversion)");
-            putOne(lang, PURE_CSS_DARK_SUMMARY, "Disables Blink C++ inverter and darkens light sites via lightweight CSS — icons, emojis & brand headers stay 100% original (requires restart)");
-            putOne(lang, PURE_CSS_DARK_TOAST, "Restart browser to apply dark mode engine change");
         }
         putOne("en", LAYOUT_TRANSPARENCY_TITLE, "Panel & address bar translucency");
         putOne("en", COMPACT_AI_BTN_TITLE, "Compact bar button (replaces Samsung AI)");
