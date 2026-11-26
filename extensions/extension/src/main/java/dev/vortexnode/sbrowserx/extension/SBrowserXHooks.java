@@ -74,7 +74,9 @@ public final class SBrowserXHooks {
     private static volatile Method sTabGetUrl;
     private static volatile String sCachedBackdropKey;
     private static volatile Bitmap sCachedBackdropBitmap;
+    private static volatile Bitmap sCachedBackdropBlurred;
     private static volatile boolean sStartPageBackdropActive;
+    private static volatile boolean sStartPageTopBright;
 
     private static volatile boolean sSemBlurInitDone;
     private static volatile boolean sSemBlurUnsupported;
@@ -232,6 +234,120 @@ public final class SBrowserXHooks {
         @Override public int getOpacity() { return android.graphics.PixelFormat.OPAQUE; }
     }
 
+    /**
+     * Draws a pixel-aligned slice of the full-screen CENTER_CROP wallpaper directly onto
+     * Samsung's status_bar_background (top) or navigation_bar_background (bottom, pre-blurred + frosted glass tint).
+     */
+    private static final class WindowSliceWallpaperDrawable extends android.graphics.drawable.Drawable {
+        private final Bitmap bmp;
+        private final int dimAlpha;
+        private final int glassTintColor;
+        private final boolean alignBottom;
+        private final int fullW;
+        private final int fullH;
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+
+        WindowSliceWallpaperDrawable(Bitmap bmp, int dimPercent, int glassTintColor, boolean alignBottom, int fullW, int fullH) {
+            this.bmp = bmp;
+            this.dimAlpha = Math.max(0, Math.min(255, Math.round(dimPercent * 2.55f)));
+            this.glassTintColor = glassTintColor;
+            this.alignBottom = alignBottom;
+            this.fullW = Math.max(1, fullW);
+            this.fullH = Math.max(1, fullH);
+        }
+
+        @Override
+        public void draw(Canvas canvas) {
+            android.graphics.Rect b = getBounds();
+            if (b.width() <= 0 || b.height() <= 0) return;
+            canvas.save();
+            canvas.clipRect(b);
+            if (bmp != null && !bmp.isRecycled()) {
+                int bw = bmp.getWidth();
+                int bh = bmp.getHeight();
+                if (bw > 0 && bh > 0) {
+                    int sw = Math.max(b.width(), fullW);
+                    int sh = Math.max(b.height(), fullH);
+                    float scale = Math.max((float) sw / bw, (float) sh / bh);
+                    float dw = bw * scale;
+                    float dh = bh * scale;
+                    float left = (sw - dw) * 0.5f;
+                    float top = (sh - dh) * 0.5f;
+                    if (alignBottom) {
+                        top -= (sh - b.height());
+                    }
+                    android.graphics.RectF dst = new android.graphics.RectF(left, top, left + dw, top + dh);
+                    canvas.drawBitmap(bmp, null, dst, paint);
+                }
+            } else {
+                canvas.drawColor(0xFF000000);
+            }
+            if (dimAlpha > 0) {
+                canvas.drawColor(Color.argb(dimAlpha, 0, 0, 0));
+            }
+            if (glassTintColor != 0) {
+                canvas.drawColor(glassTintColor);
+            }
+            canvas.restore();
+        }
+
+        @Override public void setAlpha(int alpha) { paint.setAlpha(alpha); }
+        @Override public void setColorFilter(android.graphics.ColorFilter cf) { paint.setColorFilter(cf); }
+        @Override public int getOpacity() { return android.graphics.PixelFormat.OPAQUE; }
+    }
+
+    private static Bitmap createFastBlurredBitmap(Bitmap src) {
+        if (src == null || src.isRecycled()) return null;
+        try {
+            int tw = Math.max(24, src.getWidth() / 12);
+            int th = Math.max(24, src.getHeight() / 12);
+            Bitmap small = Bitmap.createScaledBitmap(src, tw, th, true);
+            Bitmap out = small.copy(Bitmap.Config.ARGB_8888, true);
+            if (small != src) small.recycle();
+            int w = out.getWidth();
+            int h = out.getHeight();
+            int[] pix = new int[w * h];
+            int[] tmp = new int[w * h];
+            out.getPixels(pix, 0, w, 0, 0, w, h);
+            // 2-pass 5x5 box blur on 1/12th scale gives silky ~60px frosted-glass blur in <3ms
+            for (int pass = 0; pass < 2; pass++) {
+                for (int y = 0; y < h; y++) {
+                    int row = y * w;
+                    for (int x = 0; x < w; x++) {
+                        int r = 0, g = 0, b = 0, c = 0;
+                        for (int dx = -2; dx <= 2; dx++) {
+                            int nx = Math.max(0, Math.min(w - 1, x + dx));
+                            int p = pix[row + nx];
+                            r += (p >> 16) & 0xFF;
+                            g += (p >> 8) & 0xFF;
+                            b += p & 0xFF;
+                            c++;
+                        }
+                        tmp[row + x] = 0xFF000000 | ((r / c) << 16) | ((g / c) << 8) | (b / c);
+                    }
+                }
+                for (int y = 0; y < h; y++) {
+                    for (int x = 0; x < w; x++) {
+                        int r = 0, g = 0, b = 0, c = 0;
+                        for (int dy = -2; dy <= 2; dy++) {
+                            int ny = Math.max(0, Math.min(h - 1, y + dy));
+                            int p = tmp[ny * w + x];
+                            r += (p >> 16) & 0xFF;
+                            g += (p >> 8) & 0xFF;
+                            b += p & 0xFF;
+                            c++;
+                        }
+                        pix[y * w + x] = 0xFF000000 | ((r / c) << 16) | ((g / c) << 8) | (b / c);
+                    }
+                }
+            }
+            out.setPixels(pix, 0, w, 0, 0, w, h);
+            return out;
+        } catch (Throwable ignored) {
+            return src;
+        }
+    }
+
     private static Bitmap loadStartPageBackdropBitmap(Context ctx, java.io.File file) {
         try {
             String key = file.getAbsolutePath() + ":" + file.lastModified() + ":" + file.length();
@@ -253,6 +369,7 @@ public final class SBrowserXHooks {
             if (bmp != null) {
                 sCachedBackdropKey = key;
                 sCachedBackdropBitmap = bmp;
+                sCachedBackdropBlurred = createFastBlurredBitmap(bmp);
             }
             return bmp;
         } catch (Throwable ignored) {
@@ -354,21 +471,36 @@ public final class SBrowserXHooks {
             if (onStartPage) {
                 int navColor = getStartPageNavGlassColor(act);
                 win.setStatusBarColor(0x00000000);
-                win.setNavigationBarColor(navColor);
+                win.setNavigationBarColor(0x00000000);
                 syncStatusBarIconAppearance(win, brightTop);
                 syncSystemBarIconAppearance(win, true); // white nav buttons on dark frosted glass
                 if (decor != null && pkg != null) {
+                    int fullW = decor.getWidth() > 0 ? decor.getWidth() : act.getResources().getDisplayMetrics().widthPixels;
+                    int fullH = decor.getHeight() > 0 ? decor.getHeight() : act.getResources().getDisplayMetrics().heightPixels;
+                    int dim = SBrowserXPrefs.getStartPageWallpaperDim(act);
+                    Bitmap bmp = sCachedBackdropBitmap;
+                    Bitmap blurred = sCachedBackdropBlurred != null ? sCachedBackdropBlurred : bmp;
+
                     int stId = act.getResources().getIdentifier("status_bar_background", "id", pkg);
                     if (stId != 0) {
                         View stView = decor.findViewById(stId);
-                        if (stView != null) stView.setBackgroundColor(0x00000000);
+                        if (stView != null) {
+                            if (bmp != null && !bmp.isRecycled()) {
+                                stView.setBackground(new WindowSliceWallpaperDrawable(bmp, dim, 0, false, fullW, fullH));
+                            } else {
+                                stView.setBackgroundColor(0x00000000);
+                            }
+                        }
                     }
                     int navId = act.getResources().getIdentifier("navigation_bar_background", "id", pkg);
                     if (navId != 0) {
                         View navView = decor.findViewById(navId);
                         if (navView != null) {
-                            navView.setBackgroundColor(navColor);
-                            applyOneUiNavBlur(navView, isBottomBarBlurEnabled() && !isCompactLayoutActive(), navColor);
+                            if (blurred != null && !blurred.isRecycled()) {
+                                navView.setBackground(new WindowSliceWallpaperDrawable(blurred, dim, navColor, true, fullW, fullH));
+                            } else {
+                                navView.setBackgroundColor(navColor);
+                            }
                         }
                     }
                 }
@@ -420,9 +552,18 @@ public final class SBrowserXHooks {
                                 int dim = SBrowserXPrefs.getStartPageWallpaperDim(act);
                                 boolean brightTop = isTopStripBright(bmp, dim);
                                 sStartPageBackdropActive = true;
+                                sStartPageTopBright = brightTop;
                                 sLastMainWindowBgColor = 0;
                                 win.setBackgroundDrawable(new CenterCropWallpaperDrawable(bmp, dim));
                                 applyStartPageSystemBarViews(act, true, brightTop);
+                                View dView = win.getDecorView();
+                                if (dView != null) {
+                                    dView.postDelayed(() -> {
+                                        if (sStartPageBackdropActive) {
+                                            applyStartPageSystemBarViews(act, true, sStartPageTopBright);
+                                        }
+                                    }, 160L);
+                                }
                                 return;
                             }
                         }
@@ -467,7 +608,17 @@ public final class SBrowserXHooks {
             Context ctx = window != null ? window.getContext() : SBrowserXPrefs.getAppContext();
             boolean night = isBrowserNightMode(ctx);
             if (isWindowOnQuickAccess(window)) {
-                return sStartPageBackdropActive ? getStartPageNavGlassColor(ctx) : 0x00000000;
+                if (sStartPageBackdropActive && window != null && window.getDecorView() != null) {
+                    final Activity act = sMainActivityRef.get();
+                    if (act != null) {
+                        window.getDecorView().post(() -> {
+                            if (sStartPageBackdropActive) {
+                                applyStartPageSystemBarViews(act, true, sStartPageTopBright);
+                            }
+                        });
+                    }
+                }
+                return 0x00000000;
             }
             if (isCompactLayoutActive()) {
                 syncSystemBarIconAppearance(window, night);
@@ -506,6 +657,16 @@ public final class SBrowserXHooks {
             }
             Context ctx = window != null ? window.getContext() : SBrowserXPrefs.getAppContext();
             if (isWindowOnQuickAccess(window)) {
+                if (sStartPageBackdropActive && window != null && window.getDecorView() != null) {
+                    final Activity act = sMainActivityRef.get();
+                    if (act != null) {
+                        window.getDecorView().post(() -> {
+                            if (sStartPageBackdropActive) {
+                                applyStartPageSystemBarViews(act, true, sStartPageTopBright);
+                            }
+                        });
+                    }
+                }
                 return 0x00000000;
             }
             if (isCompactLayoutActive()) {
@@ -3106,6 +3267,13 @@ public final class SBrowserXHooks {
                     }
                 }
             }
+            View rootView = (View) fragment.getClass().getMethod("getView").invoke(fragment);
+            if (rootView != null) {
+                final Context fCtx = ctx;
+                rootView.post(() -> {
+                    try { updateOrAttachStartPageHeaderCard(fCtx, rootView); } catch (Throwable ignored) {}
+                });
+            }
         } catch (Throwable ignored) {}
     }
 
@@ -3308,47 +3476,136 @@ public final class SBrowserXHooks {
         } catch (Throwable ignored) {}
     }
 
+    private static final String START_PAGE_HEADER_CARD_TAG = "sbrowserx_sp_header_card";
+    private static final String START_PAGE_HEADER_SUMMARY_TAG = "sbrowserx_sp_header_summary";
+
     public static void injectStartPageIntoHomepageSettings(Object fragment) {
         if (fragment == null) return;
         try {
-            Method getScreen = fragment.getClass().getMethod("getPreferenceScreen");
-            Object screen = getScreen.invoke(fragment);
-            if (screen == null) return;
-            Method getCtx = fragment.getClass().getMethod("getContext");
-            Context ctx = (Context) getCtx.invoke(fragment);
-            if (ctx == null) return;
+            // Remove any old injected preference so PreferenceScreen indices 0..2 stay 100% native CheckBoxPreferenceRadio!
+            try {
+                Object screen = fragment.getClass().getMethod("getPreferenceScreen").invoke(fragment);
+                if (screen != null) {
+                    Method findPref = screen.getClass().getMethod("findPreference", CharSequence.class);
+                    Class<?> prefCls = Class.forName("androidx.preference.Preference");
+                    Method removePref = screen.getClass().getMethod("removePreference", prefCls);
+                    Object oldEntry = findPref.invoke(screen, "sbrowserx_start_page_entry");
+                    if (oldEntry != null) removePref.invoke(screen, oldEntry);
+                    Object oldDiv = findPref.invoke(screen, "sbrowserx_start_page_divider");
+                    if (oldDiv != null) removePref.invoke(screen, oldDiv);
+                }
+            } catch (Throwable ignored) {}
 
-            Method findPref = screen.getClass().getMethod("findPreference", CharSequence.class);
-            Object existing = findPref.invoke(screen, "sbrowserx_start_page_entry");
-            Class<?> prefCls = Class.forName("androidx.preference.Preference");
-            Object pref = existing;
-            if (pref == null) {
-                pref = prefCls.getConstructor(Context.class).newInstance(ctx);
-                prefCls.getMethod("setKey", String.class).invoke(pref, "sbrowserx_start_page_entry");
-                prefCls.getMethod("setOrder", int.class).invoke(pref, -100);
-                Intent intent = new Intent(ctx, dev.vortexnode.sbrowserx.extension.settings.SBrowserXStartPageSettingsActivity.class);
-                prefCls.getMethod("setIntent", Intent.class).invoke(pref, intent);
-                screen.getClass().getMethod("addPreference", prefCls).invoke(screen, pref);
-            } else {
-                prefCls.getMethod("setOrder", int.class).invoke(pref, -100);
-            }
-            Object divider = findPref.invoke(screen, "sbrowserx_start_page_divider");
-            if (divider == null) {
+            final Context ctx = (Context) fragment.getClass().getMethod("getContext").invoke(fragment);
+            final View rootView = (View) fragment.getClass().getMethod("getView").invoke(fragment);
+            if (ctx == null || rootView == null) return;
+
+            rootView.post(() -> {
                 try {
-                    Class<?> catCls = Class.forName("androidx.preference.PreferenceCategory");
-                    Object cat = catCls.getConstructor(Context.class).newInstance(ctx);
-                    prefCls.getMethod("setKey", String.class).invoke(cat, "sbrowserx_start_page_divider");
-                    prefCls.getMethod("setOrder", int.class).invoke(cat, -50);
-                    prefCls.getMethod("setTitle", CharSequence.class).invoke(cat, "");
-                    screen.getClass().getMethod("addPreference", prefCls).invoke(screen, cat);
+                    updateOrAttachStartPageHeaderCard(ctx, rootView);
                 } catch (Throwable ignored) {}
-            }
-            prefCls.getMethod("setTitle", CharSequence.class).invoke(pref, SBrowserXStrings.get(SBrowserXStrings.SP_TITLE));
-            String sum = SBrowserXPrefs.isStartPageEnabled(ctx)
-                    ? SBrowserXStrings.get(SBrowserXStrings.SP_ENABLED_TOAST)
-                    : SBrowserXStrings.get(SBrowserXStrings.SP_SUMMARY);
-            prefCls.getMethod("setSummary", CharSequence.class).invoke(pref, sum);
+            });
         } catch (Throwable ignored) {}
+    }
+
+    private static void updateOrAttachStartPageHeaderCard(Context ctx, View rootView) {
+        if (ctx == null || !(rootView instanceof android.view.ViewGroup)) return;
+        android.view.ViewGroup root = (android.view.ViewGroup) rootView;
+        boolean spOn = SBrowserXPrefs.isStartPageEnabled(ctx);
+        String title = SBrowserXStrings.get(SBrowserXStrings.SP_TITLE);
+        String summary = spOn
+                ? SBrowserXStrings.get(SBrowserXStrings.SP_ENABLED_TOAST)
+                : SBrowserXStrings.get(SBrowserXStrings.SP_SUMMARY);
+
+        View existingCard = root.findViewWithTag(START_PAGE_HEADER_CARD_TAG);
+        if (existingCard != null) {
+            View sumView = existingCard.findViewWithTag(START_PAGE_HEADER_SUMMARY_TAG);
+            if (sumView instanceof android.widget.TextView) {
+                ((android.widget.TextView) sumView).setText(summary);
+            }
+            return;
+        }
+
+        // Find the LinearLayout holding the list container or wrap inside a vertical LinearLayout at index 0
+        android.view.ViewGroup targetParent = null;
+        if (root instanceof android.widget.LinearLayout
+                && ((android.widget.LinearLayout) root).getOrientation() == android.widget.LinearLayout.VERTICAL) {
+            targetParent = root;
+        } else {
+            for (int i = 0; i < root.getChildCount(); i++) {
+                View ch = root.getChildAt(i);
+                if (ch instanceof android.widget.LinearLayout
+                        && ((android.widget.LinearLayout) ch).getOrientation() == android.widget.LinearLayout.VERTICAL) {
+                    targetParent = (android.widget.LinearLayout) ch;
+                    break;
+                }
+            }
+        }
+        if (targetParent == null) {
+            // Create a vertical wrapper around existing children so the card sits cleanly above the list
+            android.widget.LinearLayout wrapper = new android.widget.LinearLayout(ctx);
+            wrapper.setOrientation(android.widget.LinearLayout.VERTICAL);
+            wrapper.setLayoutParams(new android.view.ViewGroup.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT));
+            while (root.getChildCount() > 0) {
+                View ch = root.getChildAt(0);
+                root.removeViewAt(0);
+                wrapper.addView(ch);
+            }
+            root.addView(wrapper);
+            targetParent = wrapper;
+        }
+
+        float d = ctx.getResources().getDisplayMetrics().density;
+        int dp12 = Math.round(12f * d);
+        int dp16 = Math.round(16f * d);
+        int dp20 = Math.round(20f * d);
+        int dp26 = Math.round(26f * d);
+        boolean night = isBrowserNightMode(ctx);
+        int cardBgColor = night ? 0xFF1C1C1F : 0xFFFFFFFF;
+        int textPrimary = night ? 0xFFFAFAFA : 0xFF111111;
+        int textSecondary = night ? 0xFF9EA2AA : 0xFF666A73;
+
+        android.widget.LinearLayout card = new android.widget.LinearLayout(ctx);
+        card.setTag(START_PAGE_HEADER_CARD_TAG);
+        card.setOrientation(android.widget.LinearLayout.VERTICAL);
+        card.setPadding(dp20, dp16, dp20, dp16);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(cardBgColor);
+        bg.setCornerRadius(dp26);
+        card.setBackground(bg);
+        card.setClickable(true);
+        card.setFocusable(true);
+        android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(dp12, dp12, dp12, dp12);
+        card.setLayoutParams(lp);
+
+        android.widget.TextView tvTitle = new android.widget.TextView(ctx);
+        tvTitle.setText(title);
+        tvTitle.setTextColor(textPrimary);
+        tvTitle.setTextSize(17f);
+        card.addView(tvTitle);
+
+        android.widget.TextView tvSum = new android.widget.TextView(ctx);
+        tvSum.setTag(START_PAGE_HEADER_SUMMARY_TAG);
+        tvSum.setText(summary);
+        tvSum.setTextColor(textSecondary);
+        tvSum.setTextSize(13.5f);
+        tvSum.setPadding(0, Math.round(3f * d), 0, 0);
+        card.addView(tvSum);
+
+        card.setOnClickListener(v -> {
+            try {
+                Intent intent = new Intent(ctx, dev.vortexnode.sbrowserx.extension.settings.SBrowserXStartPageSettingsActivity.class);
+                if (!(ctx instanceof Activity)) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                ctx.startActivity(intent);
+            } catch (Throwable ignored) {}
+        });
+
+        targetParent.addView(card, 0);
     }
 
     public static Activity getMainActivity() {
