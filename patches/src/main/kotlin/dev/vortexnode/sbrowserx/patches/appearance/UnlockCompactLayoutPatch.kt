@@ -1,6 +1,7 @@
 package dev.vortexnode.sbrowserx.patches.appearance
 
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
+import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLabels
 import app.morphe.patcher.patch.bytecodePatch
 import dev.vortexnode.sbrowserx.patches.core.sbrowserXCorePatch
 import dev.vortexnode.sbrowserx.shared.Constants.COMPATIBILITY_SBROWSER
@@ -333,6 +334,29 @@ val unlockCompactLayoutPatch = bytecodePatch(
                 invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->isNativePageBlurAllowed(Ljava/lang/Object;)Z
                 move-result p0
                 return p0
+            """.trimIndent(),
+        )
+
+        // 17b. DeviceLayoutUtil.applyNavigationBarInset(View, WindowInsets, Z)V (.locals 7)
+        // Keeps navigation_bar_background_for_multi_tab permanently hidden & transparent on WindowInsets updates.
+        findMethodOrThrow(
+            classType = DEVICE_LAYOUT_UTIL_CLASS,
+            methodName = "applyNavigationBarInset",
+            parameterTypes = listOf("Landroid/view/View;", "Landroid/view/WindowInsets;", "Z"),
+            returnType = "V",
+        ).addInstructionsWithLabels(
+            0,
+            """
+                invoke-static {p0, p2}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->shouldHideMultiTabNavFade(Landroid/view/View;Z)Z
+                move-result v0
+                if-eqz v0, :sbrowserx_keep_nav_inset
+                const/4 v0, 0x0
+                invoke-virtual {p0, v0}, Landroid/view/View;->setBackgroundColor(I)V
+                const/16 v0, 0x8
+                invoke-virtual {p0, v0}, Landroid/view/View;->setVisibility(I)V
+                return-void
+                :sbrowserx_keep_nav_inset
+                nop
             """.trimIndent(),
         )
 

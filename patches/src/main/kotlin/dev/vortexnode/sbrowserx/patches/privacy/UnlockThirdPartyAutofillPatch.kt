@@ -1,6 +1,7 @@
 package dev.vortexnode.sbrowserx.patches.privacy
 
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
+import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLabels
 import app.morphe.patcher.patch.bytecodePatch
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
@@ -14,6 +15,16 @@ private const val AUTOFILL_MANAGER_WRAPPER_CLASS =
     "Lorg/chromium/components/autofill/AutofillManagerWrapper;"
 private const val TIN_CONTENT_VIEW_WITH_AUTOFILL_CLASS =
     "Lcom/sec/terrace/content/browser/TinContentViewWithAutofill;"
+private const val TERRACE_CLASS =
+    "Lcom/sec/terrace/Terrace;"
+private const val SAVE_PASSWORD_INFOBAR_CLASS =
+    "Lcom/sec/android/app/sbrowser/infobars/SavePasswordInfoBar;"
+private const val UPDATE_PASSWORD_INFOBAR_CLASS =
+    "Lcom/sec/android/app/sbrowser/infobars/UpdatePasswordInfoBar;"
+private const val SAMSUNG_PASS_MIGRATION_DIALOG_CLASS =
+    "Lcom/sec/android/app/sbrowser/autofill/password/SamsungPassMigrationDialog;"
+private const val AUTOFILL_POPUP_EXTENSION_CLASS =
+    "Lcom/sec/android/app/sbrowser/autofill/personal_data/AutofillPopupExtension;"
 
 @Suppress("unused")
 val unlockThirdPartyAutofillPatch = bytecodePatch(
@@ -83,5 +94,85 @@ val unlockThirdPartyAutofillPatch = bytecodePatch(
             }
             check(patched) { "Failed to patch getPersonalDataSyncSetFlag in $methodName" }
         }
+
+        // Ensure native libterrace.so credentials_enable_service pref is enabled when a system Android Autofill service
+        // is active, so PasswordManager allows AutofillProviderAndroid::OnAskForValuesToFillImpl to start sessions.
+        findMethodOrThrow(
+            classType = TERRACE_CLASS,
+            methodName = "initializeAutofillProviderIfNecessary",
+            returnType = "V",
+        ).addInstructions(
+            0,
+            """
+                invoke-virtual {p0}, Lcom/sec/terrace/Terrace;->getContext()Landroid/content/Context;
+                move-result-object v0
+                invoke-static {v0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->ensureTerraceAutofillEnabled(Landroid/content/Context;)V
+            """.trimIndent(),
+        )
+
+        // Suppress Samsung's proprietary Save/Update password infobars when a third-party Android Autofill service is active.
+        findMethodOrThrow(
+            classType = SAVE_PASSWORD_INFOBAR_CLASS,
+            methodName = "create",
+            returnType = SAVE_PASSWORD_INFOBAR_CLASS,
+        ).addInstructionsWithLabels(
+            0,
+            """
+                invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->shouldSuppressSamsungPasswordUi(Landroid/content/Context;)Z
+                move-result v0
+                if-eqz v0, :sbrowserx_allow_save_infobar
+                const/4 v0, 0x0
+                return-object v0
+                :sbrowserx_allow_save_infobar
+                nop
+            """.trimIndent(),
+        )
+
+        findMethodOrThrow(
+            classType = UPDATE_PASSWORD_INFOBAR_CLASS,
+            methodName = "create",
+            returnType = UPDATE_PASSWORD_INFOBAR_CLASS,
+        ).addInstructionsWithLabels(
+            0,
+            """
+                invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->shouldSuppressSamsungPasswordUi(Landroid/content/Context;)Z
+                move-result v0
+                if-eqz v0, :sbrowserx_allow_update_infobar
+                const/4 v0, 0x0
+                return-object v0
+                :sbrowserx_allow_update_infobar
+                nop
+            """.trimIndent(),
+        )
+
+        findMethodOrThrow(
+            classType = SAMSUNG_PASS_MIGRATION_DIALOG_CLASS,
+            methodName = "showIfNeeded",
+            parameterTypes = emptyList(),
+            returnType = "V",
+        ).addInstructionsWithLabels(
+            0,
+            """
+                const/4 v0, 0x0
+                invoke-static {v0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->shouldSuppressSamsungPasswordUi(Landroid/content/Context;)Z
+                move-result v0
+                if-eqz v0, :sbrowserx_allow_migration_dialog
+                return-void
+                :sbrowserx_allow_migration_dialog
+                nop
+            """.trimIndent(),
+        )
+
+        findMethodOrThrow(
+            classType = AUTOFILL_POPUP_EXTENSION_CLASS,
+            methodName = "overridePasswordSuggestions",
+            returnType = "V",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {p3}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->adjustSuggestPasswordStore(Z)Z
+                move-result p3
+            """.trimIndent(),
+        )
     }
 }

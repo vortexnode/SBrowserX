@@ -116,6 +116,7 @@ public final class SBrowserXHooks {
         if (activity != null) {
             sMainActivityRef = new WeakReference<>(activity);
             applyCompactSystemBarPolish(activity);
+            ensureTerraceAutofillEnabled(activity);
         }
     }
 
@@ -319,7 +320,6 @@ public final class SBrowserXHooks {
                 int vid = v.getId();
                 boolean protectedId = (vid == android.R.id.content || vid == navId || vid == statusId
                         || vid == mainLayoutId || vid == contentLayoutId || vid == tabHolderId
-                        || vid == toolbarId || vid == bottombarId || vid == bottombarMainId
                         || vid == toolbarCompactId);
                 if (vid == android.R.id.navigationBarBackground || vid == android.R.id.statusBarBackground) {
                     v.setBackgroundColor(0x00000000);
@@ -397,6 +397,32 @@ public final class SBrowserXHooks {
     public static boolean adjustImportantForAutofill(View view, boolean stockImportant) {
         if (stockImportant) return true;
         return hasActiveSystemAutofillService(view != null ? view.getContext() : null);
+    }
+
+    public static boolean shouldHideMultiTabNavFade(View view, boolean forMultiTab) {
+        return forMultiTab && isCompactLayoutActive();
+    }
+
+    private static volatile boolean sTerraceRememberPasswordsSynced = false;
+
+    public static void ensureTerraceAutofillEnabled(Context ctx) {
+        if (!hasActiveSystemAutofillService(ctx)) return;
+        if (sTerraceRememberPasswordsSynced) return;
+        try {
+            Class<?> bridge = Class.forName("com.sec.terrace.browser.prefs.TerracePrefServiceBridge");
+            Method setRemember = bridge.getMethod("setRememberPasswordsEnabled", boolean.class);
+            setRemember.invoke(null, true);
+            sTerraceRememberPasswordsSynced = true;
+        } catch (Throwable ignored) {}
+    }
+
+    public static boolean shouldSuppressSamsungPasswordUi(Context ctx) {
+        return hasActiveSystemAutofillService(ctx);
+    }
+
+    public static boolean adjustSuggestPasswordStore(boolean stockSuggest) {
+        if (hasActiveSystemAutofillService(null)) return false;
+        return stockSuggest;
     }
 
     private static void applyCompactSystemBarPolish(Activity activity) {
