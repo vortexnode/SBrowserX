@@ -576,5 +576,24 @@ val sbrowserXCorePatch = bytecodePatch(
             0,
             "invoke-static {p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onNativeHomepageUrlChanged(Ljava/lang/String;)V",
         )
+
+        // When SBrowserX Start Page is active, tapping the gear icon next to "Custom page" opens Start Page settings
+        // instead of showing the raw http://127.0.0.1:47391/ EditText dialog.
+        findMethodOrThrow(
+            classType = "Lcom/sec/android/app/sbrowser/settings/homepage/HomePagePreferenceFragment;",
+            methodName = "showSetHomePageDialog",
+            parameterTypes = emptyList(),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->tryOpenStartPageSettingsFromDialog(Ljava/lang/Object;)Z
+                move-result v0
+                if-eqz v0, :sbrowserx_stock_hp_dlg
+                return-void
+                :sbrowserx_stock_hp_dlg
+                nop
+            """.trimIndent(),
+        )
     }
 }
