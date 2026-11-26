@@ -304,8 +304,8 @@ public final class SBrowserXHooks {
                 appendSwitch.invoke(null, "enable-zero-copy");
                 appendSwitch.invoke(null, "enable-smooth-scrolling");
             } catch (Throwable ignored) {}
-            boolean darkActive = isBrowserNightMode(ctx);
-            boolean forceLightSites = isApplyDefaultDarkSitesEnabled();
+            boolean darkActive = isBrowserNightModeAtStartup(ctx);
+            boolean forceLightSites = isApplyDefaultDarkSitesAtStartup(ctx);
             sInCommandLineInit = true;
             try {
                 if (darkActive && forceLightSites) {
@@ -974,16 +974,46 @@ public final class SBrowserXHooks {
         return -1;
     }
 
+    private static boolean isBrowserNightModeAtStartup(Context ctx) {
+        try {
+            if (ctx != null) {
+                android.content.SharedPreferences sp = ctx.getSharedPreferences(
+                        ctx.getPackageName() + "_preferences", Context.MODE_PRIVATE);
+                boolean sysDefault = sp.getBoolean("pref_manage_dark_mode_system_default", true);
+                if (sysDefault) {
+                    int ui = ctx.getResources().getConfiguration().uiMode
+                            & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
+                    return ui == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+                }
+                return sp.getBoolean("pref_night_mode", false);
+            }
+        } catch (Throwable ignored) {}
+        return isBrowserNightMode(ctx);
+    }
+
+    private static boolean isApplyDefaultDarkSitesAtStartup(Context ctx) {
+        try {
+            if (ctx != null) {
+                android.content.SharedPreferences sp = ctx.getSharedPreferences(
+                        ctx.getPackageName() + "_preferences", Context.MODE_PRIVATE);
+                return sp.getBoolean("pref_apply_default_dark_mode", true);
+            }
+        } catch (Throwable ignored) {}
+        return isApplyDefaultDarkSitesEnabled();
+    }
+
     private static void syncChromiumForceDarkSwitches(boolean enable) {
-        // Never mutate Chromium CommandLine after native init: calling native CommandLineJni.removeSwitch()
-        // on a live multi-threaded browser process triggers a native crash on Dark -> Light switches.
-        if (!sInCommandLineInit) return;
         try {
             Class<?> tcl = Class.forName("com.sec.terrace.TerraceCommandLine");
             if (enable) {
                 tcl.getMethod("appendSwitch", String.class).invoke(null, "force-dark-mode");
                 tcl.getMethod("appendSwitchWithValue", String.class, String.class)
                         .invoke(null, "blink-settings", "forceDarkModeEnabled=true");
+            } else if (sInCommandLineInit) {
+                // Only remove switches pre-native; calling native CommandLineJni.removeSwitch()
+                // on a live multi-threaded Chromium process causes Dark -> Light crash.
+                tcl.getMethod("removeSwitch", String.class).invoke(null, "force-dark-mode");
+                tcl.getMethod("removeSwitch", String.class).invoke(null, "blink-settings");
             }
         } catch (Throwable ignored) {}
     }

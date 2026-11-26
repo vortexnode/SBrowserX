@@ -198,13 +198,13 @@ public final class SBrowserXRestartManager {
     private static void attachToStockSettingsToolbar(Activity activity) {
         if (activity == null || activity.isFinishing() || activity.isDestroyed()) return;
         try {
-            Class<?> utilCls = Class.forName("com.sec.android.app.sbrowser.common.settings.SettingsAppBarUtil");
-            Method getToolbar = utilCls.getMethod("getToolbar", Activity.class);
-            Object toolbarObj = getToolbar.invoke(null, activity);
-            if (!(toolbarObj instanceof ViewGroup)) return;
-            ViewGroup toolbar = (ViewGroup) toolbarObj;
+            android.view.Window win = activity.getWindow();
+            if (win == null) return;
+            View decorObj = win.getDecorView();
+            if (!(decorObj instanceof ViewGroup)) return;
+            ViewGroup decor = (ViewGroup) decorObj;
 
-            View existing = toolbar.findViewWithTag(BTN_TAG);
+            View existing = decor.findViewWithTag(BTN_TAG);
             ImageView btn;
             if (existing instanceof ImageView) {
                 btn = (ImageView) existing;
@@ -212,11 +212,20 @@ public final class SBrowserXRestartManager {
                 btn = buildRestartImageView(activity);
                 float d = activity.getResources().getDisplayMetrics().density;
                 int size = Math.round(40 * d);
-                // Use androidx.appcompat.widget.Toolbar$LayoutParams via reflection so Gravity.END works natively
-                ViewGroup.LayoutParams lp = createToolbarEndLayoutParams(toolbar, size, Math.round(6 * d));
-                toolbar.addView(btn, lp);
+                int statusH = 0;
+                int resId = activity.getResources().getIdentifier("status_bar_height", "dimen", "android");
+                if (resId > 0) statusH = activity.getResources().getDimensionPixelSize(resId);
+                if (statusH <= 0) statusH = Math.round(28 * d);
+
+                android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(
+                        size, size, Gravity.TOP | Gravity.END);
+                lp.topMargin = statusH + Math.round(8 * d);
+                lp.setMarginEnd(Math.round(14 * d));
+                btn.setElevation(16 * d);
+                decor.addView(btn, lp);
                 registerButton(btn);
             }
+            btn.bringToFront();
             applyButtonVisualState(btn, activity, false);
         } catch (Throwable t) {
             Log.w(TAG, "attachToStockSettingsToolbar failed", t);
