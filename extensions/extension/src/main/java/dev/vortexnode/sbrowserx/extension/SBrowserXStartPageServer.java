@@ -88,7 +88,9 @@ public final class SBrowserXStartPageServer {
         try {
             InetAddress lo = InetAddress.getByName("127.0.0.1");
             try {
-                server = new ServerSocket(PREFERRED_PORT, 16, lo);
+                server = new ServerSocket();
+                server.setReuseAddress(true);
+                server.bind(new java.net.InetSocketAddress(lo, PREFERRED_PORT), 16);
                 sPort = PREFERRED_PORT;
             } catch (Throwable busy) {
                 server = new ServerSocket(0, 16, lo);

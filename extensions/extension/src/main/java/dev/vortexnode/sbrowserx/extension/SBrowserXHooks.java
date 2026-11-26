@@ -2860,10 +2860,7 @@ public final class SBrowserXHooks {
     }
 
     private static void consumePendingHomepageNavigation(final Activity act) {
-        final String target = sPendingHomepageNavUrl;
-        if (target == null || target.isEmpty() || act == null || act.isFinishing() || act.isDestroyed()) return;
-        final boolean onlyFromQa = sPendingNavOnlyFromQuickAccess;
-        final boolean onlyFromSp = sPendingNavOnlyFromStartPage;
+        if (act == null || act.isFinishing() || act.isDestroyed()) return;
         sPendingHomepageNavUrl = null;
         sPendingNavOnlyFromQuickAccess = false;
         sPendingNavOnlyFromStartPage = false;
@@ -2872,6 +2869,11 @@ public final class SBrowserXHooks {
         Runnable task = () -> {
             try {
                 if (act.isFinishing() || act.isDestroyed()) return;
+                Context ctx = act.getApplicationContext();
+                boolean spEnabled = SBrowserXPrefs.isStartPageEnabled(ctx);
+                if (spEnabled) {
+                    SBrowserXStartPageServer.ensureStarted(ctx);
+                }
                 Method getTab = sActGetCurrentTab;
                 if (getTab == null || !getTab.getDeclaringClass().isInstance(act)) {
                     getTab = act.getClass().getMethod("getCurrentTab");
@@ -2887,26 +2889,81 @@ public final class SBrowserXHooks {
                 Object curUrlObj = getUrl.invoke(tab);
                 String curUrl = curUrlObj instanceof String ? ((String) curUrlObj).trim() : "";
 
-                boolean shouldLoad = false;
-                if (onlyFromQa && isTabQuickAccessOrNewTab(tab)) {
-                    shouldLoad = true;
-                } else if (onlyFromSp && isStartPageOmniboxUrl(curUrl)) {
-                    shouldLoad = true;
-                } else if (!onlyFromQa && !onlyFromSp) {
-                    shouldLoad = true;
-                }
-                if (shouldLoad && !target.equals(curUrl)) {
-                    tab.getClass().getMethod("loadUrl", String.class).invoke(tab, target);
+                if (spEnabled && isTabQuickAccessOrNewTab(tab)) {
+                    String spUrl = SBrowserXStartPageServer.getBaseUrl();
+                    if (!spUrl.equals(curUrl)) {
+                        tab.getClass().getMethod("loadUrl", String.class).invoke(tab, spUrl);
+                    }
+                } else if (!spEnabled && isStartPageOmniboxUrl(curUrl)
+                        && System.currentTimeMillis() > sAllowStartPagePreviewUntilMs) {
+                    syncStartPageWindowBackdrop(false);
+                    String nativeUrl = resolveNativeHomepageUrl();
+                    if (!nativeUrl.equals(curUrl)) {
+                        tab.getClass().getMethod("loadUrl", String.class).invoke(tab, nativeUrl);
+                    }
                 }
             } catch (Throwable t) {
                 Log.w(TAG, "consumePendingHomepageNavigation failed", t);
             }
         };
         if (decor != null) {
-            decor.postDelayed(task, 120L);
+            decor.postDelayed(task, 180L);
+            // Second pass for cold start when TabManager finishes restoring tabs slightly later
+            decor.postDelayed(task, 750L);
         } else {
             act.runOnUiThread(task);
         }
+    }
+
+    public static void onHomepageFragmentUpdated(Object fragment) {
+        if (fragment == null) return;
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            if (ctx == null) {
+                ctx = (Context) fragment.getClass().getMethod("getContext").invoke(fragment);
+            }
+            if (ctx == null) return;
+            boolean spOn = SBrowserXPrefs.isStartPageEnabled(ctx);
+
+            // Clear cached mOtherURL inside HomePagePreferenceFragment if Start Page was disabled
+            if (!spOn) {
+                try {
+                    Field fOther = fragment.getClass().getDeclaredField("mOtherURL");
+                    fOther.setAccessible(true);
+                    Object curOther = fOther.get(fragment);
+                    if (curOther instanceof String && isStartPageOmniboxUrl((String) curOther)) {
+                        fOther.set(fragment, "https://www.google.com/");
+                    }
+                } catch (Throwable ignored) {}
+            }
+
+            // Refresh all preference summaries on screen so 127.0.0.1 never appears on unselected "Custom page"
+            // and "SBrowserX Start Page" summary reflects the live toggle state immediately.
+            Object screen = fragment.getClass().getMethod("getPreferenceScreen").invoke(fragment);
+            if (screen != null) {
+                int count = (Integer) screen.getClass().getMethod("getPreferenceCount").invoke(screen);
+                Method getPref = screen.getClass().getMethod("getPreference", int.class);
+                for (int i = 0; i < count; i++) {
+                    Object pref = getPref.invoke(screen, i);
+                    if (pref == null) continue;
+                    String key = (String) pref.getClass().getMethod("getKey").invoke(pref);
+                    if ("sbrowserx_start_page_entry".equals(key)) {
+                        String sum = spOn
+                                ? SBrowserXStrings.get(SBrowserXStrings.SP_ENABLED_TOAST)
+                                : SBrowserXStrings.get(SBrowserXStrings.SP_SUMMARY);
+                        pref.getClass().getMethod("setSummary", CharSequence.class).invoke(pref, sum);
+                    } else {
+                        CharSequence sumCs = (CharSequence) pref.getClass().getMethod("getSummary").invoke(pref);
+                        if (sumCs != null && isStartPageOmniboxUrl(sumCs.toString())) {
+                            String replacement = spOn
+                                    ? SBrowserXStrings.get(SBrowserXStrings.SP_TITLE)
+                                    : "https://www.google.com/";
+                            pref.getClass().getMethod("setSummary", CharSequence.class).invoke(pref, replacement);
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
     }
 
     public static void allowStartPagePreviewBriefly() {

@@ -595,5 +595,22 @@ val sbrowserXCorePatch = bytecodePatch(
                 nop
             """.trimIndent(),
         )
+
+        // Keep HomePagePreferenceFragment summaries clean (never leak 127.0.0.1 on unselected Custom Page)
+        val hpUpdateGuiMethod = findMethodOrThrow(
+            classType = "Lcom/sec/android/app/sbrowser/settings/homepage/HomePagePreferenceFragment;",
+            methodName = "updateSummaryAndGui",
+            parameterTypes = listOf("I"),
+            returnType = "V",
+        )
+        val hpGuiRetIndices = hpUpdateGuiMethod.implementation!!.instructions
+            .mapIndexedNotNull { idx, insn -> if (insn.opcode == Opcode.RETURN_VOID) idx else null }
+            .reversed()
+        for (retIdx in hpGuiRetIndices) {
+            hpUpdateGuiMethod.addInstruction(
+                retIdx,
+                "invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onHomepageFragmentUpdated(Ljava/lang/Object;)V",
+            )
+        }
     }
 }
