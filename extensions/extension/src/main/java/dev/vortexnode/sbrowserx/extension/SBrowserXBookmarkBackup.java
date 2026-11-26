@@ -136,12 +136,74 @@ public final class SBrowserXBookmarkBackup {
             if (mgr != null) {
                 Object res = cls.getMethod("getBookmarkRootId", Uri.class).invoke(mgr, bookmarkUri);
                 if (res instanceof Long) {
-                    long id = (Long) res;
-                    if (id != 0L) return id;
+                    return (Long) res; // 0L (SAMSUNG) and -3L (MY_DEVICE) are both valid root IDs
                 }
             }
         } catch (Throwable ignored) {}
-        return FALLBACK_MY_DEVICE_ROOT_ID;
+        // Fallback: inspect an existing visible normal bookmark (e.g. Google / Galaxy Shop)
+        Cursor c = null;
+        try {
+            c = ctx.getApplicationContext().getContentResolver().query(
+                    bookmarkUri,
+                    new String[] { "PARENT" },
+                    "FOLDER = 0 AND DELETED = 0 AND IS_COMMITED = 0",
+                    null,
+                    "_ID ASC");
+            if (c != null && c.moveToFirst()) {
+                return c.getLong(0);
+            }
+        } catch (Throwable ignored) {
+        } finally {
+            if (c != null) try { c.close(); } catch (Throwable ignored) {}
+        }
+        return 0L;
+    }
+
+    private static int getRootAccountType(Context ctx, Uri bookmarkUri, long rootId) {
+        try {
+            Class<?> cls = Class.forName("com.sec.android.app.sbrowser.common.sites.BookmarkRootIDManager");
+            Object mgr = cls.getMethod("getInstance", Context.class).invoke(null, ctx.getApplicationContext());
+            if (mgr != null) {
+                Object rootItem = cls.getMethod("getBookmarkRoot", Uri.class).invoke(mgr, bookmarkUri);
+                if (rootItem != null) {
+                    Object accType = rootItem.getClass().getMethod("getAccountType").invoke(rootItem);
+                    if (accType != null) {
+                        Object numVal = accType.getClass().getMethod("getNumVal").invoke(accType);
+                        if (numVal instanceof Integer) return (Integer) numVal;
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+        return rootId == 0L ? 2 : 0; // 2 = AccountType.SAMSUNG, 0 = AccountType.DEVICE
+    }
+
+    public static int repairOrphanedImportedBookmarks(Context ctx) {
+        if (ctx == null) return 0;
+        try {
+            ContentResolver cr = ctx.getApplicationContext().getContentResolver();
+            Uri uri = getBookmarkUri(ctx);
+            long rootId = getRootFolderId(ctx, uri);
+            int accountType = getRootAccountType(ctx, uri, rootId);
+            if (rootId == FALLBACK_MY_DEVICE_ROOT_ID) return 0;
+            ContentValues cv = new ContentValues();
+            cv.put("PARENT", rootId);
+            cv.put("IS_COMMITED", 0);
+            cv.put("bookmark_type", accountType);
+            cv.put("SYNC3", "");
+            int updated = cr.update(
+                    uri,
+                    cv,
+                    "PARENT = ? AND TAGS = ? AND DELETED = 0",
+                    new String[] { String.valueOf(FALLBACK_MY_DEVICE_ROOT_ID), "NP" });
+            if (updated > 0) {
+                try { cr.notifyChange(uri, null); } catch (Throwable ignored) {}
+                Log.i(TAG, "Repaired " + updated + " previously imported bookmarks to rootId=" + rootId);
+            }
+            return updated;
+        } catch (Throwable t) {
+            Log.w(TAG, "repairOrphanedImportedBookmarks failed", t);
+            return 0;
+        }
     }
 
     // --- EXPORT (Universal Netscape Bookmark HTML) ---
@@ -207,7 +269,7 @@ public final class SBrowserXBookmarkBackup {
         Map<Long, List<DbNode>> byParent = new HashMap<>();
         List<DbNode> topLevel = new ArrayList<>();
         for (DbNode n : allNodes) {
-            if (n.parentId <= 0L || n.parentId == rootId || !knownFolderIds.contains(n.parentId)) {
+            if (n.parentId == rootId || !knownFolderIds.contains(n.parentId)) {
                 topLevel.add(n);
             } else {
                 List<DbNode> list = byParent.get(n.parentId);
@@ -341,12 +403,14 @@ public final class SBrowserXBookmarkBackup {
             throw new IllegalArgumentException("No bookmarks found in file");
         }
 
+        repairOrphanedImportedBookmarks(ctx);
         ContentResolver cr = ctx.getApplicationContext().getContentResolver();
         Uri uri = getBookmarkUri(ctx);
         long rootId = getRootFolderId(ctx, uri);
+        int accountType = getRootAccountType(ctx, uri, rootId);
 
         int[] stats = new int[3]; // [0]=addedBookmarks, [1]=addedFolders, [2]=skippedDuplicates
-        insertNodesRecursive(cr, uri, rootId, rootItems, stats, 0);
+        insertNodesRecursive(cr, uri, rootId, accountType, rootItems, stats, 0);
 
         try {
             cr.notifyChange(uri, null);
@@ -557,6 +621,7 @@ public final class SBrowserXBookmarkBackup {
             ContentResolver cr,
             Uri uri,
             long parentId,
+            int accountType,
             List<ParsedNode> nodes,
             int[] stats,
             int depth) {
@@ -580,7 +645,8 @@ public final class SBrowserXBookmarkBackup {
                     cv.put("EDITABLE", 1);
                     cv.put("DELETED", 0);
                     cv.put("IS_COMMITED", 0);
-                    cv.put("bookmark_type", 0);
+                    cv.put("bookmark_type", accountType);
+                    cv.put("SYNC3", "");
                     cv.put("EXPAND", 0);
                     cv.put("CREATED", n.addDateMs > 0L ? n.addDateMs : now);
                     cv.put("MODIFIED", now);
@@ -593,7 +659,7 @@ public final class SBrowserXBookmarkBackup {
                         targetFolderId = parentId;
                     }
                 }
-                insertNodesRecursive(cr, uri, targetFolderId, n.children, stats, depth + 1);
+                insertNodesRecursive(cr, uri, targetFolderId, accountType, n.children, stats, depth + 1);
             } else {
                 if (n.url == null || n.url.isEmpty()) continue;
                 if (bookmarkExists(cr, uri, parentId, n.url)) {
@@ -610,7 +676,8 @@ public final class SBrowserXBookmarkBackup {
                 cv.put("EDITABLE", 1);
                 cv.put("DELETED", 0);
                 cv.put("IS_COMMITED", 0);
-                cv.put("bookmark_type", 0);
+                cv.put("bookmark_type", accountType);
+                cv.put("SYNC3", "");
                 cv.put("EXPAND", 0);
                 cv.put("CREATED", n.addDateMs > 0L ? n.addDateMs : now);
                 cv.put("MODIFIED", now);

@@ -45,6 +45,8 @@ private const val AI_SUMMARY_ACTIVITY_CLASS =
     "dev.vortexnode.sbrowserx.extension.settings.SBrowserXAiSummaryActivity"
 private const val START_PAGE_ACTIVITY_CLASS =
     "dev.vortexnode.sbrowserx.extension.settings.SBrowserXStartPageSettingsActivity"
+private const val BOOKMARKS_BRIDGE_ACTIVITY_CLASS =
+    "dev.vortexnode.sbrowserx.extension.settings.SBrowserXBookmarksBridgeActivity"
 private const val APP_MENU_HANDLER_CLASS =
     "Lcom/sec/android/app/sbrowser/main_view/menu/AppMenuHandler;"
 private const val PRIVACY_PREF_FRAGMENT_CLASS =
@@ -118,6 +120,7 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
             ensureActivity(manifest, application, BROWSING_ASSIST_ACTIVITY_CLASS, "@android:style/Theme.DeviceDefault.NoActionBar")
             ensureActivity(manifest, application, AI_SUMMARY_ACTIVITY_CLASS, "@android:style/Theme.Translucent.NoTitleBar")
             ensureActivity(manifest, application, START_PAGE_ACTIVITY_CLASS, "@android:style/Theme.DeviceDefault.NoActionBar")
+            ensureActivity(manifest, application, BOOKMARKS_BRIDGE_ACTIVITY_CLASS, "@android:style/Theme.Translucent.NoTitleBar")
         }
 
         // 1. Main Settings: Standalone SBrowserX card -> Sync & Backup + Browsing Assist card -> Extensions inside Privacy card
@@ -141,6 +144,11 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
                 "AI Summary (Gemini API) & Built-in Translator",
                 targetPkg, BROWSING_ASSIST_ACTIVITY_CLASS,
             )
+            val bookmarksPref = createIntentPref(
+                xml, "sbrowserx_settings_bookmarks", "Bookmarks",
+                "Quick access to bookmarks & folders",
+                targetPkg, BOOKMARKS_BRIDGE_ACTIVITY_CLASS,
+            )
 
             val firstChild = screen.firstChild
             if (firstChild != null) {
@@ -148,11 +156,13 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
                 screen.insertBefore(cardDivider, firstChild)
                 screen.insertBefore(syncBackupPref, firstChild)
                 screen.insertBefore(assistPref, firstChild)
+                screen.insertBefore(bookmarksPref, firstChild)
             } else {
                 screen.appendChild(hubPref)
                 screen.appendChild(cardDivider)
                 screen.appendChild(syncBackupPref)
                 screen.appendChild(assistPref)
+                screen.appendChild(bookmarksPref)
             }
 
             // Place "Extensions" down inside the Privacy & Security card (right above "privacy")
@@ -546,5 +556,25 @@ val sbrowserXCorePatch = bytecodePatch(
                 """.trimIndent(),
             )
         }
+
+        // Keep SBrowserX Start Page toggle synced when user switches Homepage in native Settings -> Homepage
+        findMethodOrThrow(
+            classType = "Lcom/sec/android/app/sbrowser/homepage/HomePageSettings;",
+            methodName = "setHomePageType",
+            parameterTypes = listOf("Ljava/lang/String;"),
+            returnType = "V",
+        ).addInstruction(
+            0,
+            "invoke-static {p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onNativeHomepageTypeChanged(Ljava/lang/String;)V",
+        )
+        findMethodOrThrow(
+            classType = "Lcom/sec/android/app/sbrowser/homepage/HomePageSettings;",
+            methodName = "setHomePage",
+            parameterTypes = listOf("Ljava/lang/String;"),
+            returnType = "V",
+        ).addInstruction(
+            0,
+            "invoke-static {p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onNativeHomepageUrlChanged(Ljava/lang/String;)V",
+        )
     }
 }

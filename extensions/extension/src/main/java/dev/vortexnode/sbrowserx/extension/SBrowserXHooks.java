@@ -71,6 +71,10 @@ public final class SBrowserXHooks {
 
     private static volatile Method sActGetCurrentTab;
     private static volatile Method sTabIsNewQuickAccess;
+    private static volatile Method sTabGetUrl;
+    private static volatile String sCachedBackdropKey;
+    private static volatile Bitmap sCachedBackdropBitmap;
+    private static volatile boolean sStartPageBackdropActive;
 
     private static volatile boolean sSemBlurInitDone;
     private static volatile boolean sSemBlurUnsupported;
@@ -165,18 +169,135 @@ public final class SBrowserXHooks {
                 isQa = tab.getClass().getMethod("isNewQuickAccessPage");
                 sTabIsNewQuickAccess = isQa;
             }
-            return Boolean.TRUE.equals(isQa.invoke(tab));
+            if (Boolean.TRUE.equals(isQa.invoke(tab))) return true;
+            Method getUrl = sTabGetUrl;
+            if (getUrl == null || !getUrl.getDeclaringClass().isInstance(tab)) {
+                getUrl = tab.getClass().getMethod("getUrl");
+                sTabGetUrl = getUrl;
+            }
+            Object urlObj = getUrl.invoke(tab);
+            return urlObj instanceof String && isStartPageOmniboxUrl((String) urlObj);
         } catch (Throwable ignored) {}
         return false;
     }
 
     private static void syncMainWindowBackground(android.view.Window window, int color) {
         if (window == null || color == 0) return;
+        if (sStartPageBackdropActive) return;
         try {
             if (sLastMainWindowBgColor != color) {
                 sLastMainWindowBgColor = color;
                 window.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(color));
             }
+        } catch (Throwable ignored) {}
+    }
+
+    private static final class CenterCropWallpaperDrawable extends android.graphics.drawable.Drawable {
+        private final Bitmap bmp;
+        private final int dimAlpha;
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+
+        CenterCropWallpaperDrawable(Bitmap bmp, int dimPercent) {
+            this.bmp = bmp;
+            this.dimAlpha = Math.max(0, Math.min(255, Math.round(dimPercent * 2.55f)));
+        }
+
+        @Override
+        public void draw(Canvas canvas) {
+            android.graphics.Rect b = getBounds();
+            if (b.width() <= 0 || b.height() <= 0) return;
+            if (bmp != null && !bmp.isRecycled()) {
+                int bw = bmp.getWidth();
+                int bh = bmp.getHeight();
+                if (bw > 0 && bh > 0) {
+                    float scale = Math.max((float) b.width() / bw, (float) b.height() / bh);
+                    float dw = bw * scale;
+                    float dh = bh * scale;
+                    float left = b.left + (b.width() - dw) * 0.5f;
+                    float top = b.top + (b.height() - dh) * 0.5f;
+                    android.graphics.RectF dst = new android.graphics.RectF(left, top, left + dw, top + dh);
+                    canvas.drawBitmap(bmp, null, dst, paint);
+                }
+            } else {
+                canvas.drawColor(0xFF000000);
+            }
+            if (dimAlpha > 0) {
+                canvas.drawColor(Color.argb(dimAlpha, 0, 0, 0));
+            }
+        }
+
+        @Override public void setAlpha(int alpha) { paint.setAlpha(alpha); }
+        @Override public void setColorFilter(android.graphics.ColorFilter cf) { paint.setColorFilter(cf); }
+        @Override public int getOpacity() { return android.graphics.PixelFormat.OPAQUE; }
+    }
+
+    private static Bitmap loadStartPageBackdropBitmap(Context ctx, java.io.File file) {
+        try {
+            String key = file.getAbsolutePath() + ":" + file.lastModified() + ":" + file.length();
+            if (key.equals(sCachedBackdropKey) && sCachedBackdropBitmap != null && !sCachedBackdropBitmap.isRecycled()) {
+                return sCachedBackdropBitmap;
+            }
+            android.graphics.BitmapFactory.Options opts = new android.graphics.BitmapFactory.Options();
+            opts.inJustDecodeBounds = true;
+            android.graphics.BitmapFactory.decodeFile(file.getAbsolutePath(), opts);
+            int maxDim = 1440;
+            int sample = 1;
+            while (opts.outWidth / sample > maxDim || opts.outHeight / sample > maxDim) {
+                sample *= 2;
+            }
+            android.graphics.BitmapFactory.Options dec = new android.graphics.BitmapFactory.Options();
+            dec.inSampleSize = sample;
+            dec.inPreferredConfig = Bitmap.Config.RGB_565;
+            Bitmap bmp = android.graphics.BitmapFactory.decodeFile(file.getAbsolutePath(), dec);
+            if (bmp != null) {
+                sCachedBackdropKey = key;
+                sCachedBackdropBitmap = bmp;
+            }
+            return bmp;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    public static void syncStartPageWindowBackdrop(final boolean onStartPage) {
+        try {
+            final Activity act = sMainActivityRef.get();
+            if (act == null || act.isFinishing() || act.isDestroyed()) return;
+            act.runOnUiThread(() -> {
+                try {
+                    android.view.Window win = act.getWindow();
+                    if (win == null) return;
+                    if (onStartPage) {
+                        String mode = SBrowserXPrefs.getStartPageWallpaperMode(act);
+                        java.io.File wpFile = null;
+                        if (SBrowserXStartPageServer.WALLPAPER_LOCAL.equals(mode)) {
+                            wpFile = SBrowserXStartPageServer.getLocalWallpaperFile(act);
+                        } else if (SBrowserXStartPageServer.WALLPAPER_ONLINE.equals(mode)) {
+                            wpFile = SBrowserXStartPageServer.getOnlineWallpaperFile(act);
+                        }
+                        if (wpFile != null && wpFile.exists() && wpFile.length() > 0L) {
+                            Bitmap bmp = loadStartPageBackdropBitmap(act, wpFile);
+                            if (bmp != null) {
+                                int dim = SBrowserXPrefs.getStartPageWallpaperDim(act);
+                                sStartPageBackdropActive = true;
+                                sLastMainWindowBgColor = 0;
+                                win.setBackgroundDrawable(new CenterCropWallpaperDrawable(bmp, dim));
+                                win.setNavigationBarColor(0x00000000);
+                                win.setStatusBarColor(0x00000000);
+                                return;
+                            }
+                        }
+                    }
+                    if (sStartPageBackdropActive) {
+                        sStartPageBackdropActive = false;
+                        sLastMainWindowBgColor = 0;
+                        boolean night = isBrowserNightMode(act);
+                        int c = night ? (isAmoledBlackEnabled() ? 0xFF000000 : 0xFF121212) : 0xFFFFFFFF;
+                        win.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(c));
+                        sLastMainWindowBgColor = c;
+                    }
+                } catch (Throwable ignored) {}
+            });
         } catch (Throwable ignored) {}
     }
 
@@ -2416,6 +2537,18 @@ public final class SBrowserXHooks {
                 extPref.getClass().getMethod("setSummary", CharSequence.class).invoke(extPref, extSum);
             }
 
+            Object bmPref = findPref.invoke(fragment, "sbrowserx_settings_bookmarks");
+            if (bmPref != null) {
+                String lang = java.util.Locale.getDefault().getLanguage();
+                String bmTitle = "ru".equals(lang) ? "Закладки"
+                        : ("uk".equals(lang) ? "Закладки" : "Bookmarks");
+                String bmSum = "ru".equals(lang) ? "Быстрый переход к закладкам и папкам"
+                        : ("uk".equals(lang) ? "Швидкий перехід до закладок і папок"
+                        : "Quick access to bookmarks & folders");
+                bmPref.getClass().getMethod("setTitle", CharSequence.class).invoke(bmPref, bmTitle);
+                bmPref.getClass().getMethod("setSummary", CharSequence.class).invoke(bmPref, bmSum);
+            }
+
             Object hub = findPref.invoke(fragment, "sbrowserx_settings_hub");
             if (hub != null) {
                 String summary = SBrowserXStrings.get(SBrowserXStrings.CAT_EXTENSIONS) + ", WebRTC, "
@@ -2673,7 +2806,11 @@ public final class SBrowserXHooks {
     public static String sanitizeOmniboxUrl(String url) {
         if (url == null) return "";
         if (isStartPageOmniboxUrl(url)) {
+            syncStartPageWindowBackdrop(true);
             return "";
+        }
+        if (sStartPageBackdropActive && !url.trim().isEmpty()) {
+            syncStartPageWindowBackdrop(false);
         }
         return url;
     }
@@ -2685,22 +2822,57 @@ public final class SBrowserXHooks {
         return url;
     }
 
+    private static volatile boolean sUpdatingHomepageInternally;
+
     public static void applyStartPageHomepageSetting(Context ctx, boolean enable) {
         if (ctx == null) return;
+        sUpdatingHomepageInternally = true;
         try {
             SBrowserXStartPageServer.ensureStarted(ctx);
             Class<?> hpsCls = Class.forName("com.sec.android.app.sbrowser.homepage.HomePageSettings");
             Object inst = hpsCls.getMethod("getInstance").invoke(null);
             if (inst == null) return;
             if (enable) {
+                String url = SBrowserXStartPageServer.getBaseUrl();
                 hpsCls.getMethod("setHomePageType", String.class).invoke(inst, "other");
-                hpsCls.getMethod("setHomePage", String.class).invoke(inst, SBrowserXStartPageServer.getBaseUrl());
+                try { hpsCls.getMethod("setOtherHomePage", String.class).invoke(inst, url); } catch (Throwable ignored) {}
+                hpsCls.getMethod("setHomePage", String.class).invoke(inst, url);
             } else {
-                hpsCls.getMethod("setHomePageType", String.class).invoke(inst, "quickaccess");
+                try {
+                    hpsCls.getMethod("setHomepageAsQuickAccess").invoke(inst);
+                } catch (Throwable fallback) {
+                    hpsCls.getMethod("setHomePageType", String.class).invoke(inst, "quick_access");
+                    hpsCls.getMethod("setHomePage", String.class).invoke(inst, "internet-native://newtab/");
+                }
+                syncStartPageWindowBackdrop(false);
             }
         } catch (Throwable t) {
             Log.w(TAG, "applyStartPageHomepageSetting failed", t);
+        } finally {
+            sUpdatingHomepageInternally = false;
         }
+    }
+
+    public static void onNativeHomepageTypeChanged(String type) {
+        if (sUpdatingHomepageInternally || type == null) return;
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            if (ctx != null && !"other".equals(type) && SBrowserXPrefs.isStartPageEnabled(ctx)) {
+                SBrowserXPrefs.setStartPageEnabled(ctx, false);
+                syncStartPageWindowBackdrop(false);
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    public static void onNativeHomepageUrlChanged(String url) {
+        if (sUpdatingHomepageInternally || url == null || url.trim().isEmpty()) return;
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            if (ctx != null && !isStartPageOmniboxUrl(url) && SBrowserXPrefs.isStartPageEnabled(ctx)) {
+                SBrowserXPrefs.setStartPageEnabled(ctx, false);
+                syncStartPageWindowBackdrop(false);
+            }
+        } catch (Throwable ignored) {}
     }
 
     public static void injectStartPageIntoHomepageSettings(Object fragment) {
