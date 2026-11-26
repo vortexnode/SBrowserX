@@ -69,6 +69,21 @@ public final class SBrowserXHooks {
     private static volatile Field sFieldTabWebDarkHandler;
     private static volatile Method sMethodWebDarkEvalJs;
 
+    private static volatile Method sActGetCurrentTab;
+    private static volatile Method sTabIsNewQuickAccess;
+
+    private static volatile boolean sSemBlurInitDone;
+    private static volatile boolean sSemBlurUnsupported;
+    private static volatile int sSemBlurModeWindow;
+    private static volatile java.lang.reflect.Constructor<?> sSemBlurBuilderCtor;
+    private static volatile Method sSemBlurSetRadius;
+    private static volatile Method sSemBlurSetBgColor;
+    private static volatile Method sSemBlurSetCornerRadius;
+    private static volatile Method sSemBlurBuild;
+    private static volatile Method sMajoSetBlurInfo;
+    private static volatile Method sViewUtilClearBlur;
+    private static volatile boolean sViewUtilClearBlurInitDone;
+
     private static void ensureDarkModeUtilsCache() {
         if (sDmuInitDone) return;
         sDmuInitDone = true;
@@ -137,10 +152,19 @@ public final class SBrowserXHooks {
             Activity act = sMainActivityRef.get();
             if (act == null || act.isFinishing() || act.isDestroyed()) return false;
             if (window != null && act.getWindow() != window) return false;
-            Object tab = act.getClass().getMethod("getCurrentTab").invoke(act);
+            Method getTab = sActGetCurrentTab;
+            if (getTab == null || !getTab.getDeclaringClass().isInstance(act)) {
+                getTab = act.getClass().getMethod("getCurrentTab");
+                sActGetCurrentTab = getTab;
+            }
+            Object tab = getTab.invoke(act);
             if (tab == null) return false;
-            Object res = tab.getClass().getMethod("isNewQuickAccessPage").invoke(tab);
-            return Boolean.TRUE.equals(res);
+            Method isQa = sTabIsNewQuickAccess;
+            if (isQa == null || !isQa.getDeclaringClass().isInstance(tab)) {
+                isQa = tab.getClass().getMethod("isNewQuickAccessPage");
+                sTabIsNewQuickAccess = isQa;
+            }
+            return Boolean.TRUE.equals(isQa.invoke(tab));
         } catch (Throwable ignored) {}
         return false;
     }
@@ -371,10 +395,6 @@ public final class SBrowserXHooks {
                 || d instanceof android.graphics.drawable.DrawableWrapper);
     }
 
-    public static boolean isAnyAutofillServiceAllowed(String serviceComponentName) {
-        return serviceComponentName != null && !serviceComponentName.isEmpty();
-    }
-
     private static boolean hasActiveSystemAutofillService(Context ctx) {
         Context[] candidates = new Context[] { ctx, sMainActivityRef.get(), SBrowserXPrefs.getAppContext() };
         for (Context c : candidates) {
@@ -390,6 +410,9 @@ public final class SBrowserXHooks {
     }
 
     public static boolean shouldUseTerraceAutofill(View view, boolean stockPersonalDataSyncFlag) {
+        if (!sTerracePersonalDataSyncSynced) {
+            ensureTerraceAutofillEnabled(view != null ? view.getContext() : null);
+        }
         if (stockPersonalDataSyncFlag) return true;
         return hasActiveSystemAutofillService(view != null ? view.getContext() : null);
     }
@@ -404,10 +427,36 @@ public final class SBrowserXHooks {
     }
 
     private static volatile boolean sTerracePersonalDataSyncSynced = false;
+    private static volatile boolean sTerraceAutofillRetryPosted = false;
+
+    private static boolean isTerraceInitialized() {
+        try {
+            Class<?> helperCls = Class.forName("com.sec.terrace.TerraceHelper");
+            Object helper = helperCls.getMethod("getInstance").invoke(null);
+            if (helper == null) return false;
+            return Boolean.TRUE.equals(helperCls.getMethod("isInitialized").invoke(helper));
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
 
     public static void ensureTerraceAutofillEnabled(Context ctx) {
-        if (!hasActiveSystemAutofillService(ctx)) return;
         if (sTerracePersonalDataSyncSynced) return;
+        if (!hasActiveSystemAutofillService(ctx)) return;
+        if (!isTerraceInitialized()) {
+            if (!sTerraceAutofillRetryPosted) {
+                sTerraceAutofillRetryPosted = true;
+                try {
+                    new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                        sTerraceAutofillRetryPosted = false;
+                        ensureTerraceAutofillEnabled(null);
+                    }, 800L);
+                } catch (Throwable ignored) {
+                    sTerraceAutofillRetryPosted = false;
+                }
+            }
+            return;
+        }
         try {
             Class<?> bridge = Class.forName("com.sec.terrace.browser.prefs.TerracePrefServiceBridge");
             Method setSyncFlag = bridge.getMethod("setPersonalDataSyncSetFlag", boolean.class);
@@ -476,10 +525,6 @@ public final class SBrowserXHooks {
                 }
             }
         } catch (Throwable ignored) {}
-    }
-
-    public static boolean openExtensionsManager(Context context) {
-        return openInternalUrl(context, "internet://extensions/");
     }
 
     public static boolean openInternalUrl(Context context, String url) {
@@ -1111,6 +1156,52 @@ public final class SBrowserXHooks {
      * with the active layout's transparency setting (Compact bar in Compact mode,
      * Bottom bar in Standard/Bottom mode) and AMOLED black dark theme.
      */
+    private static void clearSemBlurEffect(View target) {
+        if (target == null) return;
+        try {
+            if (!sViewUtilClearBlurInitDone) {
+                sViewUtilClearBlurInitDone = true;
+                Class<?> vu = Class.forName("com.sec.android.app.sbrowser.common.utils.ViewUtil");
+                sViewUtilClearBlur = vu.getMethod("clearBlurEffect", View.class);
+            }
+            if (sViewUtilClearBlur != null) {
+                sViewUtilClearBlur.invoke(null, target);
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    private static void applySemBlurInfo(View target, int blurRadius, int tintColor, float cornerPx) {
+        if (target == null || sSemBlurUnsupported) return;
+        try {
+            if (!sSemBlurInitDone) {
+                sSemBlurInitDone = true;
+                Class<?> semBlurCls = Class.forName("com.sec.sbrowser.spl.wrapper.SemBlurInfo");
+                Object modeField = semBlurCls.getField("BLUR_MODE_WINDOW").get(null);
+                sSemBlurModeWindow = (Integer) modeField.getClass().getMethod("get").invoke(modeField);
+                Class<?> builderCls = Class.forName("com.sec.sbrowser.spl.wrapper.SemBlurInfo$Builder");
+                sSemBlurBuilderCtor = builderCls.getConstructor(int.class);
+                sSemBlurSetRadius = builderCls.getMethod("setRadius", int.class);
+                sSemBlurSetBgColor = builderCls.getMethod("setBackgroundColor", int.class);
+                sSemBlurSetCornerRadius = builderCls.getMethod("setBackgroundCornerRadius", float.class);
+                sSemBlurBuild = builderCls.getMethod("build");
+                Class<?> majoCls = Class.forName("com.sec.sbrowser.spl.wrapper.MajoView");
+                sMajoSetBlurInfo = majoCls.getMethod("semSetBlurInfo", View.class, Object.class);
+            }
+            if (sSemBlurBuilderCtor == null || sMajoSetBlurInfo == null) {
+                sSemBlurUnsupported = true;
+                return;
+            }
+            Object builder = sSemBlurBuilderCtor.newInstance(sSemBlurModeWindow);
+            sSemBlurSetRadius.invoke(builder, blurRadius);
+            sSemBlurSetBgColor.invoke(builder, tintColor);
+            sSemBlurSetCornerRadius.invoke(builder, cornerPx);
+            Object blurInfo = sSemBlurBuild.invoke(builder);
+            sMajoSetBlurInfo.invoke(null, target, blurInfo);
+        } catch (Throwable t) {
+            sSemBlurUnsupported = true;
+        }
+    }
+
     public static void applyMoreMenuGlassStyle(Dialog dialog) {
         if (dialog == null || dialog.getWindow() == null) return;
         try {
@@ -1143,10 +1234,7 @@ public final class SBrowserXHooks {
 
             if (!enabled) {
                 if (outer != null) {
-                    try {
-                        Class<?> vu = Class.forName("com.sec.android.app.sbrowser.common.utils.ViewUtil");
-                        vu.getMethod("clearBlurEffect", View.class).invoke(null, outer);
-                    } catch (Throwable ignored) {}
+                    clearSemBlurEffect(outer);
                 }
                 if (container != null && container.getBackground() != null) {
                     container.getBackground().mutate().setAlpha(255);
@@ -1173,21 +1261,7 @@ public final class SBrowserXHooks {
                 int blurRadius = Math.round(60f + transparency * 1.4f); // 81..179
                 int tintAlpha = clampByte(Math.round(alpha * 0.45f));
                 int tintColor = withAlpha(baseRgb, tintAlpha);
-                try {
-                    Class<?> semBlurCls = Class.forName("com.sec.sbrowser.spl.wrapper.SemBlurInfo");
-                    Object modeField = semBlurCls.getField("BLUR_MODE_WINDOW").get(null);
-                    int blurMode = (Integer) modeField.getClass().getMethod("get").invoke(modeField);
-                    Class<?> builderCls = Class.forName("com.sec.sbrowser.spl.wrapper.SemBlurInfo$Builder");
-                    Object builder = builderCls.getConstructor(int.class).newInstance(blurMode);
-                    builderCls.getMethod("setRadius", int.class).invoke(builder, blurRadius);
-                    builderCls.getMethod("setBackgroundColor", int.class).invoke(builder, tintColor);
-                    builderCls.getMethod("setBackgroundCornerRadius", float.class).invoke(builder, (float) cornerPx);
-                    Object blurInfo = builderCls.getMethod("build").invoke(builder);
-                    Class<?> majoCls = Class.forName("com.sec.sbrowser.spl.wrapper.MajoView");
-                    majoCls.getMethod("semSetBlurInfo", View.class, Object.class).invoke(null, outer, blurInfo);
-                } catch (Throwable t) {
-                    Log.w(TAG, "applyMoreMenuGlassStyle SemBlurInfo fallback", t);
-                }
+                applySemBlurInfo(outer, blurRadius, tintColor, (float) cornerPx);
             }
         } catch (Throwable t) {
             Log.w(TAG, "applyMoreMenuGlassStyle failed", t);
@@ -1235,10 +1309,7 @@ public final class SBrowserXHooks {
             }
 
             if (!enabled) {
-                try {
-                    Class<?> vu = Class.forName("com.sec.android.app.sbrowser.common.utils.ViewUtil");
-                    vu.getMethod("clearBlurEffect", View.class).invoke(null, extView);
-                } catch (Throwable ignored) {}
+                clearSemBlurEffect(extView);
                 GradientDrawable solid = new GradientDrawable();
                 solid.setShape(GradientDrawable.RECTANGLE);
                 solid.setCornerRadius(cornerPx);
@@ -1263,21 +1334,7 @@ public final class SBrowserXHooks {
             int blurRadius = Math.round(60f + transparency * 1.4f); // 81..179
             int tintAlpha = clampByte(Math.round(alpha * 0.45f));
             int tintColor = withAlpha(baseRgb, tintAlpha);
-            try {
-                Class<?> semBlurCls = Class.forName("com.sec.sbrowser.spl.wrapper.SemBlurInfo");
-                Object modeField = semBlurCls.getField("BLUR_MODE_WINDOW").get(null);
-                int blurMode = (Integer) modeField.getClass().getMethod("get").invoke(modeField);
-                Class<?> builderCls = Class.forName("com.sec.sbrowser.spl.wrapper.SemBlurInfo$Builder");
-                Object builder = builderCls.getConstructor(int.class).newInstance(blurMode);
-                builderCls.getMethod("setRadius", int.class).invoke(builder, blurRadius);
-                builderCls.getMethod("setBackgroundColor", int.class).invoke(builder, tintColor);
-                builderCls.getMethod("setBackgroundCornerRadius", float.class).invoke(builder, (float) cornerPx);
-                Object blurInfo = builderCls.getMethod("build").invoke(builder);
-                Class<?> majoCls = Class.forName("com.sec.sbrowser.spl.wrapper.MajoView");
-                majoCls.getMethod("semSetBlurInfo", View.class, Object.class).invoke(null, extView, blurInfo);
-            } catch (Throwable t) {
-                Log.w(TAG, "applyExtensionsPopupGlassStyle SemBlurInfo fallback", t);
-            }
+            applySemBlurInfo(extView, blurRadius, tintColor, (float) cornerPx);
         } catch (Throwable t) {
             Log.w(TAG, "applyExtensionsPopupGlassStyle failed", t);
         }
@@ -1636,16 +1693,6 @@ public final class SBrowserXHooks {
         try {
             SBrowserXRestartManager.markDirtyFromUi();
             syncDarkBrightnessExclusion(fragment);
-        } catch (Throwable ignored) {}
-    }
-
-    public static void onNativeWebBrightnessChanged(Object preference, Object newValue) {
-        try {
-            Context ctx = SBrowserXPrefs.getAppContext();
-            if (ctx != null && SBrowserXPrefs.isDarkBrightImagesEnabled(ctx)) {
-                SBrowserXPrefs.setDarkBrightImagesEnabled(ctx, false);
-                applyDarkBrightImagesNow(false);
-            }
         } catch (Throwable ignored) {}
     }
 
@@ -2299,18 +2346,6 @@ public final class SBrowserXHooks {
         return SBrowserXGoogleTranslator.handleCreateTrans(service, cb);
     }
 
-    public static boolean tryTransDestroy(Object service, long cb) {
-        return SBrowserXGoogleTranslator.handleDestroyTrans(service, cb);
-    }
-
-    public static boolean tryTransClear(Object service, long cb) {
-        return SBrowserXGoogleTranslator.handleClear(service, cb);
-    }
-
-    public static boolean tryTransRefresh(Object service, long cb) {
-        return SBrowserXGoogleTranslator.handleRefresh(service, cb);
-    }
-
     public static boolean tryTransGetLangList(Object service, String direction, long cb) {
         return SBrowserXGoogleTranslator.handleGetLangList(service, direction, cb);
     }
@@ -2597,18 +2632,6 @@ public final class SBrowserXHooks {
             Log.e(TAG, "openNativeExtensionsActivity failed", t);
             return false;
         }
-    }
-
-    public static String getGoogleTranslateLangDisplayName(String code) {
-        if (!isGoogleTranslateEnabled() || code == null || code.isEmpty()) return null;
-        try {
-            java.util.Locale loc = java.util.Locale.forLanguageTag(code.replace('_', '-'));
-            String name = loc.getDisplayLanguage(java.util.Locale.getDefault());
-            if (name != null && !name.isEmpty() && !name.equalsIgnoreCase(code)) {
-                return name;
-            }
-        } catch (Throwable ignored) {}
-        return SBrowserXGoogleTranslator.getLanguageDisplayName(code);
     }
 
     public static String resolveTransLangDisplayName(Object service, String code) {

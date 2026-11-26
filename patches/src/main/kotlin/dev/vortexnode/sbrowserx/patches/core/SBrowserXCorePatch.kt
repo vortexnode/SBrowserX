@@ -443,5 +443,14 @@ val sbrowserXCorePatch = bytecodePatch(
                 nop
             """.trimIndent(),
         )
+
+        // Prevent stock HideToolbarManager.onDestroy() crash ("The Sbixby instance is NULL")
+        // on renamed packages and non-Samsung devices (matches Samsung Beta APK behavior).
+        findMethodOrThrow(
+            classType = "Lcom/sec/android/app/sbrowser/hide_toolbar/HideToolbarManager;",
+            methodName = "initBixbyInterativeGuide",
+            parameterTypes = emptyList(),
+            returnType = "V",
+        ).addInstruction(0, "return-void")
     }
 }

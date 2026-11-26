@@ -47,6 +47,14 @@ val unlockExtensionsPatch = bytecodePatch(
             returnType = "Z",
         ).returnConstantBoolean(true)
 
+        // Allow Chrome Web Store & Extensions on non-Samsung (GED) Android devices without globally overriding GEDUtils.isGED()
+        findMethodOrThrow(
+            classType = SIX_STATUS_CLASS,
+            methodName = "isEnabled",
+            parameterTypes = listOf("Lcom/sec/android/app/sbrowser/common/extensions/SixStatus\$SIX_ENABLE_TYPE;"),
+            returnType = "Z",
+        ).returnConstantBoolean(true)
+
         // Prevent SixPkgUpdater startup sync from auto-uninstalling CRX extensions that have no Samsung SIX APK
         findMethodOrThrow(
             classType = SIX_PKG_UPDATER_CLASS,
