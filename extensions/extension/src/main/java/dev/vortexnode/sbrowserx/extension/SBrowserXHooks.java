@@ -166,14 +166,11 @@ public final class SBrowserXHooks {
             }
             Context ctx = window != null ? window.getContext() : SBrowserXPrefs.getAppContext();
             if (isCompactLayoutActive()) {
-                if (isWindowOnQuickAccess(window)) {
-                    return 0x00000000;
-                }
                 int c = isBrowserNightMode(ctx)
                         ? (isAmoledBlackEnabled() ? 0xFF000000 : 0xFF121212)
                         : 0xFFFFFFFF;
                 syncMainWindowBackground(window, c);
-                return c;
+                return 0x00000000;
             }
             if (isBrowserNightMode(ctx)) {
                 return isAmoledBlackEnabled() ? 0xFF000000 : 0xFF141418;
@@ -298,22 +295,23 @@ public final class SBrowserXHooks {
                 int themeColor = isBrowserNightMode(activity)
                         ? (isAmoledBlackEnabled() ? 0xFF000000 : 0xFF121212)
                         : 0xFFFFFFFF;
-                int barColor = qa ? 0x00000000 : themeColor;
+                int statusColor = qa ? 0x00000000 : themeColor;
                 syncMainWindowBackground(win, themeColor);
-                win.setNavigationBarColor(barColor);
-                win.setStatusBarColor(barColor);
+                win.setNavigationBarColor(0x00000000);
+                win.setStatusBarColor(statusColor);
                 clearSystemBarFadeWindow(win);
                 View decor = win.getDecorView();
                 String pkg = activity.getPackageName();
                 if (decor != null && pkg != null) {
-                    for (String idName : new String[] { "navigation_bar_background", "status_bar_background" }) {
-                        int id = activity.getResources().getIdentifier(idName, "id", pkg);
-                        if (id != 0) {
-                            View barView = decor.findViewById(id);
-                            if (barView != null) {
-                                barView.setBackgroundColor(barColor);
-                            }
-                        }
+                    int navId = activity.getResources().getIdentifier("navigation_bar_background", "id", pkg);
+                    if (navId != 0) {
+                        View navView = decor.findViewById(navId);
+                        if (navView != null) navView.setBackgroundColor(0x00000000);
+                    }
+                    int stId = activity.getResources().getIdentifier("status_bar_background", "id", pkg);
+                    if (stId != 0) {
+                        View stView = decor.findViewById(stId);
+                        if (stView != null) stView.setBackgroundColor(statusColor);
                     }
                 }
             }
