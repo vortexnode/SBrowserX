@@ -631,7 +631,7 @@ val sbrowserXCorePatch = bytecodePatch(
                 }
             }.reversed()
             for (callIdx in matchIndices) {
-                val inv = insns[callIdx] as com.android.tools.smali.dexlib2.iface.instruction.Instruction35c
+                val inv = insns[callIdx] as com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
                 val regObj = inv.registerC
                 val regIdx = inv.registerD
                 val nextInsn = insns.getOrNull(callIdx + 1)
