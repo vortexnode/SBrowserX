@@ -490,7 +490,7 @@ public final class SBrowserXBookmarkBackup {
     private static List<ParsedNode> parsePlainUrls(String text) {
         List<ParsedNode> out = new ArrayList<>();
         Set<String> seen = new HashSet<>();
-        String[] lines = text.split("\r?\n");
+        String[] lines = text.split("\\r?\\n");
         String pendingTitle = null;
 
         for (String rawLine : lines) {
@@ -509,7 +509,7 @@ public final class SBrowserXBookmarkBackup {
                     }
                     if (seen.add(url)) {
                         String before = line.substring(0, m.start()).trim();
-                        before = before.replaceAll("[\s\-:|—–]+$", "").trim();
+                        before = before.replaceAll("[\\s\\-:|—–]+$", "").trim();
                         String title;
                         if (!before.isEmpty() && before.length() <= 200) {
                             title = before;
