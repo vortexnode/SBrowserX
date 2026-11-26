@@ -9,16 +9,23 @@
 [English](README.md) · **Русский**
 
 <p>
+  <a href="https://morphe.software/add-source?github=vortexnode/SBrowserX">
+    <img src="https://img.shields.io/badge/%D0%94%D0%BE%D0%B1%D0%B0%D0%B2%D0%B8%D1%82%D1%8C%20%D0%B2%20Morphe-%D0%B2%201%20%D1%82%D0%B0%D0%BF-1a73e8?style=for-the-badge&logo=android&logoColor=white" alt="Добавить в Morphe в 1 тап" />
+  </a>
+</p>
+
+<p>
   <a href="https://github.com/vortexnode/SBrowserX/releases/latest">
-    <img src="https://img.shields.io/github/v/release/vortexnode/SBrowserX?style=for-the-badge&logo=github&label=Release&color=5E6AD2" alt="Последний релиз" />
+    <img src="https://img.shields.io/github/v/release/vortexnode/SBrowserX?style=flat-square&label=release&color=00ACC1" alt="Последний релиз" />
   </a>
   <a href="https://github.com/vortexnode/SBrowserX/releases">
-    <img src="https://img.shields.io/github/downloads/vortexnode/SBrowserX/total?style=for-the-badge&logo=android&label=Downloads&color=0891B2" alt="Всего скачиваний" />
+    <img src="https://img.shields.io/github/downloads/vortexnode/SBrowserX/total?style=flat-square&label=downloads&color=brightgreen" alt="Всего скачиваний" />
   </a>
-  <img src="https://img.shields.io/badge/Samsung%20Internet-31.0.2.41-1428A0?style=for-the-badge&logo=samsung&logoColor=white" alt="Базовая версия Samsung Internet 31.0.2.41" />
-  <img src="https://img.shields.io/badge/Android%2011%2B-Любой%20смартфон%20%E2%80%A2%20Без%20Root-2EA043?style=for-the-badge&logo=android&logoColor=white" alt="Android 11+ Любой смартфон Без Root" />
+  <img src="https://img.shields.io/badge/patches-15-blue?style=flat-square" alt="15 патчей" />
+  <img src="https://img.shields.io/badge/Samsung%20Internet-31.0.2.41-1428A0?style=flat-square" alt="Базовая версия Samsung Internet 31.0.2.41" />
+  <img src="https://img.shields.io/badge/Android%2011%2B-Любой%20смартфон%20%E2%80%A2%20Без%20Root-2EA043?style=flat-square" alt="Android 11+ Любой смартфон Без Root" />
   <a href="LICENSE">
-    <img src="https://img.shields.io/github/license/vortexnode/SBrowserX?style=for-the-badge&color=475569" alt="Лицензия GPL-3.0" />
+    <img src="https://img.shields.io/github/license/vortexnode/SBrowserX?style=flat-square&color=green" alt="Лицензия GPL-3.0" />
   </a>
 </p>
 
@@ -252,10 +259,11 @@
 Работает на **любом смартфоне с Android 11+** (Samsung Galaxy, Google Pixel, Xiaomi, OnePlus, Nothing и др.) — **Root-права не нужны**.
 
 1. **Установите [Morphe Manager](https://morphe.software/)** на смартфон.
-2. **Добавьте источник патчей SBrowserX** в Morphe Manager (`Настройки → Источники патчей → Добавить источник`) по ссылке:
-   ```text
-   https://raw.githubusercontent.com/vortexnode/SBrowserX/main/patches-bundle.json
-   ```
+2. **Добавьте SBrowserX в 1 тап**:
+
+   [![Добавить в Morphe](https://img.shields.io/badge/%D0%94%D0%BE%D0%B1%D0%B0%D0%B2%D0%B8%D1%82%D1%8C%20%D0%B2%20Morphe-%D0%B2%201%20%D1%82%D0%B0%D0%BF-1a73e8?style=for-the-badge&logo=android&logoColor=white)](https://morphe.software/add-source?github=vortexnode/SBrowserX)
+
+   *(Или добавьте вручную в Morphe Manager: `Настройки → Источники патчей → Добавить источник` → `https://github.com/vortexnode/SBrowserX`)*
 3. **Скачайте базовый APK**: **Samsung Internet Browser `31.0.2.41`** (`arm64-v8a`, `nodpi`) с [APKMirror](https://www.apkmirror.com/apk/samsung-electronics-co-ltd/samsung-internet-for-android/).
 4. **Пропатчите и установите**: выберите скачанный APK в Morphe Manager, оставьте рекомендуемые патчи (или выберите нужные вручную), нажмите **Патч** и установите **SBrowserX**.
 
