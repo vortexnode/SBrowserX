@@ -31,6 +31,7 @@ public final class SBrowserXBrowsingAssistActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         SBrowserXPrefs.init(this);
+        SBrowserXPrefs.markFeatureViewed(this, SBrowserXPrefs.FEATURE_GOOGLE_TRANSLATE);
 
         boolean night = SBrowserXHooks.isBrowserNightMode(this);
         boolean amoled = night && SBrowserXPrefs.isAmoledBlackEnabled(this);

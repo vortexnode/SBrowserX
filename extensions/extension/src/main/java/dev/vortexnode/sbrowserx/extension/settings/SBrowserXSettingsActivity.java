@@ -50,6 +50,7 @@ public final class SBrowserXSettingsActivity extends Activity {
     private TextView compactBlurLevelValueView;
     private LinearLayout compactBlurLevelRow;
     private View extInstallDot, extPackDot, webrtcDot, fingerprintDot, hideAdsDot, gtransDot, extDlDot, amoledDot, forceDarkDot, blurDot;
+    private ScrollView mainScrollView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,6 +75,7 @@ public final class SBrowserXSettingsActivity extends Activity {
         }
 
         ScrollView scroll = new ScrollView(this);
+        this.mainScrollView = scroll;
         scroll.setBackgroundColor(bgColor);
 
         LinearLayout root = new LinearLayout(this);
@@ -299,6 +301,8 @@ public final class SBrowserXSettingsActivity extends Activity {
         scroll.addView(root);
         setContentView(scroll);
         refreshDynamicViews();
+        scroll.getViewTreeObserver().addOnScrollChangedListener(this::markVisibleHubFeaturesViewed);
+        scroll.postDelayed(this::markVisibleHubFeaturesViewed, 350L);
     }
 
     @Override
@@ -461,6 +465,32 @@ public final class SBrowserXSettingsActivity extends Activity {
             daysValueView.setText(days == 0
                     ? SBrowserXStrings.get(SBrowserXStrings.HIGHLIGHT_DAYS_OFF)
                     : String.format(SBrowserXStrings.get(SBrowserXStrings.HIGHLIGHT_DAYS_FMT), days));
+        }
+    }
+
+    private void markVisibleHubFeaturesViewed() {
+        if (mainScrollView == null) return;
+        android.graphics.Rect scrollRect = new android.graphics.Rect();
+        if (!mainScrollView.getGlobalVisibleRect(scrollRect)) return;
+        markIfVisible(scrollRect, extPackDot, SBrowserXPrefs.FEATURE_EXT_PACK);
+        markIfVisible(scrollRect, extInstallDot, SBrowserXPrefs.FEATURE_EXT_INSTALLER);
+        markIfVisible(scrollRect, webrtcDot, SBrowserXPrefs.FEATURE_WEBRTC);
+        markIfVisible(scrollRect, fingerprintDot, SBrowserXPrefs.FEATURE_FINGERPRINT);
+        markIfVisible(scrollRect, hideAdsDot, SBrowserXPrefs.FEATURE_HIDE_ADBLOCKERS);
+        markIfVisible(scrollRect, gtransDot, SBrowserXPrefs.FEATURE_GOOGLE_TRANSLATE);
+        markIfVisible(scrollRect, extDlDot, SBrowserXPrefs.FEATURE_EXT_DOWNLOADER);
+        markIfVisible(scrollRect, amoledDot, SBrowserXPrefs.FEATURE_AMOLED);
+        markIfVisible(scrollRect, blurDot, SBrowserXPrefs.FEATURE_BOTTOM_BLUR);
+    }
+
+    private void markIfVisible(android.graphics.Rect scrollRect, View dot, String feat) {
+        if (dot == null || !SBrowserXPrefs.isFeatureNew(this, feat)) return;
+        View target = (dot.getParent() instanceof View) ? (View) dot.getParent() : dot;
+        android.graphics.Rect r = new android.graphics.Rect();
+        if (target.getGlobalVisibleRect(r)) {
+            if (r.bottom > scrollRect.top + 8 && r.top < scrollRect.bottom - 8) {
+                SBrowserXPrefs.markFeatureViewed(this, feat);
+            }
         }
     }
 

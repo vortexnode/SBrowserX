@@ -40,6 +40,7 @@ public final class SBrowserXTranslateSettingsActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         SBrowserXPrefs.init(this);
+        SBrowserXPrefs.markFeatureViewed(this, SBrowserXPrefs.FEATURE_GOOGLE_TRANSLATE);
 
         boolean night = SBrowserXHooks.isBrowserNightMode(this);
         boolean amoled = night && SBrowserXPrefs.isAmoledBlackEnabled(this);
@@ -302,7 +303,7 @@ public final class SBrowserXTranslateSettingsActivity extends Activity {
     private String getEngineLabel(String engine) {
         if ("microsoft".equalsIgnoreCase(engine)) return "Microsoft Translator (Edge NMT)";
         if ("deepl".equalsIgnoreCase(engine)) return "DeepL API (Free / Pro)";
-        if ("gemini".equalsIgnoreCase(engine)) return "Gemini 2.5 Flash (AI)";
+        if ("gemini".equalsIgnoreCase(engine)) return "Gemini 3.5 Flash-Lite (AI)";
         return "Google Translate (Chrome NMT)";
     }
 
@@ -320,7 +321,7 @@ public final class SBrowserXTranslateSettingsActivity extends Activity {
                 "Google Translate (Chrome NMT)",
                 "Microsoft Translator (Edge NMT)",
                 "DeepL API (Free / Pro)",
-                "Gemini 2.5 Flash (AI)"
+                "Gemini 3.5 Flash-Lite (AI)"
         };
         String[] values = new String[] {"google", "microsoft", "deepl", "gemini"};
         String cur = SBrowserXPrefs.getTranslateEngine(this);

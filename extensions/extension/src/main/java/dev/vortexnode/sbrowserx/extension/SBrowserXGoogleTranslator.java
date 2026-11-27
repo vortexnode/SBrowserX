@@ -156,7 +156,16 @@ public final class SBrowserXGoogleTranslator {
     }
 
     private static BatchResult translateBatchGoogleChrome(String sl, String tl, String[] items) throws Exception {
-        String urlStr = "https://translate.googleapis.com/translate_a/t?client=dict-chrome-ex"
+        try {
+            return translateBatchGoogleEndpoint("gtx", sl, tl, items);
+        } catch (Throwable t) {
+            Log.w(TAG, "Google gtx failed, falling back to dict-chrome-ex", t);
+            return translateBatchGoogleEndpoint("dict-chrome-ex", sl, tl, items);
+        }
+    }
+
+    private static BatchResult translateBatchGoogleEndpoint(String client, String sl, String tl, String[] items) throws Exception {
+        String urlStr = "https://translate.googleapis.com/translate_a/t?client=" + client
                 + "&sl=" + URLEncoder.encode(sl, "UTF-8")
                 + "&tl=" + URLEncoder.encode(tl, "UTF-8")
                 + "&format=html";
@@ -373,20 +382,35 @@ public final class SBrowserXGoogleTranslator {
         JSONObject body = new JSONObject()
                 .put("contents", new JSONArray().put(content))
                 .put("generationConfig", genCfg);
-        String urlStr = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key="
-                + URLEncoder.encode(apiKey, "UTF-8");
+        String[] models = new String[] {
+                "gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-3.6-flash", "gemini-flash-latest"
+        };
         byte[] payload = body.toString().getBytes(StandardCharsets.UTF_8);
-        HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
-        conn.setRequestMethod("POST");
-        conn.setDoOutput(true);
-        conn.setConnectTimeout(12000);
-        conn.setReadTimeout(25000);
-        conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+        JSONObject root = null;
+        int lastCode = 0;
+        for (String model : models) {
+            String urlStr = "https://generativelanguage.googleapis.com/v1beta/models/" + model
+                    + ":generateContent?key=" + URLEncoder.encode(apiKey, "UTF-8");
+            HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+            conn.setConnectTimeout(12000);
+            conn.setReadTimeout(25000);
+            conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+            try {
+                try (OutputStream os = conn.getOutputStream()) { os.write(payload); }
+                lastCode = conn.getResponseCode();
+                if (lastCode == 200) {
+                    root = new JSONObject(readUtf8(conn.getInputStream()));
+                    break;
+                }
+                if (lastCode != 404 && lastCode != 400) break;
+            } finally {
+                conn.disconnect();
+            }
+        }
+        if (root == null) throw new IllegalStateException("Gemini HTTP " + lastCode);
         try {
-            try (OutputStream os = conn.getOutputStream()) { os.write(payload); }
-            int code = conn.getResponseCode();
-            if (code != 200) throw new IllegalStateException("Gemini HTTP " + code);
-            JSONObject root = new JSONObject(readUtf8(conn.getInputStream()));
             String text = root.getJSONArray("candidates").getJSONObject(0)
                     .getJSONObject("content").getJSONArray("parts").getJSONObject(0).getString("text").trim();
             if (text.startsWith("```")) {
@@ -404,7 +428,7 @@ public final class SBrowserXGoogleTranslator {
             }
             return new BatchResult(out, "auto".equals(sl) ? "" : sl);
         } finally {
-            conn.disconnect();
+            // connections closed per attempt above
         }
     }
 

@@ -92,9 +92,17 @@ public final class SBrowserXDomTranslator {
     private static final String DETECT_SAMPLE_JS =
             "(function(){"
             + "var lang=(document.documentElement.lang||'').trim();"
-            + "var h=document.querySelector('h1,h2,p');"
-            + "var txt=h?(h.innerText||''):((document.body&&document.body.innerText)||'').slice(0,220);"
-            + "return JSON.stringify({lang:lang,sample:txt.trim().slice(0,220),url:location.href||''});"
+            + "var parts=[];var total=0;"
+            + "var nodes=document.querySelectorAll('article h1,article p,main h1,main p,h1,h2,p');"
+            + "for(var i=0;i<nodes.length&&total<260;i++){"
+            + "  var el=nodes[i];var r=el.getBoundingClientRect();"
+            + "  if(r.width<=0||r.height<=0)continue;"
+            + "  var t=(el.innerText||'').replace(/\\s+/g,' ').trim();"
+            + "  if(t.length>=12){parts.push(t);total+=t.length;}"
+            + "}"
+            + "var txt=parts.join(' ').trim();"
+            + "if(txt.length<20&&document.body){txt=(document.body.innerText||'').replace(/\\s+/g,' ').trim();}"
+            + "return JSON.stringify({lang:lang,sample:txt.slice(0,260),url:location.href||''});"
             + "})();";
 
     private static final String REVERT_JS =
@@ -196,11 +204,11 @@ public final class SBrowserXDomTranslator {
     }
 
     public static void maybeAutoTranslateActivity(Activity targetActivity, boolean showChromeBanner) {
-        maybeAutoTranslateActivityInternal(targetActivity, showChromeBanner, 450L, true);
+        maybeAutoTranslateActivityInternal(targetActivity, showChromeBanner, 450L, 2);
     }
 
     private static void maybeAutoTranslateActivityInternal(
-            Activity targetActivity, boolean showChromeBanner, long delayMs, boolean allowRetry
+            Activity targetActivity, boolean showChromeBanner, long delayMs, int retriesLeft
     ) {
         Context ctx = SBrowserXPrefs.getAppContext();
         if (ctx == null || !SBrowserXPrefs.isGoogleTranslateEnabled(ctx) || !SBrowserXPrefs.isTranslateAutoEnabled(ctx)) {
@@ -231,20 +239,23 @@ public final class SBrowserXDomTranslator {
                         String pageLang = SBrowserXGoogleTranslator.normalizeLang(obj.optString("lang", ""));
                         String sample = obj.optString("sample", "");
 
-                        // SPA / lazy-loaded pages may have empty body at 450ms -> retry once at 1500ms
+                        // SPA / lazy-loaded pages may have empty body at 450ms -> retry at 1200ms then 2400ms
                         if (sample.length() < 15) {
-                            if (allowRetry) {
-                                maybeAutoTranslateActivityInternal(act, showChromeBanner, 1500L, false);
+                            if (retriesLeft > 0) {
+                                long nextDelay = (retriesLeft == 2) ? 1200L : 2400L;
+                                maybeAutoTranslateActivityInternal(act, showChromeBanner, nextDelay, retriesLeft - 1);
                             }
                             return;
                         }
 
-                        // Detect mismatch when a foreign page falsely declares <html lang="ru"> (or vice versa)
+                        // Always verify language via sample when lang is empty or mismatches actual page text
                         boolean looksMostlyLatin = isMostlyLatin(sample);
                         boolean targetIsCyrillic = "ru".equalsIgnoreCase(targetLang)
                                 || "uk".equalsIgnoreCase(targetLang)
                                 || "be".equalsIgnoreCase(targetLang);
-                        if (pageLang.isEmpty() || (targetIsCyrillic && pageLang.equalsIgnoreCase(targetLang) && looksMostlyLatin)) {
+                        if (pageLang.isEmpty()
+                                || (targetIsCyrillic && pageLang.equalsIgnoreCase(targetLang) && looksMostlyLatin)
+                                || (!targetIsCyrillic && pageLang.equalsIgnoreCase(targetLang) && !looksMostlyLatin)) {
                             pageLang = SBrowserXGoogleTranslator.detectLanguageFast(sample);
                         }
                         if (pageLang.isEmpty() || pageLang.equalsIgnoreCase(targetLang)) return;
@@ -298,6 +309,7 @@ public final class SBrowserXDomTranslator {
         String js = "(function(start,arr){"
                 + "if(!window.__sbxBlocks)return;"
                 + "function rebuild(parent,html,saved){"
+                + "  html=html.replace(/<\/a>\s+([,.;:!?])/g,'</a>$1').replace(/\s+([,.;:!?])(\s|$)/g,'$1$2');"
                 + "  var tmp=document.createElement('div');tmp.innerHTML=html;"
                 + "  var frag=document.createDocumentFragment();"
                 + "  function walk(src,dst){"

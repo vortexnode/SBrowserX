@@ -179,7 +179,7 @@ public final class SBrowserXChromeTranslateBanner {
                 if (isCustomTab) {
                     flp.topMargin = dp(activity, 94);
                 } else {
-                    flp.bottomMargin = dp(activity, 124);
+                    flp.bottomMargin = dp(activity, 138);
                 }
 
                 pill.setAlpha(0f);

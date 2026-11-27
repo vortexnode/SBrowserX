@@ -2853,7 +2853,7 @@ public final class SBrowserXHooks {
 
     public static int getExtensionToolbarIconColorOverride(Context ctx, boolean isBottombar, boolean isMoreMenu) {
         try {
-            if (isMoreMenu || ctx == null) return 0;
+            if (ctx == null) return 0;
             if (isBrowserNightMode(ctx)) {
                 return 0xFFE9E9EC;
             }
@@ -2983,6 +2983,26 @@ public final class SBrowserXHooks {
                         || SBrowserXPrefs.isFeatureNew(ctx, SBrowserXPrefs.FEATURE_EXT_INSTALLER);
                 applyTealDotToExistingTitle(extTopPref, extNew);
                 setAccentSummary(extTopPref, ctx, "Chrome Web Store");
+            }
+
+            // Morphe-style visibility clearing: opening a native child settings screen marks its displayed SBrowserX items as viewed
+            String fragName = fragment.getClass().getName();
+            if (fragName.contains("AutoCloseUnusedTabs")) {
+                SBrowserXPrefs.markFeatureViewed(ctx, SBrowserXPrefs.FEATURE_AUTO_CLOSE_1DAY);
+            }
+            if (findPref.invoke(fragment, "sbrowserx_layout_transparency") != null) {
+                SBrowserXPrefs.markFeatureViewed(ctx, SBrowserXPrefs.FEATURE_BOTTOM_BLUR);
+            }
+            if (findPref.invoke(fragment, "sbrowserx_dark_amoled") != null) {
+                SBrowserXPrefs.markFeatureViewed(ctx, SBrowserXPrefs.FEATURE_AMOLED);
+            }
+            if (findPref.invoke(fragment, "sbrowserx_privacy_webrtc") != null) {
+                SBrowserXPrefs.markFeatureViewed(ctx, SBrowserXPrefs.FEATURE_WEBRTC);
+                SBrowserXPrefs.markFeatureViewed(ctx, SBrowserXPrefs.FEATURE_FINGERPRINT);
+                SBrowserXPrefs.markFeatureViewed(ctx, SBrowserXPrefs.FEATURE_HIDE_ADBLOCKERS);
+            }
+            if (findPref.invoke(fragment, "sbrowserx_external_downloader") != null) {
+                SBrowserXPrefs.markFeatureViewed(ctx, SBrowserXPrefs.FEATURE_EXT_DOWNLOADER);
             }
 
             // Mirror teal dots onto main Settings stock rows containing unviewed SBrowserX features
