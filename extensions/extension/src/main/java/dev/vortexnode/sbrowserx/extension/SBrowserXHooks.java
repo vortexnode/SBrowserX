@@ -540,19 +540,19 @@ public final class SBrowserXHooks {
                     if (navId != 0) {
                         View navView = decor.findViewById(navId);
                         if (navView != null) {
+                            if (android.os.Build.VERSION.SDK_INT >= 31) {
+                                try { navView.setRenderEffect(null); } catch (Throwable ignored) {}
+                            }
+                            applyOneUiNavBlur(navView, false, 0);
                             boolean compact = isCompactLayoutActive();
-                            int sliceTint = compact ? 0x26000000 : navColor;
-                            boolean useGpuBlur = android.os.Build.VERSION.SDK_INT >= 31 && isBottomBarBlurEnabled() && !compact;
-                            if (useGpuBlur && bmp != null && !bmp.isRecycled()) {
-                                navView.setBackground(new WindowSliceWallpaperDrawable(bmp, dim, sliceTint, true, fullW, fullH));
-                                try {
-                                    navView.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(
-                                            48f, 48f, android.graphics.Shader.TileMode.CLAMP));
-                                } catch (Throwable ignored) {}
-                            } else if (bmp != null && !bmp.isRecycled()) {
-                                navView.setBackground(new WindowSliceWallpaperDrawable(bmp, dim, sliceTint, true, fullW, fullH));
+                            if (!compact && isBottomBarBlurEnabled()) {
+                                // Bottombar already extends down behind the system nav buttons with live Chromium blur.
+                                // Keep navigation_bar_background 100% transparent so the blur continues seamlessly to the bottom edge.
+                                navView.setBackgroundColor(0x00000000);
+                            } else if (compact && bmp != null && !bmp.isRecycled()) {
+                                navView.setBackground(new WindowSliceWallpaperDrawable(bmp, dim, 0x26000000, true, fullW, fullH));
                             } else {
-                                navView.setBackgroundColor(sliceTint);
+                                navView.setBackgroundColor(0x00000000);
                             }
                         }
                     }
@@ -560,8 +560,10 @@ public final class SBrowserXHooks {
             } else {
                 boolean night = isBrowserNightMode(act);
                 int c = night ? (isAmoledBlackEnabled() ? 0xFF000000 : 0xFF141418) : 0xFFFFFFFF;
+                boolean transparentNavForBlur = !isCompactLayoutActive() && isBottomBarBlurEnabled();
+                int navBg = transparentNavForBlur ? 0x00000000 : c;
                 win.setStatusBarColor(c);
-                win.setNavigationBarColor(c);
+                win.setNavigationBarColor(navBg);
                 syncStatusBarIconAppearance(win, !night);
                 syncSystemBarIconAppearance(win, night);
                 if (decor != null && pkg != null) {
@@ -578,7 +580,7 @@ public final class SBrowserXHooks {
                                 try { navView.setRenderEffect(null); } catch (Throwable ignored) {}
                             }
                             applyOneUiNavBlur(navView, false, 0);
-                            navView.setBackgroundColor(c);
+                            navView.setBackgroundColor(navBg);
                         }
                     }
                 }
@@ -670,20 +672,9 @@ public final class SBrowserXHooks {
     public static boolean shouldPreserveStartPageSystemBars(android.view.Window window) {
         if (!sStartPageBackdropActive || window == null) return false;
         try {
-            if (!isWindowOnQuickAccess(window)) return false;
             Activity act = sMainActivityRef.get();
             if (act == null || act.getWindow() != window) return false;
-            View decor = window.getDecorView();
-            String pkg = act.getPackageName();
-            if (decor != null && pkg != null) {
-                int navId = act.getResources().getIdentifier("navigation_bar_background", "id", pkg);
-                if (navId != 0) {
-                    View navView = decor.findViewById(navId);
-                    if (navView != null && navView.getBackground() instanceof WindowSliceWallpaperDrawable) {
-                        return true;
-                    }
-                }
-            }
+            return isWindowOnQuickAccess(window);
         } catch (Throwable ignored) {}
         return false;
     }
@@ -710,9 +701,6 @@ public final class SBrowserXHooks {
                             }
                         });
                     }
-                    if (!isCompactLayoutActive() && sStartPageBotAvgColor != 0) {
-                        return sStartPageBotAvgColor;
-                    }
                 }
                 return 0x00000000;
             }
@@ -728,6 +716,11 @@ public final class SBrowserXHooks {
                         : 0xFFFFFFFF;
                 syncMainWindowBackground(window, c);
                 return c;
+            }
+            if (isBottomBarBlurEnabled()) {
+                // Keep navigation_bar_background transparent so Bottombar's live Chromium blur extends to the bottom edge.
+                syncSystemBarIconAppearance(window, night);
+                return 0x00000000;
             }
             if (night) {
                 return isAmoledBlackEnabled() ? 0xFF000000 : 0xFF141418;
@@ -1264,8 +1257,8 @@ public final class SBrowserXHooks {
             GradientDrawable gd = new GradientDrawable();
             gd.setOrientation(GradientDrawable.Orientation.TOP_BOTTOM);
             if (isFocusLayout(ctx)) {
-                // Address bar is at bottom directly above Bottombar: soft fade from page into bar
-                gd.setColors(new int[] { withAlpha(rgb, edgeAlpha), withAlpha(rgb, midAlpha) });
+                // Address bar sits directly above Bottombar: use unified glass alpha for one monolithic sheet
+                gd.setColors(new int[] { withAlpha(rgb, midAlpha), withAlpha(rgb, midAlpha) });
             } else {
                 // Address bar is at top: denser near status bar, softer toward page
                 gd.setColors(new int[] { withAlpha(rgb, solidAlpha), withAlpha(rgb, edgeAlpha) });
@@ -1295,8 +1288,8 @@ public final class SBrowserXHooks {
             int midAlpha = clampByte(Math.round(baseAlpha * 0.88f));
             int botAlpha = clampByte(Math.round(baseAlpha * 1.08f));
             if (isFocusLayout(ctx)) {
-                // Seamless continuation from Focus Toolbar above it down to system navbar
-                gd.setColors(new int[] { withAlpha(rgb, midAlpha), withAlpha(rgb, botAlpha) });
+                // Exact same uniform glass alpha as Focus Toolbar above it, continuing seamlessly behind ≡ ○ ↩
+                gd.setColors(new int[] { withAlpha(rgb, midAlpha), withAlpha(rgb, midAlpha) });
             } else {
                 // Standalone bottom navigation bar: soft edge at top, slightly denser at bottom
                 gd.setColors(new int[] { withAlpha(rgb, edgeAlpha), withAlpha(rgb, botAlpha) });
