@@ -550,6 +550,25 @@ val googleTranslatePatch = bytecodePatch(
             """.trimIndent(),
         )
 
+        // 25a. ToolbarExtensionsManager.executeAction(String)V -> route bottom/top toolbar Translate button to SBrowserXDomTranslator
+        // instead of Samsung's legacy webtrans.crx (which splits text nodes and causes literal translations like "steal" -> "кража").
+        findMethodOrThrow(
+            classType = TOOLBAR_EXTENSIONS_MANAGER_CLASS,
+            methodName = "executeAction",
+            parameterTypes = listOf("Ljava/lang/String;"),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->tryInterceptToolbarExtensionAction(Ljava/lang/String;)Z
+                move-result p0
+                if-eqz p0, :sbrowserx_exec_ext_stock
+                return-void
+                :sbrowserx_exec_ext_stock
+                nop
+            """.trimIndent(),
+        )
+
         // 25b. ExtensionActionItem.isFirstParty -> always treat built-in Translate extension (khmmfcceknncifmkiimjnnjldibgajpl) as first-party monochrome
         // so ToolbarExtensionsManager.getIcon() ALWAYS tints it cleanly in Dark Mode across Bottombar, More Menu, and Customize Menu on any package name.
         findMethodOrThrow(

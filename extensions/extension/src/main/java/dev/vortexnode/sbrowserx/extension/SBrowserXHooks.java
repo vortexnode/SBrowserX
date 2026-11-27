@@ -3963,6 +3963,22 @@ public final class SBrowserXHooks {
         }
     }
 
+    public static boolean tryInterceptToolbarExtensionAction(String extId) {
+        if (!"khmmfcceknncifmkiimjnnjldibgajpl".equals(extId)) return false;
+        if (!isGoogleTranslateEnabled()) return false;
+        try {
+            Activity main = sMainActivityRef.get();
+            if (main != null) {
+                String tl = SBrowserXPrefs.getTranslateTargetLang(main);
+                SBrowserXDomTranslator.translateTab(main, "auto", tl, true);
+                return true;
+            }
+        } catch (Throwable t) {
+            Log.e(TAG, "tryInterceptToolbarExtensionAction failed", t);
+        }
+        return false;
+    }
+
     public static boolean tryHandleMainTranslateClick(Object menuHelper, Object delegate) {
         if (!isGoogleTranslateEnabled()) return false;
         try {
