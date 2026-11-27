@@ -304,7 +304,7 @@ public final class SBrowserXTranslateSettingsActivity extends Activity {
         if ("bing".equalsIgnoreCase(engine) || "microsoft".equalsIgnoreCase(engine)) return "Bing Translator (Web NMT)";
         if ("yandex".equalsIgnoreCase(engine)) return "Yandex Translate (Web NMT)";
         if ("deepl".equalsIgnoreCase(engine)) return "DeepL API (Free / Pro)";
-        if ("gemini".equalsIgnoreCase(engine)) return "Gemini 3.5 Flash-Lite (AI)";
+        if ("gemini".equalsIgnoreCase(engine)) return "Gemini 3.5 Flash-Lite (AI ★)";
         return "Google Translate (Chrome NMT)";
     }
 
@@ -323,7 +323,7 @@ public final class SBrowserXTranslateSettingsActivity extends Activity {
                 "Bing Translator (Web NMT)",
                 "Yandex Translate (Web NMT)",
                 "DeepL API (Free / Pro)",
-                "Gemini 3.5 Flash-Lite (AI)"
+                "Gemini 3.5 Flash-Lite (AI ★)"
         };
         String[] values = new String[] {"google", "bing", "yandex", "deepl", "gemini"};
         String cur = SBrowserXPrefs.getTranslateEngine(this);

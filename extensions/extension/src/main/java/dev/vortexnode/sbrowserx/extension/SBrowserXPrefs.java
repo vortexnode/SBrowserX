@@ -529,11 +529,11 @@ public final class SBrowserXPrefs {
     }
 
     public static String getTranslateEngine(Context context) {
-        return prefs(context).getString(KEY_TRANS_ENGINE, "google");
+        return prefs(context).getString(KEY_TRANS_ENGINE, "bing");
     }
 
     public static void setTranslateEngine(Context context, String engine) {
-        prefs(context).edit().putString(KEY_TRANS_ENGINE, engine != null ? engine : "google").apply();
+        prefs(context).edit().putString(KEY_TRANS_ENGINE, engine != null ? engine : "bing").apply();
         markFeatureViewed(context, FEATURE_GOOGLE_TRANSLATE);
     }
 

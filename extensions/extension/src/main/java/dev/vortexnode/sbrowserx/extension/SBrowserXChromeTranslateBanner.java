@@ -460,7 +460,7 @@ public final class SBrowserXChromeTranslateBanner {
                 "Bing Translator (Web NMT)",
                 "Yandex Translate (Web NMT)",
                 "DeepL API (Free / Pro)",
-                "Gemini 3.5 Flash-Lite (AI)"
+                "Gemini 3.5 Flash-Lite (AI ★)"
         };
         String[] values = new String[] {"google", "bing", "yandex", "deepl", "gemini"};
         String cur = SBrowserXPrefs.getTranslateEngine(activity);

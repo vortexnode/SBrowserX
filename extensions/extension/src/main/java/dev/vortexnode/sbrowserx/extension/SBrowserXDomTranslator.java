@@ -98,7 +98,7 @@ public final class SBrowserXDomTranslator {
             "(function(){"
             + "var lang=(document.documentElement.lang||'').trim();"
             + "var parts=[];var total=0;"
-            + "var nodes=document.querySelectorAll('article h1,article p,main h1,main p,h1,h2,p');"
+            + "var nodes=document.querySelectorAll('article a,article h1,article h3,article h4,article p,main a,main h1,main p,h1,h2,h3,h4,p');"
             + "for(var i=0;i<nodes.length&&total<260;i++){"
             + "  var el=nodes[i];var r=el.getBoundingClientRect();"
             + "  if(r.width<=0||r.height<=0)continue;"
