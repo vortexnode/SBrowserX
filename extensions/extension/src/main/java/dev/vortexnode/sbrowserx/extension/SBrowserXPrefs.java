@@ -338,12 +338,25 @@ public final class SBrowserXPrefs {
         prefs(context).edit().putBoolean(KEY_BACKUP_DRIVE_INCLUDE_BOOKMARKS, enabled).apply();
     }
 
+    private static final String KEY_SP_DEFAULT_APPLIED = "start_page_default_applied_v1";
+
     public static boolean isStartPageEnabled(Context context) {
-        return prefs(context).getBoolean(KEY_SP_ENABLED, false);
+        return prefs(context).getBoolean(KEY_SP_ENABLED, true);
     }
 
     public static void setStartPageEnabled(Context context, boolean enabled) {
-        prefs(context).edit().putBoolean(KEY_SP_ENABLED, enabled).apply();
+        prefs(context).edit()
+                .putBoolean(KEY_SP_ENABLED, enabled)
+                .putBoolean(KEY_SP_DEFAULT_APPLIED, true)
+                .apply();
+    }
+
+    public static boolean isStartPageDefaultApplied(Context context) {
+        return prefs(context).getBoolean(KEY_SP_DEFAULT_APPLIED, false);
+    }
+
+    public static void markStartPageDefaultApplied(Context context) {
+        prefs(context).edit().putBoolean(KEY_SP_DEFAULT_APPLIED, true).apply();
     }
 
     public static String getStartPageWallpaperMode(Context context) {

@@ -2,6 +2,7 @@ package dev.vortexnode.sbrowserx.patches.core
 
 import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
+import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
 import app.morphe.patcher.patch.bytecodePatch
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
@@ -575,6 +576,97 @@ val sbrowserXCorePatch = bytecodePatch(
         ).addInstruction(
             0,
             "invoke-static {p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onNativeHomepageUrlChanged(Ljava/lang/String;)V",
+        )
+
+        // When SBrowserX Start Page is active, tapping the gear icon next to "Custom page" opens Start Page settings
+        // instead of showing the raw http://127.0.0.1:47391/ EditText dialog.
+        findMethodOrThrow(
+            classType = "Lcom/sec/android/app/sbrowser/settings/homepage/HomePagePreferenceFragment;",
+            methodName = "showSetHomePageDialog",
+            parameterTypes = emptyList(),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->tryOpenStartPageSettingsFromDialog(Ljava/lang/Object;)Z
+                move-result v0
+                if-eqz v0, :sbrowserx_stock_hp_dlg
+                return-void
+                :sbrowserx_stock_hp_dlg
+                nop
+            """.trimIndent(),
+        )
+
+        // Keep HomePagePreferenceFragment summaries clean (never leak 127.0.0.1 on unselected Custom Page)
+        val hpUpdateGuiMethod = findMethodOrThrow(
+            classType = "Lcom/sec/android/app/sbrowser/settings/homepage/HomePagePreferenceFragment;",
+            methodName = "updateSummaryAndGui",
+            parameterTypes = listOf("I"),
+            returnType = "V",
+        )
+        val hpGuiRetIndices = hpUpdateGuiMethod.implementation!!.instructions
+            .mapIndexedNotNull { idx, insn -> if (insn.opcode == Opcode.RETURN_VOID) idx else null }
+            .reversed()
+        for (retIdx in hpGuiRetIndices) {
+            hpUpdateGuiMethod.addInstruction(
+                retIdx,
+                "invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onHomepageFragmentUpdated(Ljava/lang/Object;)V",
+            )
+        }
+
+        // Redirect PreferenceGroup.getPreference(I) in HomePagePreferenceFragment (getHomepageSummary & updateSummaryAndGui)
+        // to skip our native top card & category divider, keeping Samsung's 0..2 radio buttons 100% native and intact!
+        listOf(hpSummaryMethod, hpUpdateGuiMethod).forEach { targetMethod ->
+            val insns = targetMethod.implementation!!.instructions.toList()
+            val matchIndices = insns.mapIndexedNotNull { idx, insn ->
+                val ref = (insn as? com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction)?.reference
+                if (insn.opcode == Opcode.INVOKE_VIRTUAL &&
+                    ref is com.android.tools.smali.dexlib2.iface.reference.MethodReference &&
+                    ref.definingClass == "Landroidx/preference/PreferenceGroup;" &&
+                    ref.name == "getPreference"
+                ) {
+                    idx
+                } else {
+                    null
+                }
+            }.reversed()
+            for (callIdx in matchIndices) {
+                val inv = insns[callIdx] as com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
+                val regObj = inv.registerC
+                val regIdx = inv.registerD
+                val nextInsn = insns.getOrNull(callIdx + 1)
+                if (nextInsn != null && nextInsn.opcode == Opcode.MOVE_RESULT_OBJECT) {
+                    val regDst = (nextInsn as OneRegisterInstruction).registerA
+                    targetMethod.addInstruction(
+                        callIdx + 2,
+                        "check-cast v$regDst, Landroidx/preference/Preference;",
+                    )
+                    targetMethod.replaceInstruction(
+                        callIdx,
+                        "invoke-static {v$regObj, v$regIdx}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->getHomepageRadioPreference(Ljava/lang/Object;I)Ljava/lang/Object;",
+                    )
+                }
+            }
+        }
+
+        // Route "Add page to -> Quick access" to SBrowserX Start Page when it is the active start page,
+        // or fall through to Samsung's stock QuickAccess when stock QuickAccess is selected.
+        // AddToMenu.addQuickAccess()V (.locals 4 -> v0 free)
+        findMethodOrThrow(
+            classType = "Lcom/sec/android/app/sbrowser/main_view/menu/AddToMenu;",
+            methodName = "addQuickAccess",
+            parameterTypes = emptyList(),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->tryAddCurrentPageToStartPage(Ljava/lang/Object;)Z
+                move-result v0
+                if-eqz v0, :sbrowserx_stock_add_qa
+                return-void
+                :sbrowserx_stock_add_qa
+                nop
+            """.trimIndent(),
         )
     }
 }

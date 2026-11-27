@@ -74,7 +74,11 @@ public final class SBrowserXHooks {
     private static volatile Method sTabGetUrl;
     private static volatile String sCachedBackdropKey;
     private static volatile Bitmap sCachedBackdropBitmap;
+    private static volatile Bitmap sCachedBackdropBlurred;
     private static volatile boolean sStartPageBackdropActive;
+    private static volatile boolean sStartPageTopBright;
+    private static volatile int sStartPageTopAvgColor;
+    private static volatile int sStartPageBotAvgColor;
 
     private static volatile boolean sSemBlurInitDone;
     private static volatile boolean sSemBlurUnsupported;
@@ -136,6 +140,7 @@ public final class SBrowserXHooks {
         if (activity != null) {
             sMainActivityRef = new WeakReference<>(activity);
             applyCompactSystemBarPolish(activity);
+        consumePendingHomepageNavigation(activity);
             ensureTerraceAutofillEnabled(activity);
         }
     }
@@ -231,6 +236,120 @@ public final class SBrowserXHooks {
         @Override public int getOpacity() { return android.graphics.PixelFormat.OPAQUE; }
     }
 
+    /**
+     * Draws a pixel-aligned slice of the full-screen CENTER_CROP wallpaper directly onto
+     * Samsung's status_bar_background (top) or navigation_bar_background (bottom, pre-blurred + frosted glass tint).
+     */
+    private static final class WindowSliceWallpaperDrawable extends android.graphics.drawable.Drawable {
+        private final Bitmap bmp;
+        private final int dimAlpha;
+        private final int glassTintColor;
+        private final boolean alignBottom;
+        private final int fullW;
+        private final int fullH;
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+
+        WindowSliceWallpaperDrawable(Bitmap bmp, int dimPercent, int glassTintColor, boolean alignBottom, int fullW, int fullH) {
+            this.bmp = bmp;
+            this.dimAlpha = Math.max(0, Math.min(255, Math.round(dimPercent * 2.55f)));
+            this.glassTintColor = glassTintColor;
+            this.alignBottom = alignBottom;
+            this.fullW = Math.max(1, fullW);
+            this.fullH = Math.max(1, fullH);
+        }
+
+        @Override
+        public void draw(Canvas canvas) {
+            android.graphics.Rect b = getBounds();
+            if (b.width() <= 0 || b.height() <= 0) return;
+            canvas.save();
+            canvas.clipRect(b);
+            if (bmp != null && !bmp.isRecycled()) {
+                int bw = bmp.getWidth();
+                int bh = bmp.getHeight();
+                if (bw > 0 && bh > 0) {
+                    int sw = Math.max(b.width(), fullW);
+                    int sh = Math.max(b.height(), fullH);
+                    float scale = Math.max((float) sw / bw, (float) sh / bh);
+                    float dw = bw * scale;
+                    float dh = bh * scale;
+                    float left = (sw - dw) * 0.5f;
+                    float top = (sh - dh) * 0.5f;
+                    if (alignBottom) {
+                        top -= (sh - b.height());
+                    }
+                    android.graphics.RectF dst = new android.graphics.RectF(left, top, left + dw, top + dh);
+                    canvas.drawBitmap(bmp, null, dst, paint);
+                }
+            } else {
+                canvas.drawColor(0xFF000000);
+            }
+            if (dimAlpha > 0) {
+                canvas.drawColor(Color.argb(dimAlpha, 0, 0, 0));
+            }
+            if (glassTintColor != 0) {
+                canvas.drawColor(glassTintColor);
+            }
+            canvas.restore();
+        }
+
+        @Override public void setAlpha(int alpha) { paint.setAlpha(alpha); }
+        @Override public void setColorFilter(android.graphics.ColorFilter cf) { paint.setColorFilter(cf); }
+        @Override public int getOpacity() { return android.graphics.PixelFormat.OPAQUE; }
+    }
+
+    private static Bitmap createFastBlurredBitmap(Bitmap src) {
+        if (src == null || src.isRecycled()) return null;
+        try {
+            int tw = Math.max(20, src.getWidth() / 16);
+            int th = Math.max(20, src.getHeight() / 16);
+            Bitmap small = Bitmap.createScaledBitmap(src, tw, th, true);
+            Bitmap out = small.copy(Bitmap.Config.ARGB_8888, true);
+            if (small != src) small.recycle();
+            int w = out.getWidth();
+            int h = out.getHeight();
+            int[] pix = new int[w * h];
+            int[] tmp = new int[w * h];
+            out.getPixels(pix, 0, w, 0, 0, w, h);
+            // 2-pass 5x5 box blur on 1/12th scale gives silky ~60px frosted-glass blur in <3ms
+            for (int pass = 0; pass < 3; pass++) {
+                for (int y = 0; y < h; y++) {
+                    int row = y * w;
+                    for (int x = 0; x < w; x++) {
+                        int r = 0, g = 0, b = 0, c = 0;
+                        for (int dx = -2; dx <= 2; dx++) {
+                            int nx = Math.max(0, Math.min(w - 1, x + dx));
+                            int p = pix[row + nx];
+                            r += (p >> 16) & 0xFF;
+                            g += (p >> 8) & 0xFF;
+                            b += p & 0xFF;
+                            c++;
+                        }
+                        tmp[row + x] = 0xFF000000 | ((r / c) << 16) | ((g / c) << 8) | (b / c);
+                    }
+                }
+                for (int y = 0; y < h; y++) {
+                    for (int x = 0; x < w; x++) {
+                        int r = 0, g = 0, b = 0, c = 0;
+                        for (int dy = -2; dy <= 2; dy++) {
+                            int ny = Math.max(0, Math.min(h - 1, y + dy));
+                            int p = tmp[ny * w + x];
+                            r += (p >> 16) & 0xFF;
+                            g += (p >> 8) & 0xFF;
+                            b += p & 0xFF;
+                            c++;
+                        }
+                        pix[y * w + x] = 0xFF000000 | ((r / c) << 16) | ((g / c) << 8) | (b / c);
+                    }
+                }
+            }
+            out.setPixels(pix, 0, w, 0, 0, w, h);
+            return out;
+        } catch (Throwable ignored) {
+            return src;
+        }
+    }
+
     private static Bitmap loadStartPageBackdropBitmap(Context ctx, java.io.File file) {
         try {
             String key = file.getAbsolutePath() + ":" + file.lastModified() + ":" + file.length();
@@ -252,6 +371,7 @@ public final class SBrowserXHooks {
             if (bmp != null) {
                 sCachedBackdropKey = key;
                 sCachedBackdropBitmap = bmp;
+                sCachedBackdropBlurred = createFastBlurredBitmap(bmp);
             }
             return bmp;
         } catch (Throwable ignored) {
@@ -259,43 +379,279 @@ public final class SBrowserXHooks {
         }
     }
 
+    private static int computeStripBlendedColor(Bitmap bmp, boolean bottom, int dimPercent, int overlayArgb) {
+        if (bmp == null || bmp.isRecycled()) return 0xFF000000;
+        try {
+            int w = bmp.getWidth();
+            int h = bmp.getHeight();
+            if (w <= 0 || h <= 0) return 0xFF000000;
+            int stripH = Math.max(1, Math.round(h * 0.08f));
+            int yStart = bottom ? Math.max(0, h - stripH) : 0;
+            int yEnd = bottom ? h : stripH;
+            int stepX = Math.max(1, w / 24);
+            int stepY = Math.max(1, stripH / 6);
+            long rSum = 0L, gSum = 0L, bSum = 0L;
+            int count = 0;
+            for (int y = yStart; y < yEnd; y += stepY) {
+                for (int x = 0; x < w; x += stepX) {
+                    int px = bmp.getPixel(x, y);
+                    rSum += (px >> 16) & 0xFF;
+                    gSum += (px >> 8) & 0xFF;
+                    bSum += px & 0xFF;
+                    count++;
+                }
+            }
+            if (count == 0) return 0xFF000000;
+            float dimF = 1.0f - Math.max(0, Math.min(80, dimPercent)) / 100.0f;
+            float r = (rSum / (float) count) * dimF;
+            float g = (gSum / (float) count) * dimF;
+            float b = (bSum / (float) count) * dimF;
+            if (overlayArgb != 0) {
+                float oa = ((overlayArgb >>> 24) & 0xFF) / 255.0f;
+                int or = (overlayArgb >> 16) & 0xFF;
+                int og = (overlayArgb >> 8) & 0xFF;
+                int ob = overlayArgb & 0xFF;
+                r = r * (1f - oa) + or * oa;
+                g = g * (1f - oa) + og * oa;
+                b = b * (1f - oa) + ob * oa;
+            }
+            return Color.rgb(clampByte(Math.round(r)), clampByte(Math.round(g)), clampByte(Math.round(b)));
+        } catch (Throwable ignored) {
+            return 0xFF000000;
+        }
+    }
+
+    private static boolean isTopStripBright(Bitmap bmp, int dimPercent) {
+        if (bmp == null || bmp.isRecycled()) return false;
+        try {
+            int w = bmp.getWidth();
+            int h = bmp.getHeight();
+            if (w <= 0 || h <= 0) return false;
+            int stripH = Math.max(1, Math.round(h * 0.08f));
+            int stepX = Math.max(1, w / 24);
+            int stepY = Math.max(1, stripH / 8);
+            long lumSum = 0L;
+            int samples = 0;
+            for (int y = 0; y < stripH; y += stepY) {
+                for (int x = 0; x < w; x += stepX) {
+                    int px = bmp.getPixel(x, y);
+                    int r = (px >> 16) & 0xFF;
+                    int g = (px >> 8) & 0xFF;
+                    int b = px & 0xFF;
+                    lumSum += (r * 299L + g * 587L + b * 114L) / 1000L;
+                    samples++;
+                }
+            }
+            if (samples == 0) return false;
+            float avgLum = (float) lumSum / samples;
+            float factor = 1.0f - Math.max(0, Math.min(80, dimPercent)) / 100.0f;
+            return (avgLum * factor) >= 165.0f;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    private static void syncStatusBarIconAppearance(android.view.Window window, boolean darkIcons) {
+        if (window == null) return;
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= 30) {
+                android.view.WindowInsetsController wic = window.getInsetsController();
+                if (wic != null) {
+                    int mask = android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS;
+                    wic.setSystemBarsAppearance(darkIcons ? mask : 0, mask);
+                }
+            } else {
+                View decor = window.getDecorView();
+                if (decor != null) {
+                    int flags = decor.getSystemUiVisibility();
+                    if (darkIcons) {
+                        flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+                    } else {
+                        flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+                    }
+                    decor.setSystemUiVisibility(flags);
+                }
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    private static int getStartPageNavGlassColor(Context ctx) {
+        if (!isBottomBarBlurEnabled() || isCompactLayoutActive()) {
+            return 0x00000000;
+        }
+        int rgb = normalizeGlassBaseRgb(0xFF000000);
+        int navAlpha = clampByte(Math.round(getGlassBaseAlpha() * 1.08f));
+        return withAlpha(rgb, navAlpha);
+    }
+
+    private static void applyOneUiNavBlur(View navView, boolean enable, int tintColor) {
+        if (navView == null) return;
+        try {
+            Method setBlur = View.class.getMethod("semSetBlurInfo", Class.forName("android.view.SemBlurInfo"));
+            if (!enable) {
+                setBlur.invoke(navView, new Object[] { null });
+                return;
+            }
+            Class<?> builderCls = Class.forName("android.view.SemBlurInfo$Builder");
+            Object builder = builderCls.getConstructor(int.class).newInstance(0); // BLUR_MODE_WINDOW = 0
+            try { builderCls.getMethod("setRadius", int.class).invoke(builder, 64); } catch (Throwable ignored) {}
+            try { builderCls.getMethod("setBackgroundColor", int.class).invoke(builder, tintColor); } catch (Throwable ignored) {}
+            Object info = builderCls.getMethod("build").invoke(builder);
+            setBlur.invoke(navView, info);
+        } catch (Throwable ignored) {}
+    }
+
+    private static void applyStartPageSystemBarViews(Activity act, boolean onStartPage, boolean brightTop) {
+        if (act == null) return;
+        try {
+            android.view.Window win = act.getWindow();
+            if (win == null) return;
+            if (android.os.Build.VERSION.SDK_INT >= 29) {
+                win.setStatusBarContrastEnforced(false);
+                win.setNavigationBarContrastEnforced(false);
+            }
+            View decor = win.getDecorView();
+            String pkg = act.getPackageName();
+            if (onStartPage) {
+                int navColor = getStartPageNavGlassColor(act);
+                win.setStatusBarColor(0x00000000);
+                win.setNavigationBarColor(0x00000000);
+                syncStatusBarIconAppearance(win, brightTop);
+                syncSystemBarIconAppearance(win, true); // white nav buttons on dark frosted glass
+                if (decor != null && pkg != null) {
+                    int fullW = decor.getWidth() > 0 ? decor.getWidth() : act.getResources().getDisplayMetrics().widthPixels;
+                    int fullH = decor.getHeight() > 0 ? decor.getHeight() : act.getResources().getDisplayMetrics().heightPixels;
+                    int dim = SBrowserXPrefs.getStartPageWallpaperDim(act);
+                    Bitmap bmp = sCachedBackdropBitmap;
+                    Bitmap blurred = sCachedBackdropBlurred != null ? sCachedBackdropBlurred : bmp;
+
+                    int stId = act.getResources().getIdentifier("status_bar_background", "id", pkg);
+                    if (stId != 0) {
+                        View stView = decor.findViewById(stId);
+                        if (stView != null) {
+                            if (bmp != null && !bmp.isRecycled()) {
+                                stView.setBackground(new WindowSliceWallpaperDrawable(bmp, dim, 0, false, fullW, fullH));
+                            } else {
+                                stView.setBackgroundColor(0x00000000);
+                            }
+                        }
+                    }
+                    int navId = act.getResources().getIdentifier("navigation_bar_background", "id", pkg);
+                    if (navId != 0) {
+                        View navView = decor.findViewById(navId);
+                        if (navView != null) {
+                            if (android.os.Build.VERSION.SDK_INT >= 31) {
+                                try { navView.setRenderEffect(null); } catch (Throwable ignored) {}
+                            }
+                            applyOneUiNavBlur(navView, false, 0);
+                            boolean compact = isCompactLayoutActive();
+                            if (!compact && isBottomBarBlurEnabled()) {
+                                // Bottombar already extends down behind the system nav buttons with live Chromium blur.
+                                // Keep navigation_bar_background 100% transparent so the blur continues seamlessly to the bottom edge.
+                                navView.setBackgroundColor(0x00000000);
+                            } else if (compact && bmp != null && !bmp.isRecycled()) {
+                                navView.setBackground(new WindowSliceWallpaperDrawable(bmp, dim, 0x26000000, true, fullW, fullH));
+                            } else {
+                                navView.setBackgroundColor(0x00000000);
+                            }
+                        }
+                    }
+                }
+            } else {
+                boolean night = isBrowserNightMode(act);
+                int c = night ? (isAmoledBlackEnabled() ? 0xFF000000 : 0xFF141418) : 0xFFFFFFFF;
+                boolean transparentForBlur = !isCompactLayoutActive() && isBottomBarBlurEnabled();
+                int stBg = transparentForBlur ? 0x00000000 : c;
+                int navBg = transparentForBlur ? 0x00000000 : c;
+                win.setStatusBarColor(stBg);
+                win.setNavigationBarColor(navBg);
+                syncStatusBarIconAppearance(win, !night);
+                syncSystemBarIconAppearance(win, night);
+                if (decor != null && pkg != null) {
+                    int stId = act.getResources().getIdentifier("status_bar_background", "id", pkg);
+                    if (stId != 0) {
+                        View stView = decor.findViewById(stId);
+                        if (stView != null) stView.setBackgroundColor(stBg);
+                    }
+                    int navId = act.getResources().getIdentifier("navigation_bar_background", "id", pkg);
+                    if (navId != 0) {
+                        View navView = decor.findViewById(navId);
+                        if (navView != null) {
+                            if (android.os.Build.VERSION.SDK_INT >= 31) {
+                                try { navView.setRenderEffect(null); } catch (Throwable ignored) {}
+                            }
+                            applyOneUiNavBlur(navView, false, 0);
+                            navView.setBackgroundColor(navBg);
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    private static final java.util.concurrent.ExecutorService sBackdropExecutor =
+            java.util.concurrent.Executors.newSingleThreadExecutor();
+
     public static void syncStartPageWindowBackdrop(final boolean onStartPage) {
         try {
             final Activity act = sMainActivityRef.get();
             if (act == null || act.isFinishing() || act.isDestroyed()) return;
-            act.runOnUiThread(() -> {
-                try {
-                    android.view.Window win = act.getWindow();
-                    if (win == null) return;
-                    if (onStartPage) {
-                        String mode = SBrowserXPrefs.getStartPageWallpaperMode(act);
-                        java.io.File wpFile = null;
-                        if (SBrowserXStartPageServer.WALLPAPER_LOCAL.equals(mode)) {
-                            wpFile = SBrowserXStartPageServer.getLocalWallpaperFile(act);
-                        } else if (SBrowserXStartPageServer.WALLPAPER_ONLINE.equals(mode)) {
-                            wpFile = SBrowserXStartPageServer.getOnlineWallpaperFile(act);
-                        }
-                        if (wpFile != null && wpFile.exists() && wpFile.length() > 0L) {
-                            Bitmap bmp = loadStartPageBackdropBitmap(act, wpFile);
-                            if (bmp != null) {
-                                int dim = SBrowserXPrefs.getStartPageWallpaperDim(act);
-                                sStartPageBackdropActive = true;
-                                sLastMainWindowBgColor = 0;
-                                win.setBackgroundDrawable(new CenterCropWallpaperDrawable(bmp, dim));
-                                win.setNavigationBarColor(0x00000000);
-                                win.setStatusBarColor(0x00000000);
-                                return;
-                            }
-                        }
-                    }
-                    if (sStartPageBackdropActive) {
+            if (!onStartPage) {
+                if (!sStartPageBackdropActive) return;
+                act.runOnUiThread(() -> {
+                    try {
+                        if (!sStartPageBackdropActive) return;
+                        android.view.Window win = act.getWindow();
+                        if (win == null) return;
                         sStartPageBackdropActive = false;
                         sLastMainWindowBgColor = 0;
                         boolean night = isBrowserNightMode(act);
                         int c = night ? (isAmoledBlackEnabled() ? 0xFF000000 : 0xFF121212) : 0xFFFFFFFF;
                         win.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(c));
                         sLastMainWindowBgColor = c;
+                        applyStartPageSystemBarViews(act, false, false);
+                    } catch (Throwable ignored) {}
+                });
+                return;
+            }
+            final Context appCtx = act.getApplicationContext();
+            sBackdropExecutor.execute(() -> {
+                try {
+                    String mode = SBrowserXPrefs.getStartPageWallpaperMode(appCtx);
+                    java.io.File wpFile = null;
+                    if (SBrowserXStartPageServer.WALLPAPER_LOCAL.equals(mode)) {
+                        wpFile = SBrowserXStartPageServer.getLocalWallpaperFile(appCtx);
+                    } else if (SBrowserXStartPageServer.WALLPAPER_ONLINE.equals(mode)) {
+                        wpFile = SBrowserXStartPageServer.getOnlineWallpaperFile(appCtx);
                     }
+                    if (wpFile == null || !wpFile.exists() || wpFile.length() == 0L) return;
+                    final Bitmap bmp = loadStartPageBackdropBitmap(appCtx, wpFile);
+                    if (bmp == null) return;
+                    final int dim = SBrowserXPrefs.getStartPageWallpaperDim(appCtx);
+                    final boolean brightTop = isTopStripBright(bmp, dim);
+                    final int navOverlay = getStartPageNavGlassColor(appCtx);
+                    sStartPageTopAvgColor = computeStripBlendedColor(bmp, false, dim, 0);
+                    sStartPageBotAvgColor = computeStripBlendedColor(bmp, true, dim, navOverlay);
+                    act.runOnUiThread(() -> {
+                        try {
+                            if (act.isFinishing() || act.isDestroyed()) return;
+                            android.view.Window win = act.getWindow();
+                            if (win == null) return;
+                            sStartPageBackdropActive = true;
+                            sStartPageTopBright = brightTop;
+                            sLastMainWindowBgColor = 0;
+                            win.setBackgroundDrawable(new CenterCropWallpaperDrawable(bmp, dim));
+                            applyStartPageSystemBarViews(act, true, brightTop);
+                            View dView = win.getDecorView();
+                            if (dView != null) {
+                                dView.postDelayed(() -> {
+                                    if (sStartPageBackdropActive) {
+                                        applyStartPageSystemBarViews(act, true, sStartPageTopBright);
+                                    }
+                                }, 140L);
+                            }
+                        } catch (Throwable ignored) {}
+                    });
                 } catch (Throwable ignored) {}
             });
         } catch (Throwable ignored) {}
@@ -314,6 +670,16 @@ public final class SBrowserXHooks {
         } catch (Throwable ignored) {}
     }
 
+    public static boolean shouldPreserveStartPageSystemBars(android.view.Window window) {
+        if (!sStartPageBackdropActive || window == null) return false;
+        try {
+            Activity act = sMainActivityRef.get();
+            if (act == null || act.getWindow() != window) return false;
+            return isWindowOnQuickAccess(window);
+        } catch (Throwable ignored) {}
+        return false;
+    }
+
     public static int adjustApi35NavBarColor(android.view.Window window, int stockColor) {
         try {
             if (window != null) {
@@ -326,6 +692,19 @@ public final class SBrowserXHooks {
             }
             Context ctx = window != null ? window.getContext() : SBrowserXPrefs.getAppContext();
             boolean night = isBrowserNightMode(ctx);
+            if (isWindowOnQuickAccess(window)) {
+                if (sStartPageBackdropActive && window != null && window.getDecorView() != null) {
+                    final Activity act = sMainActivityRef.get();
+                    if (act != null) {
+                        window.getDecorView().post(() -> {
+                            if (sStartPageBackdropActive) {
+                                applyStartPageSystemBarViews(act, true, sStartPageTopBright);
+                            }
+                        });
+                    }
+                }
+                return 0x00000000;
+            }
             if (isCompactLayoutActive()) {
                 syncSystemBarIconAppearance(window, night);
                 clearSystemBarFadeWindow(window);
@@ -333,14 +712,16 @@ public final class SBrowserXHooks {
                     final android.view.Window wRef = window;
                     window.getDecorView().post(() -> clearSystemBarFadeWindow(wRef));
                 }
-                if (isWindowOnQuickAccess(window)) {
-                    return 0x00000000;
-                }
                 int c = night
                         ? (isAmoledBlackEnabled() ? 0xFF000000 : 0xFF121212)
                         : 0xFFFFFFFF;
                 syncMainWindowBackground(window, c);
                 return c;
+            }
+            if (isBottomBarBlurEnabled()) {
+                // Keep navigation_bar_background transparent so Bottombar's live Chromium blur extends to the bottom edge.
+                syncSystemBarIconAppearance(window, night);
+                return 0x00000000;
             }
             if (night) {
                 return isAmoledBlackEnabled() ? 0xFF000000 : 0xFF141418;
@@ -365,14 +746,27 @@ public final class SBrowserXHooks {
                 window.setStatusBarContrastEnforced(false);
             }
             Context ctx = window != null ? window.getContext() : SBrowserXPrefs.getAppContext();
+            if (isWindowOnQuickAccess(window)) {
+                if (sStartPageBackdropActive && window != null && window.getDecorView() != null) {
+                    final Activity act = sMainActivityRef.get();
+                    if (act != null) {
+                        window.getDecorView().post(() -> {
+                            if (sStartPageBackdropActive) {
+                                applyStartPageSystemBarViews(act, true, sStartPageTopBright);
+                            }
+                        });
+                    }
+                    if (!isCompactLayoutActive() && sStartPageTopAvgColor != 0) {
+                        return sStartPageTopAvgColor;
+                    }
+                }
+                return 0x00000000;
+            }
             if (isCompactLayoutActive()) {
                 clearSystemBarFadeWindow(window);
                 if (window != null && window.getDecorView() != null) {
                     final android.view.Window wRef = window;
                     window.getDecorView().post(() -> clearSystemBarFadeWindow(wRef));
-                }
-                if (isWindowOnQuickAccess(window)) {
-                    return 0x00000000;
                 }
                 int c = isBrowserNightMode(ctx)
                         ? (isAmoledBlackEnabled() ? 0xFF000000 : 0xFF121212)
@@ -380,11 +774,25 @@ public final class SBrowserXHooks {
                 syncMainWindowBackground(window, c);
                 return c;
             }
+            if (stockColor == 0 && isBottomBarBlurEnabled()) {
+                // Preserve stock transparent status bar so Chromium's live BITMAP_LAYER_TOPBAR blur shows on scroll
+                return 0x00000000;
+            }
             if (isBrowserNightMode(ctx)) {
                 return isAmoledBlackEnabled() ? 0xFF000000 : 0xFF141418;
             }
         } catch (Throwable ignored) {}
         return stockColor;
+    }
+
+    public static void setStatusBarViewBgIfNotStartPage(View view, int color) {
+        if (view == null) return;
+        try {
+            if (sStartPageBackdropActive && view.getBackground() instanceof WindowSliceWallpaperDrawable) {
+                return;
+            }
+        } catch (Throwable ignored) {}
+        view.setBackgroundColor(color);
     }
 
     public static void clearSystemBarFadeContext(Context ctx) {
@@ -854,8 +1262,8 @@ public final class SBrowserXHooks {
             GradientDrawable gd = new GradientDrawable();
             gd.setOrientation(GradientDrawable.Orientation.TOP_BOTTOM);
             if (isFocusLayout(ctx)) {
-                // Address bar is at bottom directly above Bottombar: soft fade from page into bar
-                gd.setColors(new int[] { withAlpha(rgb, edgeAlpha), withAlpha(rgb, midAlpha) });
+                // Address bar sits directly above Bottombar: use unified glass alpha for one monolithic sheet
+                gd.setColors(new int[] { withAlpha(rgb, midAlpha), withAlpha(rgb, midAlpha) });
             } else {
                 // Address bar is at top: denser near status bar, softer toward page
                 gd.setColors(new int[] { withAlpha(rgb, solidAlpha), withAlpha(rgb, edgeAlpha) });
@@ -885,8 +1293,8 @@ public final class SBrowserXHooks {
             int midAlpha = clampByte(Math.round(baseAlpha * 0.88f));
             int botAlpha = clampByte(Math.round(baseAlpha * 1.08f));
             if (isFocusLayout(ctx)) {
-                // Seamless continuation from Focus Toolbar above it down to system navbar
-                gd.setColors(new int[] { withAlpha(rgb, midAlpha), withAlpha(rgb, botAlpha) });
+                // Exact same uniform glass alpha as Focus Toolbar above it, continuing seamlessly behind ≡ ○ ↩
+                gd.setColors(new int[] { withAlpha(rgb, midAlpha), withAlpha(rgb, midAlpha) });
             } else {
                 // Standalone bottom navigation bar: soft edge at top, slightly denser at bottom
                 gd.setColors(new int[] { withAlpha(rgb, edgeAlpha), withAlpha(rgb, botAlpha) });
@@ -2799,12 +3207,267 @@ public final class SBrowserXHooks {
                 || trimmed.startsWith("https://127.0.0.1:");
     }
 
+    public static boolean tryAddCurrentPageToStartPage(Object addToMenu) {
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            Activity act = sMainActivityRef.get();
+            if (ctx == null && act != null) ctx = act.getApplicationContext();
+            if (ctx == null || !SBrowserXPrefs.isStartPageEnabled(ctx)) {
+                return false;
+            }
+            if (addToMenu == null) return false;
+            Method getTab = addToMenu.getClass().getDeclaredMethod("getCurrentTab");
+            getTab.setAccessible(true);
+            Object tab = getTab.invoke(addToMenu);
+            if (tab == null) return true;
+
+            String url = null;
+            String title = null;
+            try {
+                Object u = tab.getClass().getMethod("getUrl").invoke(tab);
+                if (u instanceof String) url = ((String) u).trim();
+            } catch (Throwable ignored) {}
+            try {
+                Object t = tab.getClass().getMethod("getTitle").invoke(tab);
+                if (t instanceof String) title = ((String) t).trim();
+            } catch (Throwable ignored) {}
+
+            if (url == null || url.isEmpty()
+                    || SBrowserXStartPageServer.isStartPageUrl(url)
+                    || url.startsWith("about:")
+                    || url.startsWith("internet-native://")
+                    || url.startsWith("chrome-native://")) {
+                return true;
+            }
+
+            if (title == null || title.isEmpty()) {
+                try {
+                    String host = android.net.Uri.parse(url).getHost();
+                    if (host != null && !host.isEmpty()) {
+                        title = host.startsWith("www.") ? host.substring(4) : host;
+                    }
+                } catch (Throwable ignored) {}
+            }
+            if (title == null || title.isEmpty()) title = url;
+
+            String raw = SBrowserXPrefs.getStartPageShortcutsJson(ctx);
+            org.json.JSONArray arr;
+            try {
+                arr = new org.json.JSONArray(raw != null ? raw : "[]");
+            } catch (Throwable t) {
+                arr = new org.json.JSONArray();
+            }
+
+            String normTarget = url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
+            boolean exists = false;
+            for (int i = 0; i < arr.length(); i++) {
+                org.json.JSONObject obj = arr.optJSONObject(i);
+                if (obj == null) continue;
+                String existing = obj.optString("url", "").trim();
+                String normEx = existing.endsWith("/") ? existing.substring(0, existing.length() - 1) : existing;
+                if (normTarget.equalsIgnoreCase(normEx)) {
+                    exists = true;
+                    break;
+                }
+            }
+
+            if (!exists) {
+                org.json.JSONObject item = new org.json.JSONObject();
+                item.put("title", title);
+                item.put("url", url);
+                arr.put(item);
+                SBrowserXPrefs.setStartPageShortcutsJson(ctx, arr.toString());
+            }
+
+            final Context toastCtx = act != null ? act : ctx;
+            final boolean alreadyExists = exists;
+            final boolean ru = "ru".equalsIgnoreCase(java.util.Locale.getDefault().getLanguage());
+            final String msg = alreadyExists
+                    ? (ru ? "Ярлык уже добавлен на стартовую страницу." : "Shortcut is already on your Start Page.")
+                    : (ru ? "Ярлык быстрого доступа сохранён." : "Quick access shortcut saved.");
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                try {
+                    android.widget.Toast.makeText(toastCtx, msg, android.widget.Toast.LENGTH_SHORT).show();
+                } catch (Throwable ignored) {}
+            });
+            return true;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
     public static boolean shouldForceBlankOmnibox(String url, boolean origForceBlank) {
         return origForceBlank || isStartPageOmniboxUrl(url);
     }
 
     private static volatile long sAllowStartPagePreviewUntilMs;
     private static volatile long sLastAutoRedirectMs;
+    private static volatile String sPendingHomepageNavUrl;
+    private static volatile boolean sPendingNavOnlyFromQuickAccess;
+    private static volatile boolean sPendingNavOnlyFromStartPage;
+
+    public static boolean tryOpenStartPageSettingsFromDialog(Object fragment) {
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            if (ctx == null && fragment != null) {
+                ctx = (Context) fragment.getClass().getMethod("getContext").invoke(fragment);
+            }
+            if (ctx == null || !SBrowserXPrefs.isStartPageEnabled(ctx)) return false;
+            Intent intent = new Intent(ctx, dev.vortexnode.sbrowserx.extension.settings.SBrowserXStartPageSettingsActivity.class);
+            if (!(ctx instanceof Activity)) {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            }
+            ctx.startActivity(intent);
+            return true;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    private static boolean isTabQuickAccessOrNewTab(Object tab) {
+        if (tab == null) return false;
+        try {
+            Method isQa = sTabIsNewQuickAccess;
+            if (isQa == null || !isQa.getDeclaringClass().isInstance(tab)) {
+                isQa = tab.getClass().getMethod("isNewQuickAccessPage");
+                sTabIsNewQuickAccess = isQa;
+            }
+            if (Boolean.TRUE.equals(isQa.invoke(tab))) return true;
+        } catch (Throwable ignored) {}
+        try {
+            Object nat = tab.getClass().getMethod("isNativePage").invoke(tab);
+            if (Boolean.TRUE.equals(nat)) return true;
+        } catch (Throwable ignored) {}
+        try {
+            Method getUrl = sTabGetUrl;
+            if (getUrl == null || !getUrl.getDeclaringClass().isInstance(tab)) {
+                getUrl = tab.getClass().getMethod("getUrl");
+                sTabGetUrl = getUrl;
+            }
+            Object uObj = getUrl.invoke(tab);
+            if (uObj instanceof String) {
+                String u = ((String) uObj).trim();
+                if (u.isEmpty() || u.startsWith("internet-native://") || "about:blank".equalsIgnoreCase(u)) {
+                    return true;
+                }
+            }
+        } catch (Throwable ignored) {}
+        return false;
+    }
+
+    private static void consumePendingHomepageNavigation(final Activity act) {
+        if (act == null || act.isFinishing() || act.isDestroyed()) return;
+        sPendingHomepageNavUrl = null;
+        sPendingNavOnlyFromQuickAccess = false;
+        sPendingNavOnlyFromStartPage = false;
+
+        android.view.View decor = act.getWindow() != null ? act.getWindow().getDecorView() : null;
+        Runnable task = () -> {
+            try {
+                if (act.isFinishing() || act.isDestroyed()) return;
+                Context ctx = act.getApplicationContext();
+                boolean spEnabled = SBrowserXPrefs.isStartPageEnabled(ctx);
+                if (spEnabled) {
+                    SBrowserXStartPageServer.ensureStarted(ctx);
+                    if (!SBrowserXPrefs.isStartPageDefaultApplied(ctx)) {
+                        SBrowserXPrefs.markStartPageDefaultApplied(ctx);
+                        applyStartPageHomepageSetting(ctx, true);
+                    }
+                }
+                Method getTab = sActGetCurrentTab;
+                if (getTab == null || !getTab.getDeclaringClass().isInstance(act)) {
+                    getTab = act.getClass().getMethod("getCurrentTab");
+                    sActGetCurrentTab = getTab;
+                }
+                Object tab = getTab.invoke(act);
+                if (tab == null) return;
+                Method getUrl = sTabGetUrl;
+                if (getUrl == null || !getUrl.getDeclaringClass().isInstance(tab)) {
+                    getUrl = tab.getClass().getMethod("getUrl");
+                    sTabGetUrl = getUrl;
+                }
+                Object curUrlObj = getUrl.invoke(tab);
+                String curUrl = curUrlObj instanceof String ? ((String) curUrlObj).trim() : "";
+
+                if (spEnabled && isStartPageOmniboxUrl(curUrl)) {
+                    syncStartPageWindowBackdrop(true);
+                } else if (spEnabled && isTabQuickAccessOrNewTab(tab)) {
+                    String spUrl = SBrowserXStartPageServer.getBaseUrl();
+                    if (!spUrl.equals(curUrl)) {
+                        tab.getClass().getMethod("loadUrl", String.class).invoke(tab, spUrl);
+                    }
+                } else if (!spEnabled && isStartPageOmniboxUrl(curUrl)
+                        && System.currentTimeMillis() > sAllowStartPagePreviewUntilMs) {
+                    syncStartPageWindowBackdrop(false);
+                    String nativeUrl = resolveNativeHomepageUrl();
+                    if (!nativeUrl.equals(curUrl)) {
+                        tab.getClass().getMethod("loadUrl", String.class).invoke(tab, nativeUrl);
+                    }
+                }
+            } catch (Throwable t) {
+                Log.w(TAG, "consumePendingHomepageNavigation failed", t);
+            }
+        };
+        if (decor != null) {
+            decor.postDelayed(task, 180L);
+            // Second pass for cold start when TabManager finishes restoring tabs slightly later
+            decor.postDelayed(task, 750L);
+        } else {
+            act.runOnUiThread(task);
+        }
+    }
+
+    public static void onHomepageFragmentUpdated(Object fragment) {
+        if (fragment == null) return;
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            if (ctx == null) {
+                ctx = (Context) fragment.getClass().getMethod("getContext").invoke(fragment);
+            }
+            if (ctx == null) return;
+            boolean spOn = SBrowserXPrefs.isStartPageEnabled(ctx);
+
+            // Clear cached mOtherURL inside HomePagePreferenceFragment if Start Page was disabled
+            if (!spOn) {
+                try {
+                    Field fOther = fragment.getClass().getDeclaredField("mOtherURL");
+                    fOther.setAccessible(true);
+                    Object curOther = fOther.get(fragment);
+                    if (curOther instanceof String && isStartPageOmniboxUrl((String) curOther)) {
+                        fOther.set(fragment, "https://www.google.com/");
+                    }
+                } catch (Throwable ignored) {}
+            }
+
+            // Refresh all preference summaries on screen so 127.0.0.1 never appears on unselected "Custom page"
+            // and "SBrowserX Start Page" summary reflects the live toggle state immediately.
+            Object screen = fragment.getClass().getMethod("getPreferenceScreen").invoke(fragment);
+            if (screen != null) {
+                int count = (Integer) screen.getClass().getMethod("getPreferenceCount").invoke(screen);
+                Method getPref = screen.getClass().getMethod("getPreference", int.class);
+                for (int i = 0; i < count; i++) {
+                    Object pref = getPref.invoke(screen, i);
+                    if (pref == null) continue;
+                    String key = (String) pref.getClass().getMethod("getKey").invoke(pref);
+                    if ("sbrowserx_start_page_entry".equals(key)) {
+                        String sum = spOn
+                                ? SBrowserXStrings.get(SBrowserXStrings.SP_ENABLED_TOAST)
+                                : SBrowserXStrings.get(SBrowserXStrings.SP_SUMMARY);
+                        pref.getClass().getMethod("setSummary", CharSequence.class).invoke(pref, sum);
+                    } else {
+                        CharSequence sumCs = (CharSequence) pref.getClass().getMethod("getSummary").invoke(pref);
+                        if (sumCs != null && isStartPageOmniboxUrl(sumCs.toString())) {
+                            String replacement = spOn
+                                    ? SBrowserXStrings.get(SBrowserXStrings.SP_TITLE)
+                                    : "https://www.google.com/";
+                            pref.getClass().getMethod("setSummary", CharSequence.class).invoke(pref, replacement);
+                        }
+                    }
+                }
+            }
+
+        } catch (Throwable ignored) {}
+    }
 
     public static void allowStartPagePreviewBriefly() {
         sAllowStartPagePreviewUntilMs = System.currentTimeMillis() + 12000L;
@@ -2929,8 +3592,16 @@ public final class SBrowserXHooks {
                 hpsCls.getMethod("setHomePageType", String.class).invoke(inst, "other");
                 try { hpsCls.getMethod("setOtherHomePage", String.class).invoke(inst, url); } catch (Throwable ignored) {}
                 hpsCls.getMethod("setHomePage", String.class).invoke(inst, url);
-                navigateCurrentTabIfOnQuickAccess(url);
+                sPendingHomepageNavUrl = url;
+                sPendingNavOnlyFromQuickAccess = true;
+                sPendingNavOnlyFromStartPage = false;
             } else {
+                try {
+                    Object otherObj = hpsCls.getMethod("getOtherHomePage").invoke(inst);
+                    if (otherObj instanceof String && isStartPageOmniboxUrl((String) otherObj)) {
+                        hpsCls.getMethod("setOtherHomePage", String.class).invoke(inst, "https://www.google.com/");
+                    }
+                } catch (Throwable ignored) {}
                 try {
                     hpsCls.getMethod("setHomepageAsQuickAccess").invoke(inst);
                 } catch (Throwable fallback) {
@@ -2938,10 +3609,29 @@ public final class SBrowserXHooks {
                     hpsCls.getMethod("setHomePage", String.class).invoke(inst, "internet-native://newtab/");
                 }
                 syncStartPageWindowBackdrop(false);
-                navigateCurrentTabIfOnStartPage("internet-native://newtab/");
+                sPendingHomepageNavUrl = "internet-native://newtab/";
+                sPendingNavOnlyFromQuickAccess = false;
+                sPendingNavOnlyFromStartPage = true;
             }
         } catch (Throwable t) {
             Log.w(TAG, "applyStartPageHomepageSetting failed", t);
+        } finally {
+            sUpdatingHomepageInternally = false;
+        }
+    }
+
+    private static void clearLeakedLoopbackOtherHomepage() {
+        sUpdatingHomepageInternally = true;
+        try {
+            Class<?> hpsCls = Class.forName("com.sec.android.app.sbrowser.homepage.HomePageSettings");
+            Object inst = hpsCls.getMethod("getInstance").invoke(null);
+            if (inst != null) {
+                Object otherObj = hpsCls.getMethod("getOtherHomePage").invoke(inst);
+                if (otherObj instanceof String && isStartPageOmniboxUrl((String) otherObj)) {
+                    hpsCls.getMethod("setOtherHomePage", String.class).invoke(inst, "https://www.google.com/");
+                }
+            }
+        } catch (Throwable ignored) {
         } finally {
             sUpdatingHomepageInternally = false;
         }
@@ -2953,9 +3643,12 @@ public final class SBrowserXHooks {
             Context ctx = SBrowserXPrefs.getAppContext();
             if (ctx != null && !"other".equals(type) && SBrowserXPrefs.isStartPageEnabled(ctx)) {
                 SBrowserXPrefs.setStartPageEnabled(ctx, false);
+                clearLeakedLoopbackOtherHomepage();
                 syncStartPageWindowBackdrop(false);
                 String target = "quick_access".equals(type) ? "internet-native://newtab/" : resolveNativeHomepageUrl();
-                navigateCurrentTabIfOnStartPage(target);
+                sPendingHomepageNavUrl = target;
+                sPendingNavOnlyFromQuickAccess = false;
+                sPendingNavOnlyFromStartPage = true;
             }
         } catch (Throwable ignored) {}
     }
@@ -2966,34 +3659,71 @@ public final class SBrowserXHooks {
             Context ctx = SBrowserXPrefs.getAppContext();
             if (ctx != null && !isStartPageOmniboxUrl(url) && SBrowserXPrefs.isStartPageEnabled(ctx)) {
                 SBrowserXPrefs.setStartPageEnabled(ctx, false);
+                clearLeakedLoopbackOtherHomepage();
                 syncStartPageWindowBackdrop(false);
-                navigateCurrentTabIfOnStartPage(url);
+                sPendingHomepageNavUrl = url;
+                sPendingNavOnlyFromQuickAccess = false;
+                sPendingNavOnlyFromStartPage = true;
             }
         } catch (Throwable ignored) {}
+    }
+
+    public static Object getHomepageRadioPreference(Object prefGroup, int logicalIndex) {
+        if (prefGroup == null) return null;
+        try {
+            int count = (Integer) prefGroup.getClass().getMethod("getPreferenceCount").invoke(prefGroup);
+            Method getPref = prefGroup.getClass().getMethod("getPreference", int.class);
+            Class<?> radioCls = Class.forName("com.sec.android.app.sbrowser.settings.CheckBoxPreferenceRadio");
+            int seen = 0;
+            for (int i = 0; i < count; i++) {
+                Object p = getPref.invoke(prefGroup, i);
+                if (radioCls.isInstance(p)) {
+                    if (seen == logicalIndex) return p;
+                    seen++;
+                }
+            }
+            if (logicalIndex >= 0 && logicalIndex < count) {
+                return getPref.invoke(prefGroup, logicalIndex);
+            }
+        } catch (Throwable ignored) {}
+        return null;
     }
 
     public static void injectStartPageIntoHomepageSettings(Object fragment) {
         if (fragment == null) return;
         try {
-            Method getScreen = fragment.getClass().getMethod("getPreferenceScreen");
-            Object screen = getScreen.invoke(fragment);
+            Object screen = fragment.getClass().getMethod("getPreferenceScreen").invoke(fragment);
             if (screen == null) return;
-            Method getCtx = fragment.getClass().getMethod("getContext");
-            Context ctx = (Context) getCtx.invoke(fragment);
+            Context ctx = (Context) fragment.getClass().getMethod("getContext").invoke(fragment);
             if (ctx == null) return;
 
             Method findPref = screen.getClass().getMethod("findPreference", CharSequence.class);
-            Object existing = findPref.invoke(screen, "sbrowserx_start_page_entry");
             Class<?> prefCls = Class.forName("androidx.preference.Preference");
-            Object pref = existing;
+
+            Object pref = findPref.invoke(screen, "sbrowserx_start_page_entry");
             if (pref == null) {
                 pref = prefCls.getConstructor(Context.class).newInstance(ctx);
                 prefCls.getMethod("setKey", String.class).invoke(pref, "sbrowserx_start_page_entry");
-                prefCls.getMethod("setOrder", int.class).invoke(pref, 999);
+                prefCls.getMethod("setOrder", int.class).invoke(pref, -100);
                 Intent intent = new Intent(ctx, dev.vortexnode.sbrowserx.extension.settings.SBrowserXStartPageSettingsActivity.class);
                 prefCls.getMethod("setIntent", Intent.class).invoke(pref, intent);
                 screen.getClass().getMethod("addPreference", prefCls).invoke(screen, pref);
+            } else {
+                prefCls.getMethod("setOrder", int.class).invoke(pref, -100);
             }
+
+            Object divider = findPref.invoke(screen, "sbrowserx_start_page_divider");
+            if (divider == null) {
+                try {
+                    Class<?> catCls = Class.forName("androidx.preference.PreferenceCategory");
+                    Object cat = catCls.getConstructor(Context.class).newInstance(ctx);
+                    prefCls.getMethod("setKey", String.class).invoke(cat, "sbrowserx_start_page_divider");
+                    prefCls.getMethod("setOrder", int.class).invoke(cat, -50);
+                    prefCls.getMethod("setTitle", CharSequence.class).invoke(cat, "");
+                    screen.getClass().getMethod("addPreference", prefCls).invoke(screen, cat);
+                } catch (Throwable ignored) {}
+            }
+
             prefCls.getMethod("setTitle", CharSequence.class).invoke(pref, SBrowserXStrings.get(SBrowserXStrings.SP_TITLE));
             String sum = SBrowserXPrefs.isStartPageEnabled(ctx)
                     ? SBrowserXStrings.get(SBrowserXStrings.SP_ENABLED_TOAST)

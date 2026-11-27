@@ -45,6 +45,12 @@ public final class SBrowserXStartPageServer {
     private static volatile boolean sStarted = false;
     private static volatile int sPort = PREFERRED_PORT;
     private static volatile Context sAppCtx;
+    private static volatile String sCachedWpBytesKey;
+    private static volatile byte[] sCachedWpBytes;
+    private static final java.util.concurrent.ExecutorService sExecutor =
+            java.util.concurrent.Executors.newCachedThreadPool();
+    private static final java.util.concurrent.atomic.AtomicBoolean sDailyRefreshing =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
 
     private static volatile String sCachedWeatherJson = null;
     private static volatile String sCachedWeatherKey = null;
@@ -88,7 +94,9 @@ public final class SBrowserXStartPageServer {
         try {
             InetAddress lo = InetAddress.getByName("127.0.0.1");
             try {
-                server = new ServerSocket(PREFERRED_PORT, 16, lo);
+                server = new ServerSocket();
+                server.setReuseAddress(true);
+                server.bind(new java.net.InetSocketAddress(lo, PREFERRED_PORT), 16);
                 sPort = PREFERRED_PORT;
             } catch (Throwable busy) {
                 server = new ServerSocket(0, 16, lo);
@@ -96,7 +104,7 @@ public final class SBrowserXStartPageServer {
             }
             while (!server.isClosed()) {
                 final Socket client = server.accept();
-                new Thread(() -> handleClient(client), "SBrowserX-SP-Req").start();
+                sExecutor.execute(() -> handleClient(client));
             }
         } catch (Throwable t) {
             Log.w(TAG, "StartPage server stopped", t);
@@ -151,7 +159,7 @@ public final class SBrowserXStartPageServer {
 
             Context ctx = sAppCtx != null ? sAppCtx : SBrowserXPrefs.getAppContext();
             if ("/".equals(path) || "/index.html".equals(path)) {
-                sendResponse(out, "200 OK", "text/html; charset=utf-8", buildHtmlPage().getBytes(StandardCharsets.UTF_8));
+                sendResponse(out, "200 OK", "text/html; charset=utf-8", buildHtmlPage(ctx).getBytes(StandardCharsets.UTF_8), false);
             } else if ("/api/state".equals(path)) {
                 sendResponse(out, "200 OK", "application/json; charset=utf-8", buildStateJson(ctx).getBytes(StandardCharsets.UTF_8));
             } else if ("/api/shortcuts".equals(path) && "POST".equalsIgnoreCase(method)) {
@@ -167,7 +175,7 @@ public final class SBrowserXStartPageServer {
             } else if ("/api/wallpaper".equals(path)) {
                 byte[] img = loadWallpaperBytes(ctx);
                 if (img != null && img.length > 0) {
-                    sendResponse(out, "200 OK", "image/jpeg", img);
+                    sendResponse(out, "200 OK", "image/jpeg", img, true);
                 } else {
                     sendResponse(out, "404 Not Found", "text/plain", new byte[0]);
                 }
@@ -201,10 +209,17 @@ public final class SBrowserXStartPageServer {
     }
 
     private static void sendResponse(OutputStream out, String status, String contentType, byte[] body) throws Exception {
+        sendResponse(out, status, contentType, body, false);
+    }
+
+    private static void sendResponse(OutputStream out, String status, String contentType, byte[] body, boolean immutableCache) throws Exception {
+        String cache = immutableCache
+                ? "public, max-age=31536000, immutable"
+                : "no-store, no-cache, must-revalidate";
         String headers = "HTTP/1.1 " + status + "\r\n"
                 + "Content-Type: " + contentType + "\r\n"
                 + "Content-Length: " + body.length + "\r\n"
-                + "Cache-Control: no-store, no-cache, must-revalidate\r\n"
+                + "Cache-Control: " + cache + "\r\n"
                 + "Connection: close\r\n\r\n";
         out.write(headers.getBytes(StandardCharsets.US_ASCII));
         out.write(body);
@@ -240,6 +255,24 @@ public final class SBrowserXStartPageServer {
             obj.put("wallpaperDim", dim);
             obj.put("hasWallpaper", hasWallpaper);
             obj.put("wallpaperVer", ctx != null ? SBrowserXPrefs.getStartPageWallpaperVersion(ctx) : 1);
+            if (ctx != null) {
+                try {
+                    android.util.DisplayMetrics dm = ctx.getResources().getDisplayMetrics();
+                    float dens = dm.density > 0f ? dm.density : 3.0f;
+                    int stPx = 0;
+                    int resId = ctx.getResources().getIdentifier("status_bar_height", "dimen", "android");
+                    if (resId > 0) stPx = ctx.getResources().getDimensionPixelSize(resId);
+                    int fullHpx = dm.heightPixels;
+                    try {
+                        android.view.WindowManager wm = (android.view.WindowManager) ctx.getSystemService(Context.WINDOW_SERVICE);
+                        if (wm != null && android.os.Build.VERSION.SDK_INT >= 30) {
+                            fullHpx = wm.getCurrentWindowMetrics().getBounds().height();
+                        }
+                    } catch (Throwable ignored2) {}
+                    obj.put("statusBarCss", Math.round(stPx / dens));
+                    obj.put("fullHeightCss", Math.round(fullHpx / dens));
+                } catch (Throwable ignored) {}
+            }
             obj.put("weatherEnabled", weatherOn);
             obj.put("weatherCity", city);
             obj.put("weatherUnit", unit);
@@ -291,29 +324,45 @@ public final class SBrowserXStartPageServer {
         if (ctx == null) return null;
         String mode = SBrowserXPrefs.getStartPageWallpaperMode(ctx);
         if (WALLPAPER_LOCAL.equals(mode)) {
-            return readFileBytes(getLocalWallpaperFile(ctx));
+            return readFileBytesCached(getLocalWallpaperFile(ctx));
         }
         if (WALLPAPER_ONLINE.equals(mode)) {
             File f = getOnlineWallpaperFile(ctx);
             String today = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
             String lastDate = SBrowserXPrefs.getStartPageOnlineWallpaperDate(ctx);
             boolean autoDaily = SBrowserXPrefs.isStartPageDailyWallpaperEnabled(ctx);
-            if (!f.exists() || (autoDaily && !today.equals(lastDate))) {
-                fetchNextOnlineWallpaper(ctx, f.exists() && autoDaily && !today.equals(lastDate));
+            if (f.exists() && f.length() > 0L) {
+                // Never block Start Page load on Bing network I/O: serve cached bytes immediately, refresh async!
+                if (autoDaily && !today.equals(lastDate) && sDailyRefreshing.compareAndSet(false, true)) {
+                    final Context appCtx = ctx.getApplicationContext();
+                    sExecutor.execute(() -> {
+                        try { fetchNextOnlineWallpaper(appCtx, true); } finally { sDailyRefreshing.set(false); }
+                    });
+                }
+                return readFileBytesCached(f);
             }
-            return readFileBytes(f);
+            fetchNextOnlineWallpaper(ctx, false);
+            return readFileBytesCached(f);
         }
         return null;
     }
 
-    private static byte[] readFileBytes(File f) {
+    private static byte[] readFileBytesCached(File f) {
         if (f == null || !f.exists()) return null;
+        String key = f.getAbsolutePath() + ":" + f.lastModified() + ":" + f.length();
+        byte[] cached = sCachedWpBytes;
+        if (cached != null && key.equals(sCachedWpBytesKey)) {
+            return cached;
+        }
         try (FileInputStream fis = new FileInputStream(f);
-             ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-            byte[] buf = new byte[8192];
+             ByteArrayOutputStream baos = new ByteArrayOutputStream((int) Math.min(f.length(), 1024 * 1024))) {
+            byte[] buf = new byte[16384];
             int n;
             while ((n = fis.read(buf)) > 0) baos.write(buf, 0, n);
-            return baos.toByteArray();
+            byte[] bytes = baos.toByteArray();
+            sCachedWpBytesKey = key;
+            sCachedWpBytes = bytes;
+            return bytes;
         } catch (Throwable ignored) {
             return null;
         }
@@ -434,18 +483,53 @@ public final class SBrowserXStartPageServer {
 
     // --- Handcrafted Ultra-Clean Start Page HTML/CSS/JS ---
 
-    private static String buildHtmlPage() {
+    private static String buildHtmlPage(Context ctx) {
+        String initBgCss = "";
+        String initDimCss = "0";
+        String initPosCss = "top:0;height:100lvh;min-height:calc(100vh + 240px);";
+        if (ctx != null) {
+            try {
+                String mode = SBrowserXPrefs.getStartPageWallpaperMode(ctx);
+                boolean hasWp = (WALLPAPER_LOCAL.equals(mode) && getLocalWallpaperFile(ctx).exists())
+                        || (WALLPAPER_ONLINE.equals(mode) && getOnlineWallpaperFile(ctx).exists());
+                if (hasWp && !WALLPAPER_AMOLED.equals(mode)) {
+                    int ver = SBrowserXPrefs.getStartPageWallpaperVersion(ctx);
+                    int dim = SBrowserXPrefs.getStartPageWallpaperDim(ctx);
+                    initBgCss = "background-image:url(/api/wallpaper?v=" + ver + ");";
+                    initDimCss = String.format(Locale.US, "%.2f", dim / 100.0f);
+                }
+                android.util.DisplayMetrics dm = ctx.getResources().getDisplayMetrics();
+                float dens = dm.density > 0f ? dm.density : 3.0f;
+                int stPx = 0;
+                int resId = ctx.getResources().getIdentifier("status_bar_height", "dimen", "android");
+                if (resId > 0) stPx = ctx.getResources().getDimensionPixelSize(resId);
+                int fullHpx = dm.heightPixels;
+                try {
+                    android.view.WindowManager wm = (android.view.WindowManager) ctx.getSystemService(Context.WINDOW_SERVICE);
+                    if (wm != null && android.os.Build.VERSION.SDK_INT >= 30) {
+                        fullHpx = wm.getCurrentWindowMetrics().getBounds().height();
+                    }
+                } catch (Throwable ignored2) {}
+                int stCss = Math.round(stPx / dens);
+                int fullCss = Math.round(fullHpx / dens);
+                if (stCss > 0 && fullCss > 0) {
+                    initPosCss = "top:-" + stCss + "px;height:" + fullCss + "px;min-height:" + fullCss + "px;";
+                }
+            } catch (Throwable ignored) {}
+        }
         return "<!DOCTYPE html><html lang=\"en\"><head>"
                 + "<meta charset=\"utf-8\">"
                 + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover\">"
                 + "<title>SBrowserX</title>"
                 + "<style>"
                 + "*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}"
-                + "html{width:100%;min-height:100lvh;background:#000 center/cover no-repeat fixed}"
-                + "body{width:100%;min-height:100lvh;background:transparent;color:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;overflow-x:hidden}"
-                + "#bg{position:fixed;top:0;left:0;right:0;height:100lvh;min-height:calc(100vh + 240px);background:#000 center/cover no-repeat;z-index:0;transition:opacity .35s ease}"
-                + "#dim{position:fixed;top:0;left:0;right:0;height:100lvh;min-height:calc(100vh + 240px);background:#000;opacity:0;z-index:1;pointer-events:none}"
-                + "#wrap{position:relative;z-index:2;min-height:100lvh;padding:max(20px,env(safe-area-inset-top)) 18px 140px;display:flex;flex-direction:column;align-items:center}"
+                + "html,body{scrollbar-width:none;-ms-overflow-style:none}"
+                + "::-webkit-scrollbar{display:none;width:0;height:0}"
+                + "html{width:100%;min-height:100%;background:#000 center/cover no-repeat fixed;" + initBgCss + "}"
+                + "body{width:100%;min-height:100%;background:transparent;color:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;overflow-x:hidden}"
+                + "#bg{position:fixed;left:0;right:0;" + initPosCss + "background:#000 center/cover no-repeat;" + initBgCss + "z-index:0}"
+                + "#dim{position:fixed;left:0;right:0;" + initPosCss + "background:#000;opacity:" + initDimCss + ";z-index:1;pointer-events:none}"
+                + "#wrap{position:relative;z-index:2;min-height:100%;padding:max(20px,env(safe-area-inset-top)) 18px 96px;display:flex;flex-direction:column;align-items:center}"
                 + ".top-actions{position:fixed;top:max(14px,env(safe-area-inset-top));right:14px;z-index:10;display:flex;gap:8px}"
                 + ".fab-btn{width:38px;height:38px;border-radius:50%;border:1px solid rgba(255,255,255,.14);background:rgba(16,18,24,.42);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);color:rgba(255,255,255,.78);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.58;transition:opacity .2s,transform .15s}"
                 + ".fab-btn:active{opacity:1;transform:scale(.94)}"
@@ -491,7 +575,8 @@ public final class SBrowserXStartPageServer {
                 + "<div class=\"m-row\"><button class=\"btn btn-sec\" id=\"mCancel\">Cancel</button><button class=\"btn btn-del\" id=\"mDel\" style=\"display:none\">Delete</button><button class=\"btn btn-pri\" id=\"mSave\">Save</button></div>"
                 + "</div></div>"
                 + "<script>"
-                + "let STATE={shortcuts:[],lang:'en'};let EDIT_IDX=-1;"
+                + "let STATE=" + buildStateJson(ctx) + ";let EDIT_IDX=-1;"
+                + "const INIT_WX=" + (sCachedWeatherJson != null ? sCachedWeatherJson : "null") + ";"
                 + "const T={en:{add:'Add shortcut',edit:'Edit shortcut',name:'Title',url:'https://example.com',cancel:'Cancel',del:'Delete',save:'Save',feels:'Feels like'},"
                 + "ru:{add:'Новый ярлык',edit:'Изменить ярлык',name:'Название',url:'https://example.com',cancel:'Отмена',del:'Удалить',save:'Сохранить',feels:'Ощущается'}};"
                 + "function wxIcon(c,day){if(c===0)return day?'&#9728;':'&#127769;';if(c<=2)return day?'&#9925;':'&#9729;';if(c===3)return '&#9729;';if(c<=48)return '&#127787;';if(c<=67)return '&#127783;';if(c<=77)return '&#10052;';if(c<=82)return '&#127782;';return '&#9928;';}"
@@ -544,30 +629,30 @@ public final class SBrowserXStartPageServer {
                 + "  if(EDIT_IDX>=0)STATE.shortcuts[EDIT_IDX]={title:n,url:u};else STATE.shortcuts.push({title:n,url:u});"
                 + "  closeModal();await persistShortcuts();"
                 + "};"
+                + "function applyWeather(w){"
+                + "  if(!w||!w.enabled)return;"
+                + "  const tr=T[STATE.lang]||T.en;"
+                + "  document.getElementById('wxIco').innerHTML=wxIcon(w.code,w.isDay);"
+                + "  document.getElementById('wxTemp').textContent=w.temp+w.unit;"
+                + "  document.getElementById('wxCity').textContent=w.city||'';"
+                + "  let sub=tr.feels+' '+w.feels+w.unit;"
+                + "  if(w.hi!==undefined&&w.lo!==undefined)sub+=' • '+w.lo+'° / '+w.hi+'°';"
+                + "  document.getElementById('wxSub').textContent=sub;"
+                + "  document.getElementById('weather').style.display='flex';"
+                + "}"
+                + "renderShortcuts();"
+                + "if(STATE.weatherEnabled&&INIT_WX&&INIT_WX.enabled){applyWeather(INIT_WX);}"
                 + "async function loadAll(){"
                 + "  try{"
-                + "    const r=await fetch('/api/state');STATE=await r.json();"
-                + "    const bg=document.getElementById('bg');const dim=document.getElementById('dim');"
-                + "    if(STATE.hasWallpaper&&STATE.wallpaperMode!=='amoled'){"
-                + "      const wpUrl='url(/api/wallpaper?v='+(STATE.wallpaperVer||1)+')';bg.style.backgroundImage=wpUrl;document.documentElement.style.backgroundImage=wpUrl;"
-                + "      dim.style.opacity=((STATE.wallpaperDim||0)/100).toFixed(2);"
-                + "    }else{bg.style.backgroundImage='none';document.documentElement.style.backgroundImage='none';dim.style.opacity='0';}"
-                + "    renderShortcuts();"
                 + "    if(STATE.weatherEnabled){"
                 + "      const wr=await fetch('/api/weather');const w=await wr.json();"
-                + "      if(w&&w.enabled){"
-                + "        const tr=T[STATE.lang]||T.en;"
-                + "        document.getElementById('wxIco').innerHTML=wxIcon(w.code,w.isDay);"
-                + "        document.getElementById('wxTemp').textContent=w.temp+w.unit;"
-                + "        document.getElementById('wxCity').textContent=w.city||'';"
-                + "        let sub=tr.feels+' '+w.feels+w.unit;"
-                + "        if(w.hi!==undefined&&w.lo!==undefined)sub+=' • '+w.lo+'° / '+w.hi+'°';"
-                + "        document.getElementById('wxSub').textContent=sub;"
-                + "        document.getElementById('weather').style.display='flex';"
-                + "      }"
+                + "      applyWeather(w);"
                 + "    }"
                 + "  }catch(e){}"
                 + "}"
+                + "async function refreshShortcuts(){try{const r=await fetch('/api/state');const s=await r.json();if(s&&Array.isArray(s.shortcuts)){STATE.shortcuts=s.shortcuts;renderShortcuts();}}catch(e){}}"
+                + "document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshShortcuts();});"
+                + "window.addEventListener('pageshow',()=>refreshShortcuts());"
                 + "loadAll();"
                 + "</script></body></html>";
     }
