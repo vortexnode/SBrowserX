@@ -108,7 +108,7 @@ internal val changePackageAndAppNameResourcePatch = resourcePatch(
                     val stringsFile = java.io.File(valuesDir, "strings.xml")
                     if (stringsFile.exists() && stringsFile.isFile) {
                         val content = stringsFile.readText(Charsets.UTF_8)
-                        if (content.contains("name="app_name"") || content.contains("name="app_name_internet"")) {
+                        if (content.contains("name=\"app_name\"") || content.contains("name=\"app_name_internet\"")) {
                             val escaped = escapeXmlText(newAppName)
                             val updated = content
                                 .replace(Regex("""(<string\s+name="app_name"[^>]*>)[^<]*(</string>)""")) { m -> m.groupValues[1] + escaped + m.groupValues[2] }
