@@ -466,7 +466,7 @@ public final class SBrowserXExtensionsActivity extends Activity {
     }
 
     private boolean isRu() {
-        String l = Locale.getDefault().getLanguage();
+        String l = SBrowserXStrings.getAppLang();
         return "ru".equals(l) || "uk".equals(l);
     }
 

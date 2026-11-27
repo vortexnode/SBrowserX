@@ -519,7 +519,7 @@ public final class SBrowserXPrefs {
     public static String getTranslateTargetLang(Context context) {
         String saved = prefs(context).getString(KEY_TRANS_TARGET_LANG, "");
         if (saved != null && !saved.isEmpty()) return saved;
-        String sys = Locale.getDefault().getLanguage();
+        String sys = SBrowserXStrings.getAppLang();
         return (sys != null && !sys.isEmpty()) ? sys.toLowerCase(Locale.US) : "en";
     }
 
@@ -559,7 +559,7 @@ public final class SBrowserXPrefs {
         SharedPreferences sp = prefs(context);
         if (!sp.contains(KEY_TRANS_NEVER_LANGS)) {
             Set<String> def = new HashSet<>();
-            String sys = Locale.getDefault().getLanguage();
+            String sys = SBrowserXStrings.getAppLang();
             if (sys != null && !sys.isEmpty()) def.add(sys.toLowerCase(Locale.US));
             return def;
         }

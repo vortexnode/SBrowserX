@@ -2948,7 +2948,7 @@ public final class SBrowserXHooks {
 
             Object extPref = findPref.invoke(fragment, "sbrowserx_settings_extensions");
             if (extPref != null) {
-                String lang = java.util.Locale.getDefault().getLanguage();
+                String lang = SBrowserXStrings.getAppLang();
                 String extSum = "ru".equals(lang) ? "Управление расширениями и Chrome Web Store"
                         : ("uk".equals(lang) ? "Керування розширеннями та Chrome Web Store"
                         : "Manage extensions & Chrome Web Store");
@@ -2957,7 +2957,7 @@ public final class SBrowserXHooks {
 
             Object bmPref = findPref.invoke(fragment, "sbrowserx_settings_bookmarks");
             if (bmPref != null) {
-                String lang = java.util.Locale.getDefault().getLanguage();
+                String lang = SBrowserXStrings.getAppLang();
                 String bmTitle = "ru".equals(lang) ? "Закладки"
                         : ("uk".equals(lang) ? "Закладки" : "Bookmarks");
                 String bmSum = "ru".equals(lang) ? "Быстрый переход"
@@ -2968,7 +2968,7 @@ public final class SBrowserXHooks {
 
             Object hub = findPref.invoke(fragment, "sbrowserx_settings_hub");
             if (hub != null) {
-                String lang = java.util.Locale.getDefault().getLanguage();
+                String lang = SBrowserXStrings.getAppLang();
                 String summary = "ru".equals(lang) ? "Расширения • Приватность • Интерфейс"
                         : ("uk".equals(lang) ? "Розширення • Приватність • Інтерфейс"
                         : "Extensions • Privacy • Interface");
@@ -3026,7 +3026,7 @@ public final class SBrowserXHooks {
             }
             Object aboutMorphe = findPref.invoke(fragment, "sbrowserx_about_morphe");
             if (aboutMorphe != null) {
-                String lang = java.util.Locale.getDefault().getLanguage();
+                String lang = SBrowserXStrings.getAppLang();
                 String mTitle = "ru".equals(lang) ? "Источник патчей для Morphe"
                         : ("uk".equals(lang) ? "Джерело патчів для Morphe" : "Morphe patch source");
                 String mSum = "ru".equals(lang) ? "Официальный репозиторий"
@@ -3129,7 +3129,7 @@ public final class SBrowserXHooks {
                     SBrowserXPrefs.isUnlimitedTabsEnabled(ctx),
                     checked -> SBrowserXPrefs.setUnlimitedTabsEnabled(ctx, checked));
 
-            String langShort = java.util.Locale.getDefault().getLanguage();
+            String langShort = SBrowserXStrings.getAppLang();
             String backupShort = "ru".equals(langShort) ? "Локальный бэкап • Google Диск"
                     : ("uk".equals(langShort) ? "Локальний бекап • Google Диск" : "Local backup • Google Drive");
             String assistShort = "ru".equals(langShort) ? "Gemini • Переводчик"
@@ -3399,7 +3399,7 @@ public final class SBrowserXHooks {
 
             final Context toastCtx = act != null ? act : ctx;
             final boolean alreadyExists = exists;
-            final boolean ru = "ru".equalsIgnoreCase(java.util.Locale.getDefault().getLanguage());
+            final boolean ru = "ru".equalsIgnoreCase(SBrowserXStrings.getAppLang());
             final String msg = alreadyExists
                     ? (ru ? "Ярлык уже добавлен на стартовую страницу." : "Shortcut is already on your Start Page.")
                     : (ru ? "Ярлык быстрого доступа сохранён." : "Quick access shortcut saved.");
@@ -3930,9 +3930,7 @@ public final class SBrowserXHooks {
             if (popup == null) return;
             android.view.Menu menu = (android.view.Menu) popup.getClass().getMethod("getMenu").invoke(popup);
             if (menu == null || menu.findItem(CUSTOM_TAB_MENU_TRANSLATE_ID) != null) return;
-            String lang = java.util.Locale.getDefault().getLanguage();
-            String label = "ru".equals(lang) ? "Перевести..."
-                    : ("uk".equals(lang) ? "Перекласти..." : "Translate...");
+            String label = SBrowserXStrings.getTranslateMenuLabel();
             menu.add(0, CUSTOM_TAB_MENU_TRANSLATE_ID, 2, label);
         } catch (Throwable t) {
             Log.e(TAG, "onCustomTabMenuInitialized failed", t);
@@ -4135,7 +4133,7 @@ public final class SBrowserXHooks {
 
             try {
                 String msg = closedBgTabs > 0
-                        ? String.format(java.util.Locale.getDefault(),
+                        ? String.format(SBrowserXStrings.getAppLocale(),
                                 SBrowserXStrings.get(SBrowserXStrings.HOME_LONG_PRESS_TOAST_CLOSED), closedBgTabs)
                         : SBrowserXStrings.get(SBrowserXStrings.HOME_LONG_PRESS_TOAST_RELOADED);
                 android.widget.Toast.makeText(ctx, msg, android.widget.Toast.LENGTH_SHORT).show();
@@ -4263,7 +4261,7 @@ public final class SBrowserXHooks {
             if (act == null) return;
 
             android.widget.Button template = (android.widget.Button) licBtn;
-            String lang = java.util.Locale.getDefault().getLanguage();
+            String lang = SBrowserXStrings.getAppLang();
             boolean ru = "ru".equals(lang);
             boolean uk = "uk".equals(lang);
 

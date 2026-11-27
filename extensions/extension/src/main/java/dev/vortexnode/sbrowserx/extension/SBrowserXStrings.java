@@ -649,7 +649,7 @@ public final class SBrowserXStrings {
         putOne("en", ASSIST_TITLE, "Browsing assist");
         putOne("en", ASSIST_SUMMARY, "AI Summary (Gemini API) & Built-in Translator");
         putOne("en", ASSIST_INFO_LEAD, "In SBrowserX, Samsung Galaxy AI cloud features are replaced by open engines:");
-        putOne("en", ASSIST_INFO_BODY, "• Summarize — concise bullet-point summary of any webpage powered by Gemini 3.5 Flash-Lite API (requires a free API key from Google AI Studio).\n\n• Translate — instant page translation via Google, Microsoft Edge, DeepL, or Gemini (works out of the box with Google/Microsoft).");
+        putOne("en", ASSIST_INFO_BODY, "• Summarize — concise bullet-point summary of any webpage powered by Gemini 3.5 Flash-Lite API (requires a free API key from Google AI Studio).\n\n• Translate — instant page translation via Google, Bing, Yandex, DeepL, or Gemini (works out of the box with Google/Microsoft).");
         putOne("en", ASSIST_GET_KEY_BTN, "Create free Gemini API key in Google AI Studio →");
         putOne("en", ASSIST_GET_KEY_SHORT, "Get API key");
         putOne("en", ASSIST_CAT_FEATURES, "Features");
@@ -772,7 +772,7 @@ public final class SBrowserXStrings {
         putOne("ru", ASSIST_TITLE, "Ассистент по просмотру");
         putOne("ru", ASSIST_SUMMARY, "Сводка (Gemini API) и встроенный переводчик");
         putOne("ru", ASSIST_INFO_LEAD, "В SBrowserX вместо облачных сервисов Samsung Galaxy AI работают открытые движки:");
-        putOne("ru", ASSIST_INFO_BODY, "• Сводка — краткий пересказ любой веб-страницы через Gemini 3.5 Flash-Lite API (бесплатный ключ создаётся за минуту в Google AI Studio).\n\n• Перевести — мгновенный перевод страниц через Google, Microsoft Edge, DeepL или Gemini (работает сразу без ключа).");
+        putOne("ru", ASSIST_INFO_BODY, "• Сводка — краткий пересказ любой веб-страницы через Gemini 3.5 Flash-Lite API (бесплатный ключ создаётся за минуту в Google AI Studio).\n\n• Перевести — мгновенный перевод страниц через Google, Bing, Yandex, DeepL или Gemini (работает сразу без ключа).");
         putOne("ru", ASSIST_GET_KEY_BTN, "Создать бесплатный ключ в Google AI Studio →");
         putOne("ru", ASSIST_GET_KEY_SHORT, "Получить ключ");
         putOne("ru", ASSIST_CAT_FEATURES, "Функции");
@@ -789,10 +789,7 @@ public final class SBrowserXStrings {
         putOne("ru", CAT_ASSIST_TRANSLATE, "Ассистент и перевод");
         putOne("ru", CAT_DOWNLOADS_TABS, "Загрузки и вкладки");
         putOne("ru", CAT_BACKUP_SECTION, "Резервное копирование");
-        for (String lang : new String[] {"es", "pt", "de", "fr", "it", "pl", "tr", "ar", "hi", "zh", "ja", "ko"}) {
-            putOne(lang, LAYOUT_TRANSPARENCY_TITLE, "Panel & address bar translucency");
-            putOne(lang, COMPACT_AI_BTN_TITLE, "Compact bar button (replaces Samsung AI)");
-        }
+        SBrowserXLocales.applyAll(CATALOG);
     }
 
     private static void putOne(String lang, String key, String value) {
@@ -800,8 +797,54 @@ public final class SBrowserXStrings {
         if (m != null) m.put(key, value);
     }
 
+    public static Locale getAppLocale() {
+        try {
+            android.content.Context ctx = SBrowserXPrefs.getAppContext();
+            if (ctx != null) {
+                if (android.os.Build.VERSION.SDK_INT >= 33) {
+                    android.app.LocaleManager lm = (android.app.LocaleManager) ctx.getSystemService(android.content.Context.LOCALE_SERVICE);
+                    if (lm != null) {
+                        android.os.LocaleList appLocs = lm.getApplicationLocales();
+                        if (appLocs != null && !appLocs.isEmpty()) {
+                            Locale l = appLocs.get(0);
+                            if (l != null && l.getLanguage() != null && !l.getLanguage().isEmpty()) return l;
+                        }
+                    }
+                }
+                android.content.res.Configuration cfg = ctx.getResources().getConfiguration();
+                if (cfg != null) {
+                    Locale l = (android.os.Build.VERSION.SDK_INT >= 24 && !cfg.getLocales().isEmpty())
+                            ? cfg.getLocales().get(0) : cfg.locale;
+                    if (l != null && l.getLanguage() != null && !l.getLanguage().isEmpty()) return l;
+                }
+            }
+        } catch (Throwable ignored) {}
+        return Locale.getDefault();
+    }
+
+    public static String getAppLang() {
+        String l = getAppLocale().getLanguage();
+        if (l == null || l.isEmpty()) return "en";
+        l = l.toLowerCase(Locale.US);
+        if ("in".equals(l)) return "id";
+        if ("iw".equals(l)) return "he";
+        return l;
+    }
+
+    public static String getTranslateMenuLabel() {
+        return SBrowserXLocales.translateMenuLabel(getAppLang());
+    }
+
+    public static String getBannerTranslated() {
+        return SBrowserXLocales.bannerTranslated(getAppLang());
+    }
+
+    public static String getBannerOriginal() {
+        return SBrowserXLocales.bannerOriginal(getAppLang());
+    }
+
     public static String get(String key) {
-        String lang = Locale.getDefault().getLanguage();
+        String lang = getAppLang();
         Map<String, String> map = CATALOG.get(lang);
         if (map != null && map.containsKey(key)) {
             return map.get(key);
@@ -818,7 +861,7 @@ public final class SBrowserXStrings {
     }
 
     public static String getOpenNativeExtensionsLabel() {
-        String lang = Locale.getDefault().getLanguage();
+        String lang = getAppLang();
         if ("ru".equals(lang)) return "Нативный список расширений Samsung (без лагов)";
         if ("uk".equals(lang)) return "Нативний список розширень Samsung (без лагів)";
         if ("es".equals(lang)) return "Lista nativa de extensiones Samsung (rápida)";
@@ -837,7 +880,7 @@ public final class SBrowserXStrings {
     }
 
     public static String compactButtonLabel(String code) {
-        String lang = Locale.getDefault().getLanguage();
+        String lang = getAppLang();
         boolean ru = "ru".equals(lang);
         boolean uk = "uk".equals(lang);
         if (SBrowserXPrefs.COMPACT_BTN_BOOKMARKS.equals(code)) return ru ? "Закладки" : (uk ? "Закладки" : "Bookmarks");

@@ -28,8 +28,12 @@ public final class SBrowserXGoogleTranslator {
     private static final String EDGE_UA =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0";
 
-    private static volatile String sEdgeToken = null;
-    private static volatile long sEdgeTokenExpiryMs = 0L;
+    private static volatile String sBingIg = null;
+    private static volatile String sBingIid = null;
+    private static volatile String sBingKey = null;
+    private static volatile String sBingToken = null;
+    private static volatile String sBingCookie = null;
+    private static volatile long sBingExpiryMs = 0L;
 
     public static final String[][] SUPPORTED_LANGUAGES = new String[][] {
             {"en", "English"},
@@ -145,11 +149,17 @@ public final class SBrowserXGoogleTranslator {
                     Log.w(TAG, "DeepL Translator failed, falling back to Google Chrome NMT", t);
                 }
             }
-        } else if ("microsoft".equalsIgnoreCase(engine)) {
+        } else if ("bing".equalsIgnoreCase(engine) || "microsoft".equalsIgnoreCase(engine)) {
             try {
-                return translateBatchMicrosoft(src, dst, items);
+                return translateBatchBing(src, dst, items);
             } catch (Throwable t) {
-                Log.w(TAG, "Microsoft Translator failed, falling back to Google Chrome NMT", t);
+                Log.w(TAG, "Bing Translator failed, falling back to Google Chrome NMT", t);
+            }
+        } else if ("yandex".equalsIgnoreCase(engine)) {
+            try {
+                return translateBatchYandex(src, dst, items);
+            } catch (Throwable t) {
+                Log.w(TAG, "Yandex Translate failed, falling back to Google Chrome NMT", t);
             }
         }
         return translateBatchGoogleChrome(src, dst, items);
@@ -223,89 +233,165 @@ public final class SBrowserXGoogleTranslator {
         }
     }
 
-    private static synchronized String getEdgeAuthToken() throws Exception {
+    private static synchronized void ensureBingSession() throws Exception {
         long now = System.currentTimeMillis();
-        if (sEdgeToken != null && now < sEdgeTokenExpiryMs) {
-            return sEdgeToken;
+        if (sBingToken != null && sBingKey != null && sBingIg != null && now < sBingExpiryMs) {
+            return;
         }
-        HttpURLConnection conn = (HttpURLConnection) new URL("https://edge.microsoft.com/translate/auth").openConnection();
-        conn.setConnectTimeout(8000);
-        conn.setReadTimeout(10000);
+        HttpURLConnection conn = (HttpURLConnection) new URL("https://www.bing.com/translator").openConnection();
+        conn.setConnectTimeout(10000);
+        conn.setReadTimeout(12000);
         conn.setRequestProperty("User-Agent", EDGE_UA);
+        conn.setRequestProperty("Accept-Language", "en-US,en;q=0.9");
         try {
             if (conn.getResponseCode() != 200) {
-                throw new IllegalStateException("Edge auth HTTP " + conn.getResponseCode());
+                throw new IllegalStateException("Bing session HTTP " + conn.getResponseCode());
             }
-            String tok = readUtf8(conn.getInputStream()).trim();
-            if (tok.length() < 20) throw new IllegalStateException("Empty Edge token");
-            sEdgeToken = tok;
-            sEdgeTokenExpiryMs = now + 8 * 60 * 1000L;
-            return tok;
+            java.util.List<String> setCookies = conn.getHeaderFields().get("Set-Cookie");
+            StringBuilder cookieSb = new StringBuilder();
+            if (setCookies != null) {
+                for (String c : setCookies) {
+                    if (c == null) continue;
+                    int semi = c.indexOf(';');
+                    String pair = semi > 0 ? c.substring(0, semi) : c;
+                    if (cookieSb.length() > 0) cookieSb.append("; ");
+                    cookieSb.append(pair);
+                }
+            }
+            String html = readUtf8(conn.getInputStream());
+            java.util.regex.Matcher igM = java.util.regex.Pattern.compile("IG:\"([A-F0-9]+)\"").matcher(html);
+            java.util.regex.Matcher iidM = java.util.regex.Pattern.compile("data-iid=\"([^\"]+)\"").matcher(html);
+            java.util.regex.Matcher tokM = java.util.regex.Pattern.compile("params_AbusePreventionHelper\\s*=\\s*\\[(\\d+),\"([^\"]+)\"").matcher(html);
+            if (!igM.find() || !tokM.find()) {
+                throw new IllegalStateException("Bing token parse failed");
+            }
+            sBingIg = igM.group(1);
+            sBingIid = iidM.find() ? iidM.group(1) : "translator.5028";
+            sBingKey = tokM.group(1);
+            sBingToken = tokM.group(2);
+            sBingCookie = cookieSb.toString();
+            sBingExpiryMs = now + 8L * 60L * 1000L;
         } finally {
             conn.disconnect();
         }
     }
 
-    private static BatchResult translateBatchMicrosoft(String sl, String tl, String[] items) throws Exception {
-        String token = getEdgeAuthToken();
-        String msTo = toMicrosoftLang(tl);
-        StringBuilder urlSb = new StringBuilder(
-                "https://api-edge.cognitive.microsofttranslator.com/translate?api-version=3.0&textType=html&to=")
-                .append(URLEncoder.encode(msTo, "UTF-8"));
-        if (!"auto".equals(sl)) {
-            urlSb.append("&from=").append(URLEncoder.encode(toMicrosoftLang(sl), "UTF-8"));
+    private static BatchResult translateBatchBing(String sl, String tl, String[] items) throws Exception {
+        ensureBingSession();
+        String fromLang = "auto".equals(sl) ? "auto-detect" : toMicrosoftLang(sl);
+        String toLang = toMicrosoftLang(tl);
+        String[] out = new String[items.length];
+        String detected = "";
+        int i = 0;
+        while (i < items.length) {
+            int start = i;
+            StringBuilder joined = new StringBuilder();
+            while (i < items.length) {
+                String piece = items[i] != null ? items[i] : "";
+                String sep = (i == start) ? "" : "\n|||SBX" + (i - start) + "|||\n";
+                if (i > start && joined.length() + sep.length() + piece.length() > 850) break;
+                joined.append(sep).append(piece);
+                i++;
+            }
+            int count = i - start;
+            String endpoint = "https://www.bing.com/ttranslatev3?isVertical=1&&IG=" + sBingIg + "&IID=" + sBingIid + ".1";
+            String form = "fromLang=" + URLEncoder.encode(fromLang, "UTF-8")
+                    + "&to=" + URLEncoder.encode(toLang, "UTF-8")
+                    + "&text=" + URLEncoder.encode(joined.toString(), "UTF-8")
+                    + "&token=" + URLEncoder.encode(sBingToken, "UTF-8")
+                    + "&key=" + URLEncoder.encode(sBingKey, "UTF-8");
+            byte[] payload = form.getBytes(StandardCharsets.UTF_8);
+            HttpURLConnection conn = (HttpURLConnection) new URL(endpoint).openConnection();
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+            conn.setConnectTimeout(10000);
+            conn.setReadTimeout(15000);
+            conn.setRequestProperty("User-Agent", EDGE_UA);
+            conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
+            conn.setRequestProperty("Referer", "https://www.bing.com/translator");
+            if (sBingCookie != null && !sBingCookie.isEmpty()) {
+                conn.setRequestProperty("Cookie", sBingCookie);
+            }
+            try {
+                try (OutputStream os = conn.getOutputStream()) { os.write(payload); }
+                int code = conn.getResponseCode();
+                if (code != 200) {
+                    sBingExpiryMs = 0L;
+                    throw new IllegalStateException("Bing HTTP " + code);
+                }
+                String body = readUtf8(conn.getInputStream());
+                if (!body.trim().startsWith("[")) {
+                    sBingExpiryMs = 0L;
+                    throw new IllegalStateException("Bing non-array response");
+                }
+                JSONArray root = new JSONArray(body);
+                JSONObject first = root.getJSONObject(0);
+                if (detected.isEmpty()) {
+                    JSONObject dl = first.optJSONObject("detectedLanguage");
+                    if (dl != null) detected = normalizeLang(dl.optString("language", ""));
+                }
+                String translatedAll = first.getJSONArray("translations").getJSONObject(0).getString("text");
+                if (count == 1) {
+                    out[start] = translatedAll;
+                } else {
+                    String[] split = translatedAll.split("\\s*\\|\\|\\|SBX\\d+\\|\\|\\|\\s*", -1);
+                    if (split.length == count) {
+                        for (int k = 0; k < count; k++) out[start + k] = split[k].trim();
+                    } else {
+                        throw new IllegalStateException("Bing separator mismatch: " + split.length + " vs " + count);
+                    }
+                }
+            } finally {
+                conn.disconnect();
+            }
         }
+        return new BatchResult(out, detected);
+    }
 
-        JSONArray reqArr = new JSONArray();
-        for (String item : items) {
-            JSONObject obj = new JSONObject();
-            obj.put("Text", item != null ? item : "");
-            reqArr.put(obj);
+    private static BatchResult translateBatchYandex(String sl, String tl, String[] items) throws Exception {
+        String yTo = toYandexLang(tl);
+        String langParam = "auto".equals(sl) ? yTo : (toYandexLang(sl) + "-" + yTo);
+        String urlStr = "https://translate.yandex.net/api/v1/tr.json/translate?srv=browser_video_translation&lang="
+                + URLEncoder.encode(langParam, "UTF-8");
+        StringBuilder form = new StringBuilder();
+        for (int i = 0; i < items.length; i++) {
+            if (i > 0) form.append('&');
+            form.append("text=").append(URLEncoder.encode(items[i] != null ? items[i] : "", "UTF-8"));
         }
-        byte[] payload = reqArr.toString().getBytes(StandardCharsets.UTF_8);
-
-        HttpURLConnection conn = (HttpURLConnection) new URL(urlSb.toString()).openConnection();
+        byte[] payload = form.toString().getBytes(StandardCharsets.UTF_8);
+        HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
         conn.setRequestMethod("POST");
         conn.setDoOutput(true);
         conn.setConnectTimeout(10000);
         conn.setReadTimeout(15000);
-        conn.setRequestProperty("User-Agent", EDGE_UA);
-        conn.setRequestProperty("Authorization", "Bearer " + token);
-        conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+        conn.setRequestProperty("User-Agent", CHROME_UA);
+        conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
         try {
-            try (OutputStream os = conn.getOutputStream()) {
-                os.write(payload);
-            }
+            try (OutputStream os = conn.getOutputStream()) { os.write(payload); }
             int code = conn.getResponseCode();
-            if (code == 401) {
-                sEdgeToken = null;
-                sEdgeTokenExpiryMs = 0L;
+            if (code != 200) throw new IllegalStateException("Yandex HTTP " + code);
+            JSONObject root = new JSONObject(readUtf8(conn.getInputStream()));
+            if (root.optInt("code", 200) != 200) {
+                throw new IllegalStateException("Yandex API code " + root.optInt("code"));
             }
-            if (code != 200) {
-                throw new IllegalStateException("Microsoft Translate HTTP " + code);
-            }
-            JSONArray root = new JSONArray(readUtf8(conn.getInputStream()));
-            String[] out = new String[items.length];
             String detected = "";
+            String respLang = root.optString("lang", "");
+            int dash = respLang.indexOf('-');
+            if (dash > 0) detected = normalizeLang(respLang.substring(0, dash));
+            JSONArray arr = root.getJSONArray("text");
+            String[] out = new String[items.length];
             for (int i = 0; i < items.length; i++) {
-                JSONObject entry = root.optJSONObject(i);
-                if (entry != null) {
-                    if (detected.isEmpty()) {
-                        JSONObject dl = entry.optJSONObject("detectedLanguage");
-                        if (dl != null) detected = normalizeLang(dl.optString("language", ""));
-                    }
-                    JSONArray trans = entry.optJSONArray("translations");
-                    if (trans != null && trans.length() > 0) {
-                        out[i] = trans.getJSONObject(0).optString("text", items[i]);
-                        continue;
-                    }
-                }
-                out[i] = items[i];
+                out[i] = i < arr.length() ? arr.optString(i, items[i]) : items[i];
             }
             return new BatchResult(out, detected);
         } finally {
             conn.disconnect();
         }
+    }
+
+    private static String toYandexLang(String code) {
+        if ("zh-CN".equalsIgnoreCase(code) || "zh-TW".equalsIgnoreCase(code)) return "zh";
+        return code;
     }
 
     private static String toMicrosoftLang(String code) {

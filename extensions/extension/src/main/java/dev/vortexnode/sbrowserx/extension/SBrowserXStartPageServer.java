@@ -319,7 +319,7 @@ public final class SBrowserXStartPageServer {
             obj.put("shortcuts", shortcuts);
             obj.put("gridCols", ctx != null ? SBrowserXPrefs.getStartPageGridColumns(ctx) : 4);
             obj.put("tileFill", ctx != null && SBrowserXPrefs.isStartPageTileFillEnabled(ctx));
-            obj.put("lang", Locale.getDefault().getLanguage().startsWith("ru") ? "ru" : "en");
+            obj.put("lang", SBrowserXStrings.getAppLang().startsWith("ru") ? "ru" : "en");
             return obj.toString();
         } catch (Throwable t) {
             return "{}";
@@ -419,7 +419,7 @@ public final class SBrowserXStartPageServer {
         }
         String cityPref = SBrowserXPrefs.getStartPageWeatherCity(ctx).trim();
         String unit = SBrowserXPrefs.getStartPageWeatherUnit(ctx);
-        String lang = Locale.getDefault().getLanguage().startsWith("ru") ? "ru" : "en";
+        String lang = SBrowserXStrings.getAppLang().startsWith("ru") ? "ru" : "en";
         String cacheKey = cityPref + "|" + unit + "|" + lang;
         long now = System.currentTimeMillis();
         if (sCachedWeatherJson != null && cacheKey.equals(sCachedWeatherKey) && (now - sCachedWeatherTs) < WEATHER_CACHE_TTL_MS) {

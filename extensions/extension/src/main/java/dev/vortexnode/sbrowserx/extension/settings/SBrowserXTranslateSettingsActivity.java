@@ -296,12 +296,13 @@ public final class SBrowserXTranslateSettingsActivity extends Activity {
     }
 
     private boolean isRu() {
-        String l = java.util.Locale.getDefault().getLanguage();
+        String l = SBrowserXStrings.getAppLang();
         return "ru".equals(l) || "uk".equals(l);
     }
 
     private String getEngineLabel(String engine) {
-        if ("microsoft".equalsIgnoreCase(engine)) return "Microsoft Translator (Edge NMT)";
+        if ("bing".equalsIgnoreCase(engine) || "microsoft".equalsIgnoreCase(engine)) return "Bing Translator (Web NMT)";
+        if ("yandex".equalsIgnoreCase(engine)) return "Yandex Translate (Web NMT)";
         if ("deepl".equalsIgnoreCase(engine)) return "DeepL API (Free / Pro)";
         if ("gemini".equalsIgnoreCase(engine)) return "Gemini 3.5 Flash-Lite (AI)";
         return "Google Translate (Chrome NMT)";
@@ -319,11 +320,12 @@ public final class SBrowserXTranslateSettingsActivity extends Activity {
     private void showEnginePicker() {
         String[] labels = new String[] {
                 "Google Translate (Chrome NMT)",
-                "Microsoft Translator (Edge NMT)",
+                "Bing Translator (Web NMT)",
+                "Yandex Translate (Web NMT)",
                 "DeepL API (Free / Pro)",
                 "Gemini 3.5 Flash-Lite (AI)"
         };
-        String[] values = new String[] {"google", "microsoft", "deepl", "gemini"};
+        String[] values = new String[] {"google", "bing", "yandex", "deepl", "gemini"};
         String cur = SBrowserXPrefs.getTranslateEngine(this);
         int sel = 0;
         for (int i = 0; i < values.length; i++) {
