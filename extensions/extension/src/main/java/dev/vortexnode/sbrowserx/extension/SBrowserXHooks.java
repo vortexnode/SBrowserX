@@ -787,6 +787,16 @@ public final class SBrowserXHooks {
         return stockColor;
     }
 
+    public static void setStatusBarViewBgIfNotStartPage(View view, int color) {
+        if (view == null) return;
+        try {
+            if (sStartPageBackdropActive && view.getBackground() instanceof WindowSliceWallpaperDrawable) {
+                return;
+            }
+        } catch (Throwable ignored) {}
+        view.setBackgroundColor(color);
+    }
+
     public static void clearSystemBarFadeContext(Context ctx) {
         if (ctx == null) return;
         try {
