@@ -539,7 +539,11 @@ public final class SBrowserXBackupManager {
     }
 
     public static String formatTimestamp(long ts) {
-        if (ts <= 0L) return SBrowserXStrings.get(SBrowserXStrings.BACKUP_NEVER);
+        return formatTimestamp(ts, SBrowserXStrings.get(SBrowserXStrings.BACKUP_NEVER));
+    }
+
+    public static String formatTimestamp(long ts, String neverLabel) {
+        if (ts <= 0L) return neverLabel != null ? neverLabel : SBrowserXStrings.get(SBrowserXStrings.BACKUP_NEVER);
         return new SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()).format(new Date(ts));
     }
 }
