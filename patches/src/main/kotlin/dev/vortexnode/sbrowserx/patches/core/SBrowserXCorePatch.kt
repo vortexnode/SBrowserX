@@ -102,10 +102,14 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
     description = "Adds the SBrowserX settings hub and integrates extra privacy, appearance, and utility options into browser Settings.",
 ) {
     finalize {
-        val targetPkg = SBrowserPackageRenameTarget.packageName
+        var manifestPkg = "com.sec.android.app.sbrowser"
 
         document("AndroidManifest.xml").use { manifest ->
             val root = manifest.documentElement ?: error("Missing <manifest>")
+            val pkgAttr = root.getAttribute("package")
+            if (!pkgAttr.isNullOrBlank()) {
+                manifestPkg = pkgAttr.trim()
+            }
             val application = root.getElementsByTagName("application").item(0) as? Element
                 ?: error("Missing <application>")
 
@@ -123,6 +127,8 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
             ensureActivity(manifest, application, START_PAGE_ACTIVITY_CLASS, "@android:style/Theme.DeviceDefault.NoActionBar")
             ensureActivity(manifest, application, BOOKMARKS_BRIDGE_ACTIVITY_CLASS, "@android:style/Theme.Translucent.NoTitleBar")
         }
+
+        val targetPkg = SBrowserPackageRenameTarget.packageName ?: manifestPkg
 
         // 1. Main Settings: Standalone SBrowserX card -> Sync & Backup + Browsing Assist card -> Extensions inside Privacy card
         document("res/xml/settings_fragment.xml").use { xml ->
