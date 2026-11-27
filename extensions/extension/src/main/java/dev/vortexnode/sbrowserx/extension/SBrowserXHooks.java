@@ -77,6 +77,8 @@ public final class SBrowserXHooks {
     private static volatile Bitmap sCachedBackdropBlurred;
     private static volatile boolean sStartPageBackdropActive;
     private static volatile boolean sStartPageTopBright;
+    private static volatile int sStartPageTopAvgColor;
+    private static volatile int sStartPageBotAvgColor;
 
     private static volatile boolean sSemBlurInitDone;
     private static volatile boolean sSemBlurUnsupported;
@@ -377,6 +379,48 @@ public final class SBrowserXHooks {
         }
     }
 
+    private static int computeStripBlendedColor(Bitmap bmp, boolean bottom, int dimPercent, int overlayArgb) {
+        if (bmp == null || bmp.isRecycled()) return 0xFF000000;
+        try {
+            int w = bmp.getWidth();
+            int h = bmp.getHeight();
+            if (w <= 0 || h <= 0) return 0xFF000000;
+            int stripH = Math.max(1, Math.round(h * 0.08f));
+            int yStart = bottom ? Math.max(0, h - stripH) : 0;
+            int yEnd = bottom ? h : stripH;
+            int stepX = Math.max(1, w / 24);
+            int stepY = Math.max(1, stripH / 6);
+            long rSum = 0L, gSum = 0L, bSum = 0L;
+            int count = 0;
+            for (int y = yStart; y < yEnd; y += stepY) {
+                for (int x = 0; x < w; x += stepX) {
+                    int px = bmp.getPixel(x, y);
+                    rSum += (px >> 16) & 0xFF;
+                    gSum += (px >> 8) & 0xFF;
+                    bSum += px & 0xFF;
+                    count++;
+                }
+            }
+            if (count == 0) return 0xFF000000;
+            float dimF = 1.0f - Math.max(0, Math.min(80, dimPercent)) / 100.0f;
+            float r = (rSum / (float) count) * dimF;
+            float g = (gSum / (float) count) * dimF;
+            float b = (bSum / (float) count) * dimF;
+            if (overlayArgb != 0) {
+                float oa = ((overlayArgb >>> 24) & 0xFF) / 255.0f;
+                int or = (overlayArgb >> 16) & 0xFF;
+                int og = (overlayArgb >> 8) & 0xFF;
+                int ob = overlayArgb & 0xFF;
+                r = r * (1f - oa) + or * oa;
+                g = g * (1f - oa) + og * oa;
+                b = b * (1f - oa) + ob * oa;
+            }
+            return Color.rgb(clampByte(Math.round(r)), clampByte(Math.round(g)), clampByte(Math.round(b)));
+        } catch (Throwable ignored) {
+            return 0xFF000000;
+        }
+    }
+
     private static boolean isTopStripBright(Bitmap bmp, int dimPercent) {
         if (bmp == null || bmp.isRecycled()) return false;
         try {
@@ -580,6 +624,9 @@ public final class SBrowserXHooks {
                     if (bmp == null) return;
                     final int dim = SBrowserXPrefs.getStartPageWallpaperDim(appCtx);
                     final boolean brightTop = isTopStripBright(bmp, dim);
+                    final int navOverlay = getStartPageNavGlassColor(appCtx);
+                    sStartPageTopAvgColor = computeStripBlendedColor(bmp, false, dim, 0);
+                    sStartPageBotAvgColor = computeStripBlendedColor(bmp, true, dim, navOverlay);
                     act.runOnUiThread(() -> {
                         try {
                             if (act.isFinishing() || act.isDestroyed()) return;
@@ -640,6 +687,9 @@ public final class SBrowserXHooks {
                             }
                         });
                     }
+                    if (!isCompactLayoutActive() && sStartPageBotAvgColor != 0) {
+                        return sStartPageBotAvgColor;
+                    }
                 }
                 return 0x00000000;
             }
@@ -688,6 +738,9 @@ public final class SBrowserXHooks {
                                 applyStartPageSystemBarViews(act, true, sStartPageTopBright);
                             }
                         });
+                    }
+                    if (!isCompactLayoutActive() && sStartPageTopAvgColor != 0) {
+                        return sStartPageTopAvgColor;
                     }
                 }
                 return 0x00000000;
