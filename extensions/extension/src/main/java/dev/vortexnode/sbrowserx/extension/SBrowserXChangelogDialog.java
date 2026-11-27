@@ -103,7 +103,8 @@ public final class SBrowserXChangelogDialog {
             container.setPadding(dp(d, 20), dp(d, 10), dp(d, 20), dp(d, 6));
 
             ScrollView sv = new ScrollView(act);
-            sv.setVerticalScrollBarEnabled(true);
+            sv.setVerticalScrollBarEnabled(false);
+            sv.setOverScrollMode(View.OVER_SCROLL_NEVER);
             LinearLayout cards = new LinearLayout(act);
             cards.setOrientation(LinearLayout.VERTICAL);
 
@@ -154,7 +155,12 @@ public final class SBrowserXChangelogDialog {
                 Window win = dlg.getWindow();
                 if (win != null) {
                     WindowManager.LayoutParams lp = win.getAttributes();
-                    lp.width = Math.round(act.getResources().getDisplayMetrics().widthPixels * 0.94f);
+                    lp.width = Math.round(act.getResources().getDisplayMetrics().widthPixels * 0.92f);
+                    lp.dimAmount = night ? 0.58f : 0.38f;
+                    if (android.os.Build.VERSION.SDK_INT >= 31) {
+                        win.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
+                        lp.setBlurBehindRadius(48);
+                    }
                     win.setAttributes(lp);
                 }
             });
@@ -169,9 +175,10 @@ public final class SBrowserXChangelogDialog {
         card.setOrientation(LinearLayout.VERTICAL);
         GradientDrawable gd = new GradientDrawable();
         gd.setColor(bgColor);
-        gd.setCornerRadius(dp(d, 18));
+        gd.setCornerRadius(dp(d, 22));
+        gd.setStroke(1, bgColor == 0xFF1C1C21 ? 0x1AFFFFFF : 0x14000000);
         card.setBackground(gd);
-        card.setPadding(dp(d, 16), dp(d, 14), dp(d, 16), dp(d, 14));
+        card.setPadding(dp(d, 18), dp(d, 15), dp(d, 18), dp(d, 15));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         lp.bottomMargin = dp(d, 10);

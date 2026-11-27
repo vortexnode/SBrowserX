@@ -315,7 +315,7 @@ public final class SBrowserXDomTranslator {
         }
         String js = "(function(start,arr){"
                 + "if(!window.__sbxBlocks)return;"
-                + "function unesc(s){return s.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'\"').replace(/&#39;/g,'\'');}"
+                + "function unesc(s){return s.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'\\u0022').replace(/&#39;/g,'\\u0027');}"
                 + "function rebuild(parent,html,saved){"
                 + "  html=html.replace(/<\\/a>\\s+([,.;:!?])/g,'</a>$1').replace(/\\s+([,.;:!?])(\\s|$)/g,'$1$2');"
                 + "  var frag=document.createDocumentFragment();"
