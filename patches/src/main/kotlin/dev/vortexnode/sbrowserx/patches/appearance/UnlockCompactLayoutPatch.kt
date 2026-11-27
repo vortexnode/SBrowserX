@@ -245,6 +245,11 @@ val unlockCompactLayoutPatch = bytecodePatch(
         ).addInstructions(
             0,
             """
+                invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->shouldPreserveStartPageSystemBars(Landroid/view/Window;)Z
+                move-result v0
+                if-eqz v0, :sbrowserx_nav_continue
+                return-void
+                :sbrowserx_nav_continue
                 invoke-static {p0, p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->adjustApi35NavBarColor(Landroid/view/Window;I)I
                 move-result p1
                 invoke-static {p2}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->adjustApi35NavBarDarkIconFlag(Z)Z
@@ -262,8 +267,43 @@ val unlockCompactLayoutPatch = bytecodePatch(
         ).addInstructions(
             0,
             """
+                invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->shouldPreserveStartPageSystemBars(Landroid/view/Window;)Z
+                move-result v0
+                if-nez v0, :sbrowserx_st_skip
                 invoke-static {p0, p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->adjustApi35StatusBarColor(Landroid/view/Window;I)I
                 move-result p1
+                goto :sbrowserx_st_done
+                :sbrowserx_st_skip
+                return-void
+                :sbrowserx_st_done
+                nop
+            """.trimIndent(),
+        )
+
+        // Prevent startBarColorAnimation from overwriting Start Page wallpaper/glass slices during reload
+        findMethodOrThrow(
+            classType = DEVICE_LAYOUT_UTIL_CLASS,
+            methodName = "startBarColorAnimation",
+            parameterTypes = listOf(
+                "Landroid/view/Window;",
+                "I",
+                "I",
+                "I",
+                "J",
+                "Landroid/view/animation/Interpolator;",
+                "Ljava/util/function/IntConsumer;",
+                "Ljava/lang/Runnable;",
+            ),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->shouldPreserveStartPageSystemBars(Landroid/view/Window;)Z
+                move-result v0
+                if-eqz v0, :sbrowserx_anim_continue
+                return-void
+                :sbrowserx_anim_continue
+                nop
             """.trimIndent(),
         )
 

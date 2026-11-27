@@ -665,6 +665,27 @@ public final class SBrowserXHooks {
         } catch (Throwable ignored) {}
     }
 
+    public static boolean shouldPreserveStartPageSystemBars(android.view.Window window) {
+        if (!sStartPageBackdropActive || window == null) return false;
+        try {
+            if (!isWindowOnQuickAccess(window)) return false;
+            Activity act = sMainActivityRef.get();
+            if (act == null || act.getWindow() != window) return false;
+            View decor = window.getDecorView();
+            String pkg = act.getPackageName();
+            if (decor != null && pkg != null) {
+                int navId = act.getResources().getIdentifier("navigation_bar_background", "id", pkg);
+                if (navId != 0) {
+                    View navView = decor.findViewById(navId);
+                    if (navView != null && navView.getBackground() instanceof WindowSliceWallpaperDrawable) {
+                        return true;
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+        return false;
+    }
+
     public static int adjustApi35NavBarColor(android.view.Window window, int stockColor) {
         try {
             if (window != null) {
