@@ -1114,7 +1114,6 @@ public final class SBrowserXHooks {
                 appendSwitch.invoke(null, "enable-gpu-rasterization");
                 appendSwitch.invoke(null, "enable-zero-copy");
                 appendSwitch.invoke(null, "enable-smooth-scrolling");
-                appendSwitch.invoke(null, "allow-legacy-extension-manifests");
             } catch (Throwable ignored) {}
             boolean darkActive = isBrowserNightModeAtStartup(ctx);
             boolean forceLightSites = isApplyDefaultDarkSitesAtStartup(ctx);
@@ -2852,6 +2851,16 @@ public final class SBrowserXHooks {
 
     // --- Google Translate Hooks ---
 
+    public static int getExtensionToolbarIconColorOverride(Context ctx, boolean isBottombar, boolean isMoreMenu) {
+        try {
+            if (isMoreMenu || ctx == null) return 0;
+            if (isBrowserNightMode(ctx)) {
+                return 0xFFE9E9EC;
+            }
+        } catch (Throwable ignored) {}
+        return 0;
+    }
+
     public static boolean isGoogleTranslateEnabled() {
         try {
             Context ctx = SBrowserXPrefs.getAppContext();
@@ -3479,6 +3488,10 @@ public final class SBrowserXHooks {
                 String curUrl = curUrlObj instanceof String ? ((String) curUrlObj).trim() : "";
 
                 if (spEnabled && isStartPageOmniboxUrl(curUrl)) {
+                    String activeBase = SBrowserXStartPageServer.getBaseUrl();
+                    if (!curUrl.startsWith(activeBase)) {
+                        tab.getClass().getMethod("loadUrl", String.class).invoke(tab, activeBase);
+                    }
                     syncStartPageWindowBackdrop(true);
                 } else if (spEnabled && isTabQuickAccessOrNewTab(tab)) {
                     String spUrl = SBrowserXStartPageServer.getBaseUrl();

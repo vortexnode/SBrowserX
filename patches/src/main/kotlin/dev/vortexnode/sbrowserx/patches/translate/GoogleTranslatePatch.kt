@@ -34,6 +34,8 @@ private const val CUSTOM_TAB_ROOT_UI_CLASS =
     "Lcom/sec/android/app/sbrowser/customtabs/CustomTabRootUiCoordinator;"
 private const val MENU_SETTINGS_HELPER_CLASS =
     "Lcom/sec/android/app/sbrowser/main_view/menu/MenuSettingsHelper;"
+private const val TOOLBAR_EXTENSIONS_MANAGER_CLASS =
+    "Lcom/sec/android/app/sbrowser/common/customize_toolbar/ToolbarExtensionsManager;"
 
 @Suppress("unused")
 val googleTranslatePatch = bytecodePatch(
@@ -544,6 +546,30 @@ val googleTranslatePatch = bytecodePatch(
                 if-eqz v0, :sbrowserx_def_ext_stock
                 return-void
                 :sbrowserx_def_ext_stock
+                nop
+            """.trimIndent(),
+        )
+
+        // 26. ToolbarExtensionsManager.getIconColor -> keep Translate (first-party extension) icon white on dark bottom/top bars even on light websites
+        findMethodOrThrow(
+            classType = TOOLBAR_EXTENSIONS_MANAGER_CLASS,
+            methodName = "getIconColor",
+            parameterTypes = listOf(
+                "Landroid/content/Context;",
+                "Lcom/sec/android/app/sbrowser/common/model/tab/TabDelegate;",
+                "Z",
+                "Z",
+                "Z",
+            ),
+            returnType = "I",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {p1, p4, p5}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->getExtensionToolbarIconColorOverride(Landroid/content/Context;ZZ)I
+                move-result v0
+                if-eqz v0, :sbrowserx_ext_icon_stock
+                return v0
+                :sbrowserx_ext_icon_stock
                 nop
             """.trimIndent(),
         )

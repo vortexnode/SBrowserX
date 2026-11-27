@@ -44,6 +44,7 @@ public final class SBrowserXStartPageServer {
 
     private static volatile boolean sStarted = false;
     private static volatile int sPort = PREFERRED_PORT;
+    private static volatile ServerSocket sServerSocket;
     private static volatile Context sAppCtx;
     private static volatile String sCachedWpBytesKey;
     private static volatile byte[] sCachedWpBytes;
@@ -72,6 +73,20 @@ public final class SBrowserXStartPageServer {
         sCachedWeatherTs = 0L;
     }
 
+    public static void invalidateWallpaperCache() {
+        sCachedWpBytesKey = null;
+        sCachedWpBytes = null;
+    }
+
+    public static synchronized void stop() {
+        sStarted = false;
+        ServerSocket ss = sServerSocket;
+        sServerSocket = null;
+        if (ss != null) {
+            try { ss.close(); } catch (Throwable ignored) {}
+        }
+    }
+
     public static File getLocalWallpaperFile(Context ctx) {
         return new File(ctx.getApplicationContext().getFilesDir(), "sbrowserx_wallpaper_local.jpg");
     }
@@ -82,34 +97,59 @@ public final class SBrowserXStartPageServer {
 
     public static synchronized void ensureStarted(Context ctx) {
         if (ctx != null) sAppCtx = ctx.getApplicationContext();
-        if (sStarted) return;
+        if (sStarted && sServerSocket != null && !sServerSocket.isClosed()) return;
+        ServerSocket bound = bindLoopbackSocket();
+        if (bound == null) return;
+        sServerSocket = bound;
         sStarted = true;
-        Thread t = new Thread(SBrowserXStartPageServer::runServerLoop, "SBrowserX-StartPage");
+        final ServerSocket server = bound;
+        Thread t = new Thread(() -> runAcceptLoop(server), "SBrowserX-StartPage");
         t.setDaemon(true);
         t.start();
     }
 
-    private static void runServerLoop() {
-        ServerSocket server = null;
+    private static ServerSocket bindLoopbackSocket() {
         try {
             InetAddress lo = InetAddress.getByName("127.0.0.1");
-            try {
-                server = new ServerSocket();
-                server.setReuseAddress(true);
-                server.bind(new java.net.InetSocketAddress(lo, PREFERRED_PORT), 16);
-                sPort = PREFERRED_PORT;
-            } catch (Throwable busy) {
-                server = new ServerSocket(0, 16, lo);
-                sPort = server.getLocalPort();
+            for (int attempt = 0; attempt < 5; attempt++) {
+                ServerSocket ss = null;
+                try {
+                    ss = new ServerSocket();
+                    ss.setReuseAddress(true);
+                    ss.bind(new java.net.InetSocketAddress(lo, PREFERRED_PORT), 32);
+                    sPort = PREFERRED_PORT;
+                    return ss;
+                } catch (Throwable busy) {
+                    if (ss != null) try { ss.close(); } catch (Throwable ignored) {}
+                    if (attempt < 4) {
+                        try { Thread.sleep(40L); } catch (InterruptedException ignored) {}
+                    }
+                }
             }
-            while (!server.isClosed()) {
+            ServerSocket fallback = new ServerSocket(0, 32, lo);
+            sPort = fallback.getLocalPort();
+            return fallback;
+        } catch (Throwable t) {
+            Log.e(TAG, "Failed to bind StartPage loopback socket", t);
+            return null;
+        }
+    }
+
+    private static void runAcceptLoop(ServerSocket server) {
+        try {
+            while (server != null && !server.isClosed()) {
                 final Socket client = server.accept();
                 sExecutor.execute(() -> handleClient(client));
             }
         } catch (Throwable t) {
             Log.w(TAG, "StartPage server stopped", t);
-            sStarted = false;
         } finally {
+            synchronized (SBrowserXStartPageServer.class) {
+                if (sServerSocket == server) {
+                    sServerSocket = null;
+                    sStarted = false;
+                }
+            }
             if (server != null) {
                 try { server.close(); } catch (Throwable ignored) {}
             }
@@ -277,6 +317,8 @@ public final class SBrowserXStartPageServer {
             obj.put("weatherCity", city);
             obj.put("weatherUnit", unit);
             obj.put("shortcuts", shortcuts);
+            obj.put("gridCols", ctx != null ? SBrowserXPrefs.getStartPageGridColumns(ctx) : 4);
+            obj.put("tileFill", ctx != null && SBrowserXPrefs.isStartPageTileFillEnabled(ctx));
             obj.put("lang", Locale.getDefault().getLanguage().startsWith("ru") ? "ru" : "en");
             return obj.toString();
         } catch (Throwable t) {
@@ -310,6 +352,7 @@ public final class SBrowserXStartPageServer {
                 fos.write(bytes);
                 fos.flush();
             }
+            invalidateWallpaperCache();
             String today = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
             SBrowserXPrefs.setStartPageOnlineWallpaperDate(ctx, today);
             SBrowserXPrefs.bumpStartPageWallpaperVersion(ctx);
@@ -546,6 +589,8 @@ public final class SBrowserXStartPageServer {
                 + ".tile-ico{width:56px;height:56px;border-radius:18px;background:rgba(20,22,30,.58);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:22px;font-weight:700;color:#93c5fd;transition:transform .12s}"
                 + ".tile:active .tile-ico{transform:scale(.93)}"
                 + ".tile-ico img{width:30px;height:30px;border-radius:7px;object-fit:contain}"
+                + ".tile-ico.fill{width:60px;height:60px;border-radius:18px;border:none;background:rgba(20,22,30,.26)}"
+                + ".tile-ico.fill img{width:100%;height:100%;border-radius:18px;object-fit:cover}"
                 + ".tile-lbl{margin-top:7px;font-size:12px;text-align:center;max-width:74px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 4px rgba(0,0,0,.75)}"
                 + "#modalBg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.68);backdrop-filter:blur(8px);z-index:30;align-items:center;justify-content:center;padding:20px}"
                 + ".modal{width:100%;max-width:340px;background:#14161d;border:1px solid rgba(255,255,255,.12);border-radius:24px;padding:20px}"
@@ -586,9 +631,10 @@ public final class SBrowserXStartPageServer {
                 + "  const list=STATE.shortcuts||[];"
                 + "  if(list.length===0){g.style.display='none';return;}"
                 + "  g.style.display='grid';"
+                + "  g.style.gridTemplateColumns='repeat('+(STATE.gridCols===5?5:4)+',minmax(0,1fr))';"
                 + "  list.forEach((s,idx)=>{"
                 + "    const a=document.createElement('a');a.className='tile';a.href=s.url;"
-                + "    const ico=document.createElement('div');ico.className='tile-ico';"
+                + "    const ico=document.createElement('div');ico.className=STATE.tileFill?'tile-ico fill':'tile-ico';"
                 + "    const host=getHost(s.url);const letter=((s.title||host||'?')[0]||'?').toUpperCase();"
                 + "    if(host){const img=document.createElement('img');img.src='https://www.google.com/s2/favicons?domain='+encodeURIComponent(host)+'&sz=128';"
                 + "      img.onerror=()=>{ico.textContent=letter;};ico.appendChild(img);}else{ico.textContent=letter;}"
@@ -650,9 +696,28 @@ public final class SBrowserXStartPageServer {
                 + "    }"
                 + "  }catch(e){}"
                 + "}"
-                + "async function refreshShortcuts(){try{const r=await fetch('/api/state');const s=await r.json();if(s&&Array.isArray(s.shortcuts)){STATE.shortcuts=s.shortcuts;renderShortcuts();}}catch(e){}}"
-                + "document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshShortcuts();});"
-                + "window.addEventListener('pageshow',()=>refreshShortcuts());"
+                + "async function refreshState(){"
+                + "  try{"
+                + "    const r=await fetch('/api/state?t='+Date.now(),{cache:'no-store'});const s=await r.json();if(!s)return;"
+                + "    const wpChanged=s.wallpaperVer!==STATE.wallpaperVer||s.wallpaperMode!==STATE.wallpaperMode||s.hasWallpaper!==STATE.hasWallpaper;"
+                + "    const wxChanged=s.weatherEnabled!==STATE.weatherEnabled||s.weatherCity!==STATE.weatherCity||s.weatherUnit!==STATE.weatherUnit;"
+                + "    STATE=s;"
+                + "    if(wpChanged){"
+                + "      const bgEl=document.getElementById('bg');"
+                + "      if(s.hasWallpaper&&s.wallpaperMode!=='amoled'){"
+                + "        const u='url(\"/wallpaper?v='+(s.wallpaperVer||1)+'\")';"
+                + "        bgEl.style.backgroundImage=u;document.documentElement.style.backgroundImage=u;"
+                + "      }else{bgEl.style.backgroundImage='none';document.documentElement.style.backgroundImage='none';}"
+                + "    }"
+                + "    const dimEl=document.getElementById('dim');"
+                + "    if(dimEl)dimEl.style.opacity=((s.wallpaperMode==='amoled'||!s.hasWallpaper)?0:Math.max(0,Math.min(80,s.wallpaperDim||0))/100).toFixed(2);"
+                + "    if(!s.weatherEnabled){document.getElementById('weather').style.display='none';}"
+                + "    else if(wxChanged||document.getElementById('weather').style.display!=='flex'){loadAll();}"
+                + "    renderShortcuts();"
+                + "  }catch(e){}"
+                + "}"
+                + "document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshState();});"
+                + "window.addEventListener('pageshow',()=>refreshState());"
                 + "loadAll();"
                 + "</script></body></html>";
     }

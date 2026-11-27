@@ -125,7 +125,27 @@ public final class SBrowserXGoogleTranslator {
                 ? "auto" : normalizeLang(sl);
         String dst = (tl == null || tl.isEmpty()) ? "en" : normalizeLang(tl);
 
-        if ("microsoft".equalsIgnoreCase(engine)) {
+        if ("gemini".equalsIgnoreCase(engine)) {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            String key = ctx != null ? SBrowserXPrefs.getTranslateApiKey(ctx).trim() : "";
+            if (!key.isEmpty()) {
+                try {
+                    return translateBatchGemini(key, src, dst, items);
+                } catch (Throwable t) {
+                    Log.w(TAG, "Gemini Translator failed, falling back to Google Chrome NMT", t);
+                }
+            }
+        } else if ("deepl".equalsIgnoreCase(engine)) {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            String key = ctx != null ? SBrowserXPrefs.getTranslateApiKey(ctx).trim() : "";
+            if (!key.isEmpty()) {
+                try {
+                    return translateBatchDeepL(key, src, dst, items);
+                } catch (Throwable t) {
+                    Log.w(TAG, "DeepL Translator failed, falling back to Google Chrome NMT", t);
+                }
+            }
+        } else if ("microsoft".equalsIgnoreCase(engine)) {
             try {
                 return translateBatchMicrosoft(src, dst, items);
             } catch (Throwable t) {
@@ -283,6 +303,109 @@ public final class SBrowserXGoogleTranslator {
         if ("zh-CN".equalsIgnoreCase(code)) return "zh-Hans";
         if ("zh-TW".equalsIgnoreCase(code)) return "zh-Hant";
         return code;
+    }
+
+    private static String toDeepLLang(String code, boolean isTarget) {
+        if (code == null || code.isEmpty()) return "EN";
+        if ("zh-CN".equalsIgnoreCase(code)) return isTarget ? "ZH-HANS" : "ZH";
+        if ("zh-TW".equalsIgnoreCase(code)) return isTarget ? "ZH-HANT" : "ZH";
+        if ("pt".equalsIgnoreCase(code) && isTarget) return "PT-PT";
+        if ("en".equalsIgnoreCase(code) && isTarget) return "EN-US";
+        return code.toUpperCase(java.util.Locale.US);
+    }
+
+    private static BatchResult translateBatchDeepL(String apiKey, String sl, String tl, String[] items) throws Exception {
+        boolean isFree = apiKey.endsWith(":fx");
+        String endpoint = isFree ? "https://api-free.deepl.com/v2/translate" : "https://api.deepl.com/v2/translate";
+        JSONObject req = new JSONObject();
+        JSONArray textArr = new JSONArray();
+        for (String item : items) textArr.put(item != null ? item : "");
+        req.put("text", textArr);
+        req.put("target_lang", toDeepLLang(tl, true));
+        if (!"auto".equals(sl)) {
+            req.put("source_lang", toDeepLLang(sl, false));
+        }
+        req.put("tag_handling", "html");
+        byte[] payload = req.toString().getBytes(StandardCharsets.UTF_8);
+        HttpURLConnection conn = (HttpURLConnection) new URL(endpoint).openConnection();
+        conn.setRequestMethod("POST");
+        conn.setDoOutput(true);
+        conn.setConnectTimeout(10000);
+        conn.setReadTimeout(18000);
+        conn.setRequestProperty("Authorization", "DeepL-Auth-Key " + apiKey);
+        conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+        try {
+            try (OutputStream os = conn.getOutputStream()) { os.write(payload); }
+            int code = conn.getResponseCode();
+            if (code != 200) throw new IllegalStateException("DeepL HTTP " + code);
+            JSONObject root = new JSONObject(readUtf8(conn.getInputStream()));
+            JSONArray trans = root.getJSONArray("translations");
+            String[] out = new String[items.length];
+            String detected = "";
+            for (int i = 0; i < items.length; i++) {
+                JSONObject entry = trans.optJSONObject(i);
+                if (entry != null) {
+                    if (detected.isEmpty()) detected = normalizeLang(entry.optString("detected_source_language", ""));
+                    out[i] = entry.optString("text", items[i]);
+                } else {
+                    out[i] = items[i];
+                }
+            }
+            return new BatchResult(out, detected);
+        } finally {
+            conn.disconnect();
+        }
+    }
+
+    private static BatchResult translateBatchGemini(String apiKey, String sl, String tl, String[] items) throws Exception {
+        String targetName = getLanguageDisplayName(tl);
+        JSONArray inputArr = new JSONArray();
+        for (String item : items) inputArr.put(item != null ? item : "");
+        String prompt = "Translate every string in the JSON array into natural, idiomatic " + targetName
+                + " (code: " + tl + "). Preserve all HTML tags, attributes, placeholders, numbers, brand names, and array order/length ("
+                + items.length + " items). Return ONLY a JSON array of " + items.length + " translated strings.\n"
+                + inputArr.toString();
+        JSONObject part = new JSONObject().put("text", prompt);
+        JSONObject content = new JSONObject().put("parts", new JSONArray().put(part));
+        JSONObject genCfg = new JSONObject()
+                .put("temperature", 0.1)
+                .put("responseMimeType", "application/json");
+        JSONObject body = new JSONObject()
+                .put("contents", new JSONArray().put(content))
+                .put("generationConfig", genCfg);
+        String urlStr = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key="
+                + URLEncoder.encode(apiKey, "UTF-8");
+        byte[] payload = body.toString().getBytes(StandardCharsets.UTF_8);
+        HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
+        conn.setRequestMethod("POST");
+        conn.setDoOutput(true);
+        conn.setConnectTimeout(12000);
+        conn.setReadTimeout(25000);
+        conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+        try {
+            try (OutputStream os = conn.getOutputStream()) { os.write(payload); }
+            int code = conn.getResponseCode();
+            if (code != 200) throw new IllegalStateException("Gemini HTTP " + code);
+            JSONObject root = new JSONObject(readUtf8(conn.getInputStream()));
+            String text = root.getJSONArray("candidates").getJSONObject(0)
+                    .getJSONObject("content").getJSONArray("parts").getJSONObject(0).getString("text").trim();
+            if (text.startsWith("```")) {
+                int nl = text.indexOf('\n');
+                if (nl > 0) text = text.substring(nl + 1);
+                if (text.endsWith("```")) text = text.substring(0, text.length() - 3).trim();
+            }
+            JSONArray outArr = new JSONArray(text);
+            if (outArr.length() != items.length) {
+                throw new IllegalStateException("Gemini length mismatch: " + outArr.length() + " vs " + items.length);
+            }
+            String[] out = new String[items.length];
+            for (int i = 0; i < items.length; i++) {
+                out[i] = outArr.optString(i, items[i]);
+            }
+            return new BatchResult(out, "auto".equals(sl) ? "" : sl);
+        } finally {
+            conn.disconnect();
+        }
     }
 
     public static String detectLanguageFast(String sampleText) {

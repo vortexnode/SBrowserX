@@ -45,6 +45,8 @@ public final class SBrowserXPrefs {
     public static final String KEY_SP_WX_CITY = "start_page_wx_city";
     public static final String KEY_SP_WX_UNIT = "start_page_wx_unit";
     public static final String KEY_SP_SHORTCUTS = "start_page_shortcuts_json";
+    public static final String KEY_SP_GRID_COLS = "start_page_grid_cols";
+    public static final String KEY_SP_TILE_FILL = "start_page_tile_fill";
     public static final String KEY_AMOLED_BLACK = "amoled_black_enabled";
     public static final String KEY_FORCE_ADAPTIVE_DARK = "force_adaptive_dark_enabled";
     public static final String KEY_DARK_BRIGHT_IMAGES = "dark_bright_images_enabled";
@@ -440,6 +442,23 @@ public final class SBrowserXPrefs {
 
     public static void setStartPageShortcutsJson(Context context, String json) {
         prefs(context).edit().putString(KEY_SP_SHORTCUTS, json != null ? json : "[]").apply();
+    }
+
+    public static int getStartPageGridColumns(Context context) {
+        int cols = prefs(context).getInt(KEY_SP_GRID_COLS, 4);
+        return cols == 5 ? 5 : 4;
+    }
+
+    public static void setStartPageGridColumns(Context context, int cols) {
+        prefs(context).edit().putInt(KEY_SP_GRID_COLS, cols == 5 ? 5 : 4).apply();
+    }
+
+    public static boolean isStartPageTileFillEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_SP_TILE_FILL, false);
+    }
+
+    public static void setStartPageTileFillEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_SP_TILE_FILL, enabled).apply();
     }
 
     public static boolean isExternalDownloaderEnabled(Context context) {

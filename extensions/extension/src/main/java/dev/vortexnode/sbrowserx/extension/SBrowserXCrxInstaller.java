@@ -77,15 +77,8 @@ public final class SBrowserXCrxInstaller {
                     throw new IllegalArgumentException("Invalid extension package: manifest.json not found");
                 }
                 if (mv == 2) {
-                    final boolean ru = "ru".equals(java.util.Locale.getDefault().getLanguage());
-                    final String warn = ru
-                            ? "Manifest V2 (экспериментально). Если установка не удастся — используйте MV3 (например, uBlock Origin Lite)."
-                            : "Manifest V2 (experimental). If install fails, use an MV3 version (e.g. uBlock Origin Lite).";
-                    new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
-                        try {
-                            android.widget.Toast.makeText(context.getApplicationContext(), warn, android.widget.Toast.LENGTH_LONG).show();
-                        } catch (Throwable ignored) {}
-                    });
+                    postResult(callback, false, "MV2_UNSUPPORTED");
+                    return;
                 }
 
                 File outFile = saveCrxToCache(context, extId, crxBytes);

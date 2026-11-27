@@ -333,6 +333,17 @@ public final class SBrowserXSettingsActivity extends Activity {
         if (requestCode == REQ_PICK_EXTENSION && resultCode == RESULT_OK && data != null && data.getData() != null) {
             Toast.makeText(this, SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALLING), Toast.LENGTH_SHORT).show();
             SBrowserXCrxInstaller.installFromUri(this, data.getData(), (ok, msg) -> {
+                if (!ok && "MV2_UNSUPPORTED".equals(msg)) {
+                    boolean night = SBrowserXHooks.isBrowserNightMode(this);
+                    int dlgTheme = night ? android.R.style.Theme_DeviceDefault_Dialog_Alert
+                            : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert;
+                    new AlertDialog.Builder(this, dlgTheme)
+                            .setTitle(SBrowserXStrings.get(SBrowserXStrings.EXT_MV2_BLOCKED_TITLE))
+                            .setMessage(SBrowserXStrings.get(SBrowserXStrings.EXT_MV2_BLOCKED_MSG))
+                            .setPositiveButton(android.R.string.ok, null)
+                            .show();
+                    return;
+                }
                 String toast = ok
                         ? SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALL_OK) + " (" + msg + ")"
                         : SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALL_FAIL) + msg;
