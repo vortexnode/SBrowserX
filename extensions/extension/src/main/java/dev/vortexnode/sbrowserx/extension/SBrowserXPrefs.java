@@ -63,6 +63,7 @@ public final class SBrowserXPrefs {
     public static final String KEY_TRANS_ALWAYS_LANGS = "google_translate_always_langs";
     public static final String KEY_TRANS_NEVER_SITES = "google_translate_never_sites";
     public static final String KEY_TRANS_GUIDE_ACK = "trans_guide_ack_v137";
+    public static final String KEY_CHANGELOG_VER = "last_seen_changelog_ver";
     public static final String KEY_HIGHLIGHT_DAYS = "new_feature_highlight_days";
 
     public static final String WEBRTC_DEFAULT = "default";
@@ -598,6 +599,14 @@ public final class SBrowserXPrefs {
 
     public static void setTranslateGuideAcked(Context context, boolean acked) {
         prefs(context).edit().putBoolean(KEY_TRANS_GUIDE_ACK, acked).apply();
+    }
+
+    public static String getLastSeenChangelogVersion(Context context) {
+        return prefs(context).getString(KEY_CHANGELOG_VER, "");
+    }
+
+    public static void setLastSeenChangelogVersion(Context context, String version) {
+        prefs(context).edit().putString(KEY_CHANGELOG_VER, version != null ? version : "").apply();
     }
 
     public static void resetTranslateSettings(Context context) {

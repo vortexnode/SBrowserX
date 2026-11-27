@@ -142,16 +142,23 @@ public final class SBrowserXTranslateSettingsActivity extends Activity {
 
         android.widget.TextView tv = new android.widget.TextView(act);
         tv.setText(SBrowserXStrings.getTransGuideBody());
-        tv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14.5f);
-        tv.setLineSpacing(Math.round(3 * dens), 1.0f);
-        tv.setTextColor(night ? 0xFFE5E7EB : 0xFF1F2937);
+        tv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15.8f);
+        tv.setLineSpacing(Math.round(4 * dens), 1.05f);
+        tv.setTextColor(night ? 0xFFF1F3F5 : 0xFF18181B);
         box.addView(tv);
 
+        int oneUiBlue = night ? 0xFF3E82F7 : 0xFF0381FE;
+        int uncheckedCol = night ? 0xFF6B7280 : 0xFF9CA3AF;
+        android.content.res.ColorStateList cbTint = new android.content.res.ColorStateList(
+                new int[][] { new int[] { android.R.attr.state_checked }, new int[] {} },
+                new int[] { oneUiBlue, uncheckedCol });
         android.widget.CheckBox cb = new android.widget.CheckBox(act);
         cb.setText(SBrowserXStrings.getTransGuideCheck());
-        cb.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15f);
-        cb.setTextColor(night ? 0xFFF9FAFB : 0xFF111827);
-        cb.setPadding(Math.round(6 * dens), Math.round(14 * dens), 0, Math.round(6 * dens));
+        cb.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 16f);
+        cb.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
+        cb.setTextColor(night ? 0xFFFFFFFF : 0xFF111827);
+        cb.setButtonTintList(cbTint);
+        cb.setPadding(Math.round(8 * dens), Math.round(18 * dens), 0, Math.round(8 * dens));
         box.addView(cb);
 
         sv.addView(box);
@@ -170,9 +177,11 @@ public final class SBrowserXTranslateSettingsActivity extends Activity {
             if (okBtn != null) {
                 okBtn.setEnabled(false);
                 okBtn.setAlpha(0.4f);
+                okBtn.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 16f);
                 cb.setOnCheckedChangeListener((btn, checked) -> {
                     okBtn.setEnabled(checked);
                     okBtn.setAlpha(checked ? 1.0f : 0.4f);
+                    okBtn.setTextColor(checked ? oneUiBlue : uncheckedCol);
                 });
             }
         });

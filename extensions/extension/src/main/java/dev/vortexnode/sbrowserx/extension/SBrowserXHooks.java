@@ -143,6 +143,10 @@ public final class SBrowserXHooks {
             applyCompactSystemBarPolish(activity);
         consumePendingHomepageNavigation(activity);
             ensureTerraceAutofillEnabled(activity);
+            View decor = activity.getWindow() != null ? activity.getWindow().getDecorView() : null;
+            if (decor != null) {
+                decor.postDelayed(() -> SBrowserXChangelogDialog.showIfNeeded(activity), 950L);
+            }
         }
     }
 
