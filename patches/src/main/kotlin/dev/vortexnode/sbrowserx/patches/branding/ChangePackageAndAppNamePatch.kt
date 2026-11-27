@@ -111,8 +111,8 @@ internal val changePackageAndAppNameResourcePatch = resourcePatch(
                         if (content.contains("name="app_name"") || content.contains("name="app_name_internet"")) {
                             val escaped = escapeXmlText(newAppName)
                             val updated = content
-                                .replace(Regex("(<string\s+name="app_name"[^>]*>)[^<]*(</string>)"), "$1$escaped$2")
-                                .replace(Regex("(<string\s+name="app_name_internet"[^>]*>)[^<]*(</string>)"), "$1$escaped$2")
+                                .replace(Regex("""(<string\s+name="app_name"[^>]*>)[^<]*(</string>)""")) { m -> m.groupValues[1] + escaped + m.groupValues[2] }
+                                .replace(Regex("""(<string\s+name="app_name_internet"[^>]*>)[^<]*(</string>)""")) { m -> m.groupValues[1] + escaped + m.groupValues[2] }
                             if (updated != content) {
                                 stringsFile.writeText(updated, Charsets.UTF_8)
                             }
