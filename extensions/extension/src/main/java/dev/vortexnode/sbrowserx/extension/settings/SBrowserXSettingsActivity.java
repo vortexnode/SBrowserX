@@ -309,6 +309,15 @@ public final class SBrowserXSettingsActivity extends Activity {
     protected void onResume() {
         super.onResume();
         refreshDynamicViews();
+        if (mainScrollView != null) {
+            mainScrollView.postDelayed(this::markVisibleHubFeaturesViewed, 250L);
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        markVisibleHubFeaturesViewed();
+        super.onPause();
     }
 
     private String buildTranslateSummary() {

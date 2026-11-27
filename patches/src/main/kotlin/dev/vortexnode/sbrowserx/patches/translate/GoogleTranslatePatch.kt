@@ -550,6 +550,28 @@ val googleTranslatePatch = bytecodePatch(
             """.trimIndent(),
         )
 
+        // 25b. ExtensionActionItem.isFirstParty -> always treat built-in Translate extension (khmmfcceknncifmkiimjnnjldibgajpl) as first-party monochrome
+        // so ToolbarExtensionsManager.getIcon() ALWAYS tints it cleanly in Dark Mode across Bottombar, More Menu, and Customize Menu on any package name.
+        findMethodOrThrow(
+            classType = "Lcom/sec/terrace/browser/extensions/TerraceExtensionsManager\$ExtensionActionItem;",
+            methodName = "isFirstParty",
+            parameterTypes = emptyList(),
+            returnType = "Z",
+        ).addInstructions(
+            0,
+            """
+                iget-object v0, p0, Lcom/sec/terrace/browser/extensions/TerraceExtensionsManager${'$'}ExtensionActionItem;->mId:Ljava/lang/String;
+                const-string v1, "khmmfcceknncifmkiimjnnjldibgajpl"
+                invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+                move-result v0
+                if-eqz v0, :sbrowserx_fp_stock
+                const/4 v0, 0x1
+                return v0
+                :sbrowserx_fp_stock
+                nop
+            """.trimIndent(),
+        )
+
         // 26. ToolbarExtensionsManager.getIconColor -> keep Translate (first-party extension) icon white on dark bottom/top bars even on light websites
         findMethodOrThrow(
             classType = TOOLBAR_EXTENSIONS_MANAGER_CLASS,

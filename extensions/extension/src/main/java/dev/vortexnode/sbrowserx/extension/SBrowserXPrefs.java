@@ -99,8 +99,18 @@ public final class SBrowserXPrefs {
             FEATURE_EXT_DOWNLOADER,
             FEATURE_AUTO_CLOSE_1DAY,
             FEATURE_GOOGLE_TRANSLATE,
-            FEATURE_HIDE_ADBLOCKERS,
-            FEATURE_FORCE_DARK
+            FEATURE_HIDE_ADBLOCKERS
+    };
+
+    private static final String[] HUB_FEATURES = new String[] {
+            FEATURE_EXT_PACK,
+            FEATURE_EXT_INSTALLER,
+            FEATURE_WEBRTC,
+            FEATURE_FINGERPRINT,
+            FEATURE_GOOGLE_TRANSLATE,
+            FEATURE_EXT_DOWNLOADER,
+            FEATURE_AMOLED,
+            FEATURE_BOTTOM_BLUR
     };
 
     private static volatile Context sAppContext;
@@ -618,6 +628,14 @@ public final class SBrowserXPrefs {
     public static boolean isAnyFeatureNew(Context context) {
         if (getHighlightDays(context) <= 0) return false;
         for (String feat : ALL_FEATURES) {
+            if (isFeatureNew(context, feat)) return true;
+        }
+        return false;
+    }
+
+    public static boolean isAnyHubFeatureNew(Context context) {
+        if (getHighlightDays(context) <= 0) return false;
+        for (String feat : HUB_FEATURES) {
             if (isFeatureNew(context, feat)) return true;
         }
         return false;

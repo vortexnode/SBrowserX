@@ -2973,7 +2973,7 @@ public final class SBrowserXHooks {
                         : ("uk".equals(lang) ? "Розширення • Приватність • Інтерфейс"
                         : "Extensions • Privacy • Interface");
                 hub.getClass().getMethod("setTitle", CharSequence.class)
-                        .invoke(hub, titleWithTealDot("SBrowserX", SBrowserXPrefs.isAnyFeatureNew(ctx)));
+                        .invoke(hub, titleWithTealDot("SBrowserX", SBrowserXPrefs.isAnyHubFeatureNew(ctx)));
                 setAccentSummary(hub, ctx, summary);
             }
 
