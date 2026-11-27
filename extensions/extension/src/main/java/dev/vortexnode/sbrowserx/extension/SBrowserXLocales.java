@@ -426,4 +426,265 @@ final class SBrowserXLocales {
             default: return "Original";
         }
     }
+
+    static String settingsScreenTitle(String lang) {
+        switch (lang) {
+            case "ru": return "Настройки SBrowserX";
+            case "uk": return "Налаштування SBrowserX";
+            case "es": return "Ajustes de SBrowserX";
+            case "pt": return "Configurações do SBrowserX";
+            case "de": return "SBrowserX-Einstellungen";
+            case "fr": return "Paramètres SBrowserX";
+            case "it": return "Impostazioni SBrowserX";
+            case "pl": return "Ustawienia SBrowserX";
+            case "tr": return "SBrowserX ayarları";
+            case "ar": return "إعدادات SBrowserX";
+            case "fa": return "تنظیمات SBrowserX";
+            case "hi": return "SBrowserX सेटिंग्स";
+            case "zh": return "SBrowserX 设置";
+            case "ja": return "SBrowserX の設定";
+            case "ko": return "SBrowserX 설정";
+            case "id": return "Setelan SBrowserX";
+            case "vi": return "Cài đặt SBrowserX";
+            case "nl": return "SBrowserX-instellingen";
+            case "sw": return "Mipangilio ya SBrowserX";
+            default: return "SBrowserX settings";
+        }
+    }
+
+    static String transGuideTitle(String lang) {
+        switch (lang) {
+            case "ru": return "Важно о переводчике SBrowserX";
+            case "uk": return "Важливо про перекладач SBrowserX";
+            case "es": return "Importante sobre el traductor";
+            case "pt": return "Importante sobre o tradutor";
+            case "de": return "Wichtig zum Übersetzer";
+            case "fr": return "Important à propos du traducteur";
+            case "it": return "Importante sul traduttore";
+            case "pl": return "Ważne o tłumaczu";
+            case "tr": return "Çevirmen hakkında önemli";
+            case "ar": return "مهم حول المترجم";
+            case "fa": return "نکته مهم درباره مترجم";
+            case "hi": return "अनुवादक के बारे में महत्वपूर्ण";
+            case "zh": return "关于翻译引擎的重要说明";
+            case "ja": return "翻訳エンジンについての重要なお知らせ";
+            case "ko": return "번역 엔진 중요 안내";
+            case "id": return "Penting tentang penerjemah";
+            case "vi": return "Lưu ý quan trọng về trình dịch";
+            case "nl": return "Belangrijk over de vertaler";
+            case "sw": return "Muhimu kuhusu mtafsiri";
+            default: return "Important: SBrowserX Translator";
+        }
+    }
+
+    static String transGuideCheck(String lang) {
+        switch (lang) {
+            case "ru": return "Я прочитал(а)";
+            case "uk": return "Я прочитав(ла)";
+            case "es": return "Lo he leído";
+            case "pt": return "Eu li";
+            case "de": return "Ich habe es gelesen";
+            case "fr": return "J'ai lu";
+            case "it": return "Ho letto";
+            case "pl": return "Przeczytałem(am)";
+            case "tr": return "Okudum";
+            case "ar": return "لقد قرأت هذا";
+            case "fa": return "خواندم";
+            case "hi": return "मैंने पढ़ लिया है";
+            case "zh": return "我已阅读";
+            case "ja": return "確認しました";
+            case "ko": return "확인했습니다";
+            case "id": return "Saya sudah membaca";
+            case "vi": return "Tôi đã đọc";
+            case "nl": return "Ik heb dit gelezen";
+            case "sw": return "Nimesoma";
+            default: return "I have read this";
+        }
+    }
+
+    static String transGuideBody(String lang) {
+        switch (lang) {
+            case "ru":
+                return "Рекомендуем создать бесплатный ключ Gemini API (Google AI Studio) и выбрать Gemini 3.5 Flash-Lite в качестве основного переводчика:\n\n"
+                    + "• Мгновенный и точный перевод с пониманием контекста, сленга, идиом и технических терминов.\n"
+                    + "• Этот же ключ сразу включает ИИ-сводку веб-страниц.\n\n"
+                    + "Другие движки:\n"
+                    + "• DeepL API — отличное качество (тоже есть бесплатный ключ).\n"
+                    + "• Bing (по умолчанию без ключа) — лучше держит контекст, но работает медленнее.\n"
+                    + "• Яндекс — очень быстрый, но перевод проще.\n"
+                    + "• Google — использует публичный NMT-интерфейс, так как закрытые ключи Chrome недоступны сторонним браузерам.";
+            case "uk":
+                return "Рекомендуємо створити безкоштовний ключ Gemini API (Google AI Studio) і вибрати Gemini 3.5 Flash-Lite як основний перекладач:\n\n"
+                    + "• Швидкий і точний переклад із розумінням контексту, ідіом та технічних термінів.\n"
+                    + "• Цей самий ключ одразу вмикає ШІ-зведення веб-сторінок.\n\n"
+                    + "Інші рушії:\n"
+                    + "• DeepL API — чудова якість (також є безкоштовний ключ).\n"
+                    + "• Bing (за замовчуванням без ключа) — краще тримає контекст, але працює повільніше.\n"
+                    + "• Яндекс — дуже швидкий, але переклад простіший.\n"
+                    + "• Google — використовує публічний NMT, оскільки закриті ключі Chrome недоступні.";
+            case "es":
+                return "Recomendamos crear una clave gratuita de Gemini API (Google AI Studio) y elegir Gemini 3.5 Flash-Lite como traductor principal:\n\n"
+                    + "• Traducción rápida y natural que entiende contexto, modismos y términos técnicos.\n"
+                    + "• La misma clave activa también el resumen de páginas con IA.\n\n"
+                    + "Otros motores:\n"
+                    + "• DeepL API — excelente calidad (también tiene plan gratuito).\n"
+                    + "• Bing (predeterminado sin clave) — mejor contexto, pero más lento.\n"
+                    + "• Yandex — muy rápido, pero más literal.\n"
+                    + "• Google — usa el motor NMT público porque las claves privadas de Chrome no están abiertas.";
+            case "pt":
+                return "Recomendamos criar uma chave gratuita da Gemini API (Google AI Studio) e escolher Gemini 3.5 Flash-Lite como tradutor principal:\n\n"
+                    + "• Tradução rápida e natural com contexto, expressões e termos técnicos.\n"
+                    + "• A mesma chave também ativa o resumo de páginas por IA.\n\n"
+                    + "Outros motores:\n"
+                    + "• DeepL API — excelente qualidade (também tem plano gratuito).\n"
+                    + "• Bing (padrão sem chave) — melhor contexto, porém mais lento.\n"
+                    + "• Yandex — muito rápido, mas mais simples.\n"
+                    + "• Google — usa o endpoint NMT público, pois as chaves privadas do Chrome são fechadas.";
+            case "de":
+                return "Wir empfehlen einen kostenlosen Gemini-API-Schlüssel (Google AI Studio) und Gemini 3.5 Flash-Lite als Hauptübersetzer:\n\n"
+                    + "• Schnelle, natürliche Übersetzung mit Verständnis für Kontext, Redewendungen und Fachbegriffe.\n"
+                    + "• Derselbe Schlüssel aktiviert auch die KI-Seitenzusammenfassung.\n\n"
+                    + "Weitere Engines:\n"
+                    + "• DeepL API — sehr hohe Qualität (ebenfalls mit kostenlosem Schlüssel).\n"
+                    + "• Bing (Standard ohne Schlüssel) — besseres Kontextverständnis, aber langsamer.\n"
+                    + "• Yandex — sehr schnell, aber schlichter.\n"
+                    + "• Google — nutzt die öffentliche NMT-Schnittstelle, da Chromes private Schlüssel gesperrt sind.";
+            case "fr":
+                return "Nous recommandons de créer une clé gratuite Gemini API (Google AI Studio) et de choisir Gemini 3.5 Flash-Lite comme traducteur principal :\n\n"
+                    + "• Traduction rapide et naturelle qui comprend le contexte, les expressions et les termes techniques.\n"
+                    + "• La même clé active aussi le résumé de page par IA.\n\n"
+                    + "Autres moteurs :\n"
+                    + "• DeepL API — excellente qualité (clé gratuite disponible).\n"
+                    + "• Bing (par défaut sans clé) — meilleur contexte, mais plus lent.\n"
+                    + "• Yandex — très rapide, mais plus basique.\n"
+                    + "• Google — utilise l'API NMT publique, les clés privées de Chrome étant fermées.";
+            case "it":
+                return "Consigliamo di creare una chiave gratuita Gemini API (Google AI Studio) e scegliere Gemini 3.5 Flash-Lite come traduttore principale:\n\n"
+                    + "• Traduzione veloce e naturale con comprensione di contesto, modi di dire e termini tecnici.\n"
+                    + "• La stessa chiave attiva anche il riepilogo AI delle pagine.\n\n"
+                    + "Altri motori:\n"
+                    + "• DeepL API — qualità eccellente (disponibile anche gratis).\n"
+                    + "• Bing (predefinito senza chiave) — miglior contesto, ma più lento.\n"
+                    + "• Yandex — molto veloce, ma più semplice.\n"
+                    + "• Google — usa l'endpoint NMT pubblico perché le chiavi private di Chrome sono chiuse.";
+            case "pl":
+                return "Zalecamy utworzenie darmowego klucza Gemini API (Google AI Studio) i wybranie Gemini 3.5 Flash-Lite jako głównego tłumacza:\n\n"
+                    + "• Szybkie i naturalne tłumaczenie ze zrozumieniem kontekstu, idiomów i terminów technicznych.\n"
+                    + "• Ten sam klucz uruchamia także podsumowanie stron AI.\n\n"
+                    + "Pozostałe silniki:\n"
+                    + "• DeepL API — świetna jakość (również darmowy klucz).\n"
+                    + "• Bing (domyślny bez klucza) — lepszy kontekst, ale wolniejszy.\n"
+                    + "• Yandex — bardzo szybki, ale prostszy.\n"
+                    + "• Google — korzysta z publicznego NMT, bo prywatne klucze Chrome są zamknięte.";
+            case "tr":
+                return "Ücretsiz bir Gemini API anahtarı (Google AI Studio) oluşturup Gemini 3.5 Flash-Lite'ı ana çevirmen olarak seçmenizi öneririz:\n\n"
+                    + "• Bağlamı, deyimleri ve teknik terimleri anlayan hızlı ve doğal çeviri.\n"
+                    + "• Aynı anahtar yapay zeka sayfa özetini de etkinleştirir.\n\n"
+                    + "Diğer motorlar:\n"
+                    + "• DeepL API — yüksek kalite (ücretsiz anahtar mevcut).\n"
+                    + "• Bing (anahtarsız varsayılan) — daha iyi bağlam, ancak daha yavaş.\n"
+                    + "• Yandex — çok hızlı, fakat daha basit.\n"
+                    + "• Google — Chrome'un özel anahtarları kapalı olduğu için genel NMT arayüzünü kullanır.";
+            case "ar":
+                return "ننصح بإنشاء مفتاح مجاني لـ Gemini API (من Google AI Studio) واختيار Gemini 3.5 Flash-Lite كمترجم أساسي:\n\n"
+                    + "• ترجمة سريعة ودقيقة تفهم السياق والتعبيرات والمصطلحات التقنية.\n"
+                    + "• نفس المفتاح يفعّل أيضاً ميزة تلخيص الصفحات بالذكاء الاصطناعي.\n\n"
+                    + "المحركات الأخرى:\n"
+                    + "• DeepL API — جودة ممتازة (يتوفر مفتاح مجاني).\n"
+                    + "• Bing (الافتراضي بدون مفتاح) — أدق في السياق لكنه أبطأ.\n"
+                    + "• Yandex — سريع جداً لكنه أبسط.\n"
+                    + "• Google — يستخدم واجهة NMT العامة لأن مفاتيح Chrome الخاصة مغلقة.";
+            case "fa":
+                return "توصیه می‌کنیم یک کلید رایگان Gemini API (در Google AI Studio) بسازید و Gemini 3.5 Flash-Lite را به‌عنوان مترجم اصلی انتخاب کنید:\n\n"
+                    + "• ترجمه سریع و طبیعی با درک دقیق متن، اصطلاحات و واژه‌های فنی.\n"
+                    + "• همین کلید خلاصه‌سازی هوشمند صفحات را هم فعال می‌کند.\n\n"
+                    + "موتورهای دیگر:\n"
+                    + "• DeepL API — کیفیت عالی (کلید رایگان هم دارد).\n"
+                    + "• Bing (پیش‌فرض بدون کلید) — درک متن بهتر، اما کندتر.\n"
+                    + "• Yandex — بسیار سریع، اما ساده‌تر.\n"
+                    + "• Google — از سرویس عمومی NMT استفاده می‌کند چون کلیدهای اختصاصی Chrome بسته هستند.";
+            case "hi":
+                return "हम अनुशंसा करते हैं कि आप Google AI Studio से निःशुल्क Gemini API कुंजी बनाएँ और Gemini 3.5 Flash-Lite को मुख्य अनुवादक चुनें:\n\n"
+                    + "• संदर्भ, मुहावरों और तकनीकी शब्दों को समझने वाला तेज़ व स्वाभाविक अनुवाद।\n"
+                    + "• यही कुंजी AI पेज सारांश भी चालू करती है।\n\n"
+                    + "अन्य इंजन:\n"
+                    + "• DeepL API — बेहतरीन गुणवत्ता (निःशुल्क कुंजी उपलब्ध)।\n"
+                    + "• Bing (बिना कुंजी डिफ़ॉल्ट) — बेहतर संदर्भ, लेकिन थोड़ा धीमा।\n"
+                    + "• Yandex — बहुत तेज़, पर सरल अनुवाद।\n"
+                    + "• Google — सार्वजनिक NMT का उपयोग करता है क्योंकि Chrome की निजी कुंजियाँ बंद हैं।";
+            case "zh":
+                return "建议在 Google AI Studio 创建免费的 Gemini API 密钥，并选择 Gemini 3.5 Flash-Lite 作为主力翻译引擎：\n\n"
+                    + "• 速度快、翻译自然，能准确理解上下文、习语和专业术语。\n"
+                    + "• 同一个密钥还可直接启用 AI 网页摘要功能。\n\n"
+                    + "其他引擎：\n"
+                    + "• DeepL API — 质量出色（也提供免费密钥）。\n"
+                    + "• Bing（无密钥默认）— 上下文更准确，但速度较慢。\n"
+                    + "• Yandex — 速度极快，但译文较生硬。\n"
+                    + "• Google — 仅能使用公开 NMT 接口（Chrome 私有密钥未开放）。";
+            case "ja":
+                return "Google AI Studio で無料の Gemini API キーを作成し、Gemini 3.5 Flash-Lite をメイン翻訳エンジンに設定することをおすすめします：\n\n"
+                    + "• 文脈・慣用句・専門用語まで自然に高速翻訳します。\n"
+                    + "• 同じキーで AI ページ要約機能もそのまま利用できます。\n\n"
+                    + "その他のエンジン：\n"
+                    + "• DeepL API — 高品質（無料キーあり）。\n"
+                    + "• Bing（キー不要の既定）— 文脈に強いがやや低速。\n"
+                    + "• Yandex — 非常に高速だが直訳気味。\n"
+                    + "• Google — Chrome 専用の非公開キーが使えないため公開 NMT を利用します。";
+            case "ko":
+                return "Google AI Studio에서 무료 Gemini API 키를 발급받아 Gemini 3.5 Flash-Lite를 기본 번역기로 사용하는 것을 권장합니다:\n\n"
+                    + "• 문맥, 관용 표현, 전문 용어까지 빠르고 자연스럽게 번역합니다.\n"
+                    + "• 같은 키로 AI 웹페이지 요약 기능도 바로 사용할 수 있습니다.\n\n"
+                    + "기타 엔진:\n"
+                    + "• DeepL API — 뛰어난 품질(무료 키 제공).\n"
+                    + "• Bing(키 없이 기본) — 문맥 이해가 좋지만 다소 느림.\n"
+                    + "• Yandex — 매우 빠르지만 번역이 단순함.\n"
+                    + "• Google — Chrome 비공개 키가 닫혀 있어 공개 NMT를 사용합니다.";
+            case "id":
+                return "Kami menyarankan membuat kunci gratis Gemini API (Google AI Studio) dan memilih Gemini 3.5 Flash-Lite sebagai penerjemah utama:\n\n"
+                    + "• Cepat dan alami, memahami konteks, idiom, serta istilah teknis.\n"
+                    + "• Kunci yang sama juga mengaktifkan ringkasan halaman AI.\n\n"
+                    + "Mesin lainnya:\n"
+                    + "• DeepL API — kualitas sangat baik (tersedia kunci gratis).\n"
+                    + "• Bing (default tanpa kunci) — konteks lebih baik, namun lebih lambat.\n"
+                    + "• Yandex — sangat cepat, tetapi lebih sederhana.\n"
+                    + "• Google — memakai NMT publik karena kunci privat Chrome tidak terbuka.";
+            case "vi":
+                return "Khuyến nghị tạo khóa Gemini API miễn phí (Google AI Studio) và chọn Gemini 3.5 Flash-Lite làm trình dịch chính:\n\n"
+                    + "• Dịch nhanh, tự nhiên, hiểu ngữ cảnh, thành ngữ và thuật ngữ kỹ thuật.\n"
+                    + "• Cùng khóa này cũng bật luôn tính năng tóm tắt trang bằng AI.\n\n"
+                    + "Các công cụ khác:\n"
+                    + "• DeepL API — chất lượng rất tốt (cũng có khóa miễn phí).\n"
+                    + "• Bing (mặc định không cần khóa) — hiểu ngữ cảnh tốt hơn nhưng chậm hơn.\n"
+                    + "• Yandex — rất nhanh nhưng dịch đơn giản hơn.\n"
+                    + "• Google — dùng NMT công khai vì khóa riêng của Chrome không mở.";
+            case "nl":
+                return "We raden aan een gratis Gemini API-sleutel (Google AI Studio) aan te maken en Gemini 3.5 Flash-Lite als hoofdvertaler te kiezen:\n\n"
+                    + "• Snelle, natuurlijke vertaling met begrip van context, uitdrukkingen en vaktermen.\n"
+                    + "• Dezelfde sleutel activeert ook AI-paginaevaluaties.\n\n"
+                    + "Andere engines:\n"
+                    + "• DeepL API — uitstekende kwaliteit (ook gratis sleutel beschikbaar).\n"
+                    + "• Bing (standaard zonder sleutel) — betere context, maar langzamer.\n"
+                    + "• Yandex — erg snel, maar eenvoudiger.\n"
+                    + "• Google — gebruikt de openbare NMT-API omdat Chrome's privésleutels gesloten zijn.";
+            case "sw":
+                return "Tunapendekeza uunde ufunguo wa bure wa Gemini API (Google AI Studio) na uchague Gemini 3.5 Flash-Lite kama mtafsiri mkuu:\n\n"
+                    + "• Tafsiri ya haraka na sahihi inayoelewa muktadha, nahau na istilahi za kiufundi.\n"
+                    + "• Ufunguo huohuo huwasha muhtasari wa kurasa wa AI.\n\n"
+                    + "Injini nyingine:\n"
+                    + "• DeepL API — ubora wa juu (ufunguo wa bure upo).\n"
+                    + "• Bing (chaguo-msingi bila ufunguo) — muktadha bora lakini polepole zaidi.\n"
+                    + "• Yandex — haraka sana lakini rahisi zaidi.\n"
+                    + "• Google — hutumia NMT ya umma kwa kuwa funguo za siri za Chrome zimefungwa.";
+            default:
+                return "We recommend creating a free Gemini API key (Google AI Studio) and choosing Gemini 3.5 Flash-Lite as your primary translator:\n\n"
+                    + "• Fast, natural translation that understands context, idioms, slang, and technical terms.\n"
+                    + "• The same key also unlocks AI Page Summary.\n\n"
+                    + "Other engines:\n"
+                    + "• DeepL API — great quality (free API key available).\n"
+                    + "• Bing (default, no key) — better context understanding, but slower.\n"
+                    + "• Yandex — very fast, but simpler wording.\n"
+                    + "• Google — uses the public NMT endpoint since Chrome's private keys are closed.";
+        }
+    }
 }
+

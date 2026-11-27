@@ -843,6 +843,22 @@ public final class SBrowserXStrings {
         return SBrowserXLocales.bannerOriginal(getAppLang());
     }
 
+    public static String getSettingsScreenTitle() {
+        return SBrowserXLocales.settingsScreenTitle(getAppLang());
+    }
+
+    public static String getTransGuideTitle() {
+        return SBrowserXLocales.transGuideTitle(getAppLang());
+    }
+
+    public static String getTransGuideBody() {
+        return SBrowserXLocales.transGuideBody(getAppLang());
+    }
+
+    public static String getTransGuideCheck() {
+        return SBrowserXLocales.transGuideCheck(getAppLang());
+    }
+
     public static String get(String key) {
         String lang = getAppLang();
         Map<String, String> map = CATALOG.get(lang);

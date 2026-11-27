@@ -3145,11 +3145,29 @@ public final class SBrowserXHooks {
             }
             Object baPref = findPref.invoke(fragment, "sbrowserx_browsing_assist");
             if (baPref != null) {
-                baPref.getClass().getMethod("setTitle", CharSequence.class)
-                        .invoke(baPref, titleWithTealDot(
-                                SBrowserXStrings.get(SBrowserXStrings.ASSIST_TITLE),
-                                SBrowserXPrefs.isFeatureNew(ctx, SBrowserXPrefs.FEATURE_GOOGLE_TRANSLATE)));
-                setAccentSummary(baPref, ctx, assistShort);
+                boolean needsGuide = !SBrowserXPrefs.isTranslateGuideAcked(ctx);
+                if (needsGuide) {
+                    int red = isBrowserNightMode(ctx) ? 0xFFFF5252 : 0xFFD32F2F;
+                    String rawTitle = SBrowserXStrings.get(SBrowserXStrings.ASSIST_TITLE) + "  !";
+                    android.text.SpannableString ts = new android.text.SpannableString(rawTitle);
+                    ts.setSpan(new android.text.style.ForegroundColorSpan(red), 0, rawTitle.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    ts.setSpan(new android.text.style.UnderlineSpan(), 0, SBrowserXStrings.get(SBrowserXStrings.ASSIST_TITLE).length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    ts.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD), rawTitle.length() - 1, rawTitle.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    baPref.getClass().getMethod("setTitle", CharSequence.class).invoke(baPref, ts);
+                    android.text.SpannableString ss = new android.text.SpannableString(assistShort);
+                    ss.setSpan(new android.text.style.ForegroundColorSpan(red), 0, assistShort.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    baPref.getClass().getMethod("setSummary", CharSequence.class).invoke(baPref, ss);
+                } else {
+                    baPref.getClass().getMethod("setTitle", CharSequence.class)
+                            .invoke(baPref, titleWithTealDot(
+                                    SBrowserXStrings.get(SBrowserXStrings.ASSIST_TITLE),
+                                    SBrowserXPrefs.isFeatureNew(ctx, SBrowserXPrefs.FEATURE_GOOGLE_TRANSLATE)));
+                    setAccentSummary(baPref, ctx, assistShort);
+                }
+            }
+
+            if (hub != null) {
+                applySBrowserXSettingsTitle(fragment);
             }
 
             String[] deadKeys = new String[] {
@@ -3166,6 +3184,40 @@ public final class SBrowserXHooks {
                     }
                 } catch (Throwable ignored2) {}
             }
+        } catch (Throwable ignored) {}
+    }
+
+    private static void applySBrowserXSettingsTitle(Object fragment) {
+        try {
+            Object actObj = fragment.getClass().getMethod("getActivity").invoke(fragment);
+            if (!(actObj instanceof Activity)) return;
+            final Activity act = (Activity) actObj;
+            final String title = SBrowserXStrings.getSettingsScreenTitle();
+            Runnable apply = () -> {
+                try {
+                    act.setTitle(title);
+                    View decor = act.getWindow() != null ? act.getWindow().getDecorView() : null;
+                    if (decor == null) return;
+                    String pkg = act.getPackageName();
+                    int collId = act.getResources().getIdentifier("collapsing_app_bar", "id", pkg);
+                    if (collId != 0) {
+                        View coll = decor.findViewById(collId);
+                        if (coll != null) {
+                            try { coll.getClass().getMethod("setTitle", CharSequence.class).invoke(coll, title); } catch (Throwable ignored) {}
+                        }
+                    }
+                    int tbId = act.getResources().getIdentifier("toolbar", "id", pkg);
+                    if (tbId != 0) {
+                        View tb = decor.findViewById(tbId);
+                        if (tb != null) {
+                            try { tb.getClass().getMethod("setTitle", CharSequence.class).invoke(tb, title); } catch (Throwable ignored) {}
+                        }
+                    }
+                } catch (Throwable ignored) {}
+            };
+            act.runOnUiThread(apply);
+            View decor = act.getWindow() != null ? act.getWindow().getDecorView() : null;
+            if (decor != null) decor.postDelayed(apply, 90L);
         } catch (Throwable ignored) {}
     }
 

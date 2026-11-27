@@ -119,6 +119,67 @@ public final class SBrowserXTranslateSettingsActivity extends Activity {
         refresh();
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        refresh();
+        showTranslateGuideDialogIfNeeded(this);
+    }
+
+    public static void showTranslateGuideDialogIfNeeded(Activity act) {
+        if (act == null || act.isFinishing() || SBrowserXPrefs.isTranslateGuideAcked(act)) return;
+        boolean night = SBrowserXHooks.isBrowserNightMode(act);
+        int theme = night ? android.R.style.Theme_DeviceDefault_Dialog_Alert
+                : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert;
+        float dens = act.getResources().getDisplayMetrics().density;
+        int padH = Math.round(24 * dens);
+        int padV = Math.round(12 * dens);
+
+        android.widget.ScrollView sv = new android.widget.ScrollView(act);
+        android.widget.LinearLayout box = new android.widget.LinearLayout(act);
+        box.setOrientation(android.widget.LinearLayout.VERTICAL);
+        box.setPadding(padH, padV, padH, Math.round(6 * dens));
+
+        android.widget.TextView tv = new android.widget.TextView(act);
+        tv.setText(SBrowserXStrings.getTransGuideBody());
+        tv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14.5f);
+        tv.setLineSpacing(Math.round(3 * dens), 1.0f);
+        tv.setTextColor(night ? 0xFFE5E7EB : 0xFF1F2937);
+        box.addView(tv);
+
+        android.widget.CheckBox cb = new android.widget.CheckBox(act);
+        cb.setText(SBrowserXStrings.getTransGuideCheck());
+        cb.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15f);
+        cb.setTextColor(night ? 0xFFF9FAFB : 0xFF111827);
+        cb.setPadding(Math.round(6 * dens), Math.round(14 * dens), 0, Math.round(6 * dens));
+        box.addView(cb);
+
+        sv.addView(box);
+
+        android.app.AlertDialog dlg = new android.app.AlertDialog.Builder(act, theme)
+                .setTitle(SBrowserXStrings.getTransGuideTitle())
+                .setView(sv)
+                .setCancelable(false)
+                .setPositiveButton(android.R.string.ok, (d, w) -> {
+                    SBrowserXPrefs.setTranslateGuideAcked(act, true);
+                })
+                .create();
+        dlg.setCanceledOnTouchOutside(false);
+        dlg.setOnShowListener(di -> {
+            android.widget.Button okBtn = dlg.getButton(android.app.AlertDialog.BUTTON_POSITIVE);
+            if (okBtn != null) {
+                okBtn.setEnabled(false);
+                okBtn.setAlpha(0.4f);
+                cb.setOnCheckedChangeListener((btn, checked) -> {
+                    okBtn.setEnabled(checked);
+                    okBtn.setAlpha(checked ? 1.0f : 0.4f);
+                });
+            }
+        });
+        dlg.show();
+    }
+
+
     private void refresh() {
         masterSwitch.setChecked(SBrowserXPrefs.isGoogleTranslateEnabled(this));
         autoSwitch.setChecked(SBrowserXPrefs.isTranslateAutoEnabled(this));

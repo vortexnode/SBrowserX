@@ -121,6 +121,7 @@ public final class SBrowserXBrowsingAssistActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        SBrowserXTranslateSettingsActivity.showTranslateGuideDialogIfNeeded(this);
         if (summaryStatusView != null) summaryStatusView.setText(getSummaryStatus());
         if (translateStatusView != null) translateStatusView.setText(getTranslateStatus());
     }
