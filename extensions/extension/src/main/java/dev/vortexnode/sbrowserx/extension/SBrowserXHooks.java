@@ -436,7 +436,7 @@ public final class SBrowserXHooks {
             return 0x00000000;
         }
         int rgb = normalizeGlassBaseRgb(0xFF000000);
-        int navAlpha = clampByte(Math.round(getGlassBaseAlpha() * 0.72f));
+        int navAlpha = clampByte(Math.round(getGlassBaseAlpha() * 1.08f));
         return withAlpha(rgb, navAlpha);
     }
 
