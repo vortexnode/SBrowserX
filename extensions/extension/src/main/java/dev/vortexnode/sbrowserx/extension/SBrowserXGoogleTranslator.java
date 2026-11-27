@@ -233,6 +233,16 @@ public final class SBrowserXGoogleTranslator {
         }
     }
 
+    public static void warmUpIfNeeded(Context ctx) {
+        if (ctx == null) return;
+        String eng = SBrowserXPrefs.getTranslateEngine(ctx);
+        if ("bing".equalsIgnoreCase(eng) || "microsoft".equalsIgnoreCase(eng)) {
+            EXECUTOR.execute(() -> {
+                try { ensureBingSession(); } catch (Throwable ignored) {}
+            });
+        }
+    }
+
     private static synchronized void ensureBingSession() throws Exception {
         long now = System.currentTimeMillis();
         if (sBingToken != null && sBingKey != null && sBingIg != null && now < sBingExpiryMs) {
@@ -289,7 +299,7 @@ public final class SBrowserXGoogleTranslator {
             while (i < items.length) {
                 String piece = items[i] != null ? items[i] : "";
                 String sep = (i == start) ? "" : "\n|||SBX" + (i - start) + "|||\n";
-                if (i > start && joined.length() + sep.length() + piece.length() > 850) break;
+                if (i > start && joined.length() + sep.length() + piece.length() > 3000) break;
                 joined.append(sep).append(piece);
                 i++;
             }

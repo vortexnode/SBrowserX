@@ -127,6 +127,7 @@ public final class SBrowserXHooks {
             SBrowserXWebRtcManager.applyToProfile(app);
             SBrowserXBackupManager.runAutoBackupIfDue(app);
             SBrowserXStartPageServer.ensureStarted(app);
+            SBrowserXGoogleTranslator.warmUpIfNeeded(app);
         } catch (Throwable t) {
             Log.e(TAG, "onApplicationCreate failed", t);
         }

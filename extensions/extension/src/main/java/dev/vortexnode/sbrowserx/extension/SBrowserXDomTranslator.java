@@ -68,7 +68,7 @@ public final class SBrowserXDomTranslator {
             + "  var all=document.querySelectorAll('h1,h2,h3,h4,h5,h6,p,li,blockquote,figcaption,dt,dd,td,th,a,button,label,div,span');"
             + "  var vis=[],rest=[],seen=new Set();"
             + "  var vh=window.innerHeight||800;"
-            + "  for(var i=0;i<all.length&&(vis.length+rest.length)<260;i++){"
+            + "  for(var i=0;i<all.length&&(vis.length+rest.length)<360;i++){"
             + "    var el=all[i];"
             + "    if(skip[el.tagName]||el.closest('script,style,code,pre,noscript,svg'))continue;"
             + "    if(hasBlockChild(el))continue;"
@@ -209,7 +209,7 @@ public final class SBrowserXDomTranslator {
     }
 
     public static void maybeAutoTranslateActivity(Activity targetActivity, boolean showChromeBanner) {
-        maybeAutoTranslateActivityInternal(targetActivity, showChromeBanner, 450L, 2);
+        maybeAutoTranslateActivityInternal(targetActivity, showChromeBanner, 650L, 3);
     }
 
     private static void maybeAutoTranslateActivityInternal(
@@ -244,10 +244,10 @@ public final class SBrowserXDomTranslator {
                         String pageLang = SBrowserXGoogleTranslator.normalizeLang(obj.optString("lang", ""));
                         String sample = obj.optString("sample", "");
 
-                        // SPA / lazy-loaded pages may have empty body at 450ms -> retry at 1200ms then 2400ms
-                        if (sample.length() < 15) {
+                        // Dynamic SPA / news feeds (Google News, Reuters) may still be hydrating -> retry cleanly
+                        if (sample.length() < 40) {
                             if (retriesLeft > 0) {
-                                long nextDelay = (retriesLeft == 2) ? 1200L : 2400L;
+                                long nextDelay = (retriesLeft == 3) ? 1200L : ((retriesLeft == 2) ? 2200L : 3500L);
                                 maybeAutoTranslateActivityInternal(act, showChromeBanner, nextDelay, retriesLeft - 1);
                             }
                             return;

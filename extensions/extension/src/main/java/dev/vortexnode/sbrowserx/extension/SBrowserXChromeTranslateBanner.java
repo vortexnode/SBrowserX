@@ -457,12 +457,14 @@ public final class SBrowserXChromeTranslateBanner {
                 : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert;
         String[] labels = new String[] {
                 "Google Translate (Chrome NMT)",
-                "Microsoft Translator (Edge NMT)",
+                "Bing Translator (Web NMT)",
+                "Yandex Translate (Web NMT)",
                 "DeepL API (Free / Pro)",
-                "Gemini Flash (AI)"
+                "Gemini 3.5 Flash-Lite (AI)"
         };
-        String[] values = new String[] {"google", "microsoft", "deepl", "gemini"};
+        String[] values = new String[] {"google", "bing", "yandex", "deepl", "gemini"};
         String cur = SBrowserXPrefs.getTranslateEngine(activity);
+        if ("microsoft".equalsIgnoreCase(cur)) cur = "bing";
         int sel = 0;
         for (int i = 0; i < values.length; i++) {
             if (values[i].equalsIgnoreCase(cur)) sel = i;
