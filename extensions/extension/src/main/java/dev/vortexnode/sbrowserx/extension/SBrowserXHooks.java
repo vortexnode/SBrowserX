@@ -3868,4 +3868,145 @@ public final class SBrowserXHooks {
         }
         return false;
     }
+
+    /**
+     * Hooked at entry of ToolbarEventHandler.performToolbarButtonLongClick(I)Z.
+     * When enabled in SBrowserX Settings, long-pressing the Home button (~500 ms):
+     * 1. Closes all background tabs in the current mode (normal or secret).
+     * 2. Navigates to or reloads the active Start Page / Homepage, whether the user
+     *    was on a website or already on the Start Page.
+     */
+    public static boolean onToolbarButtonLongClick(Object handler, int menuId) {
+        if (handler == null || menuId == 0) return false;
+        try {
+            Context ctx = null;
+            Activity activity = null;
+            try {
+                Field fAct = handler.getClass().getDeclaredField("mActivity");
+                fAct.setAccessible(true);
+                Object a = fAct.get(handler);
+                if (a instanceof Activity) {
+                    activity = (Activity) a;
+                    ctx = activity;
+                }
+            } catch (Throwable ignored) {}
+            if (ctx == null) {
+                try {
+                    Field fCtx = handler.getClass().getDeclaredField("mContext");
+                    fCtx.setAccessible(true);
+                    Object c = fCtx.get(handler);
+                    if (c instanceof Context) ctx = (Context) c;
+                } catch (Throwable ignored) {}
+            }
+            if (ctx == null) ctx = sAppContext;
+            if (ctx == null) return false;
+
+            if (!SBrowserXPrefs.isHomeLongPressCloseBgEnabled(ctx)) {
+                return false;
+            }
+
+            int actionHomeId = ctx.getResources().getIdentifier("action_home", "id", ctx.getPackageName());
+            if (actionHomeId == 0 || menuId != actionHomeId) {
+                return false;
+            }
+
+            // Subtle haptic feedback on the window decor view
+            if (activity != null && activity.getWindow() != null) {
+                try {
+                    View decor = activity.getWindow().getDecorView();
+                    if (decor != null) {
+                        decor.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+                    }
+                } catch (Throwable ignored) {}
+            }
+
+            Field fMain = handler.getClass().getDeclaredField("mMainViewInterface");
+            fMain.setAccessible(true);
+            Object mainView = fMain.get(handler);
+            if (mainView == null) return false;
+
+            try {
+                mainView.getClass().getMethod("clearFocusUrlBar").invoke(mainView);
+            } catch (Throwable ignored) {}
+
+            int closedBgTabs = 0;
+            boolean wasAlreadyStartPage = false;
+            Object currentTab = null;
+
+            try {
+                Object tabManager = mainView.getClass().getMethod("getTabManager").invoke(mainView);
+                if (tabManager != null) {
+                    currentTab = tabManager.getClass().getMethod("getCurrentTab").invoke(tabManager);
+                    if (currentTab != null) {
+                        int tabId = ((Integer) currentTab.getClass().getMethod("getTabId").invoke(currentTab)).intValue();
+                        boolean isIncognito = ((Boolean) currentTab.getClass().getMethod("isIncognito").invoke(currentTab)).booleanValue();
+
+                        try {
+                            Object listObj = tabManager.getClass().getMethod("getTabList", boolean.class).invoke(tabManager, isIncognito);
+                            if (listObj instanceof java.util.List<?>) {
+                                int total = ((java.util.List<?>) listObj).size();
+                                if (total > 1) {
+                                    closedBgTabs = total - 1;
+                                }
+                            }
+                        } catch (Throwable ignored) {}
+
+                        try {
+                            boolean isNative = ((Boolean) currentTab.getClass().getMethod("isNativePage").invoke(currentTab)).booleanValue();
+                            String curUrl = null;
+                            try {
+                                Object u = currentTab.getClass().getMethod("getUrl").invoke(currentTab);
+                                if (u instanceof String) curUrl = (String) u;
+                            } catch (Throwable ignored) {}
+                            wasAlreadyStartPage = isNative
+                                    || (curUrl != null && (curUrl.startsWith("http://127.0.0.1:")
+                                            || curUrl.startsWith("internet-native://")));
+                        } catch (Throwable ignored) {}
+
+                        if (closedBgTabs > 0) {
+                            tabManager.getClass()
+                                    .getMethod("closeOtherTabs", int.class, boolean.class)
+                                    .invoke(tabManager, tabId, isIncognito);
+                        }
+                    }
+                }
+            } catch (Throwable t) {
+                Log.w(TAG, "onToolbarButtonLongClick: closeOtherTabs error", t);
+            }
+
+            // Open or reload Start Page regardless of whether user was on a webpage or already on Start Page
+            try {
+                mainView.getClass().getMethod("loadHomePage").invoke(mainView);
+            } catch (Throwable t) {
+                Log.w(TAG, "onToolbarButtonLongClick: loadHomePage error", t);
+            }
+
+            if (wasAlreadyStartPage && currentTab != null) {
+                try {
+                    boolean isNativeNow = ((Boolean) currentTab.getClass().getMethod("isNativePage").invoke(currentTab)).booleanValue();
+                    if (isNativeNow) {
+                        Object nativePage = currentTab.getClass().getMethod("getNativePage").invoke(currentTab);
+                        if (nativePage != null) {
+                            nativePage.getClass().getMethod("reload").invoke(nativePage);
+                        }
+                    } else {
+                        currentTab.getClass().getMethod("reload").invoke(currentTab);
+                    }
+                } catch (Throwable ignored) {}
+            }
+
+            try {
+                String msg = closedBgTabs > 0
+                        ? String.format(java.util.Locale.getDefault(),
+                                SBrowserXStrings.get(SBrowserXStrings.HOME_LONG_PRESS_TOAST_CLOSED), closedBgTabs)
+                        : SBrowserXStrings.get(SBrowserXStrings.HOME_LONG_PRESS_TOAST_RELOADED);
+                Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show();
+            } catch (Throwable ignored) {}
+
+            return true;
+        } catch (Throwable t) {
+            Log.e(TAG, "onToolbarButtonLongClick failed", t);
+            return false;
+        }
+    }
 }

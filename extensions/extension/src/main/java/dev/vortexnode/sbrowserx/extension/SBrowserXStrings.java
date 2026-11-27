@@ -86,6 +86,10 @@ public final class SBrowserXStrings {
     public static final String DARK_FORCE_LIGHT_SUMMARY = "dark_force_light_summary";
     public static final String LAYOUT_TRANSPARENCY_TITLE = "layout_transparency_title";
     public static final String COMPACT_AI_BTN_TITLE = "compact_ai_btn_title";
+    public static final String HOME_LONG_PRESS_TITLE = "home_long_press_title";
+    public static final String HOME_LONG_PRESS_SUMMARY = "home_long_press_summary";
+    public static final String HOME_LONG_PRESS_TOAST_CLOSED = "home_long_press_toast_closed";
+    public static final String HOME_LONG_PRESS_TOAST_RELOADED = "home_long_press_toast_reloaded";
     public static final String UNLIMITED_TABS_TITLE = "unlimited_tabs_title";
     public static final String UNLIMITED_TABS_SUMMARY = "unlimited_tabs_summary";
     public static final String EXT_MANAGE_TITLE = "ext_manage_title";
@@ -551,7 +555,11 @@ public final class SBrowserXStrings {
         putOne("en", SYNC_BACKUP_SUMMARY, "Local scheduled backup & Google Drive");
         putOne("en", BACKUP_CAT_LOCAL, "Local backup");
         putOne("en", BACKUP_EXPORT_LOCAL, "Create backup file");
-        putOne("en", BACKUP_EXPORT_LOCAL_SUM, "Save all SBrowserX settings to a JSON file on device");
+        putOne("en", BACKUP_EXPORT_LOCAL_SUM, "Save all SBrowserX & Samsung Internet settings (toolbar, More menu, address bar), bookmarks, and Start Page to a JSON file");
+        putOne("en", HOME_LONG_PRESS_TITLE, "Long-press Home closes background tabs");
+        putOne("en", HOME_LONG_PRESS_SUMMARY, "Holding the Home button (~500 ms) closes all background tabs and opens or reloads the Start Page, whether you are on a website or already on the Start Page");
+        putOne("en", HOME_LONG_PRESS_TOAST_CLOSED, "Closed %d background tab(s)");
+        putOne("en", HOME_LONG_PRESS_TOAST_RELOADED, "Start Page reloaded");
         putOne("en", BACKUP_IMPORT_LOCAL, "Restore from file");
         putOne("en", BACKUP_IMPORT_LOCAL_SUM, "Load SBrowserX settings from a local JSON backup");
         putOne("en", BACKUP_FOLDER_TITLE, "Auto-backup folder");
@@ -656,7 +664,11 @@ public final class SBrowserXStrings {
         putOne("ru", SYNC_BACKUP_SUMMARY, "Локальный бэкап по расписанию и Google Диск");
         putOne("ru", BACKUP_CAT_LOCAL, "Локальное резервное копирование");
         putOne("ru", BACKUP_EXPORT_LOCAL, "Создать резервную копию");
-        putOne("ru", BACKUP_EXPORT_LOCAL_SUM, "Сохранить все настройки SBrowserX в JSON-файл на телефон");
+        putOne("ru", BACKUP_EXPORT_LOCAL_SUM, "Сохранить абсолютно все настройки SBrowserX и Samsung Internet (панель инструментов, меню, адресную строку), закладки и стартовую страницу в JSON");
+        putOne("ru", HOME_LONG_PRESS_TITLE, "Долгий тап по «Домой» — закрыть фоновые вкладки");
+        putOne("ru", HOME_LONG_PRESS_SUMMARY, "Удержание кнопки «Домой» (~500 мс) закрывает все фоновые вкладки и открывает или перезагружает стартовую страницу — независимо от того, открыт сейчас сайт или стартовая страница");
+        putOne("ru", HOME_LONG_PRESS_TOAST_CLOSED, "Закрыто фоновых вкладок: %d");
+        putOne("ru", HOME_LONG_PRESS_TOAST_RELOADED, "Стартовая страница обновлена");
         putOne("ru", BACKUP_IMPORT_LOCAL, "Восстановить из файла");
         putOne("ru", BACKUP_IMPORT_LOCAL_SUM, "Загрузить настройки SBrowserX из локальной копии");
         putOne("ru", BACKUP_FOLDER_TITLE, "Папка для автобэкапа");

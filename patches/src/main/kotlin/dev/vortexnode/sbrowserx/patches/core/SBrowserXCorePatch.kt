@@ -668,5 +668,25 @@ val sbrowserXCorePatch = bytecodePatch(
                 nop
             """.trimIndent(),
         )
+
+        // Optional long-press on Home button: close all background tabs & open/reload Start Page.
+        // ToolbarEventHandler.performToolbarButtonLongClick(I)Z (.locals 7 -> v0 free)
+        findMethodOrThrow(
+            classType = "Lcom/sec/android/app/sbrowser/main_view/toolbar/ToolbarEventHandler;",
+            methodName = "performToolbarButtonLongClick",
+            parameterTypes = listOf("I"),
+            returnType = "Z",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {p0, p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onToolbarButtonLongClick(Ljava/lang/Object;I)Z
+                move-result v0
+                if-eqz v0, :sbrowserx_orig_toolbar_long_click
+                const/4 v0, 0x1
+                return v0
+                :sbrowserx_orig_toolbar_long_click
+                nop
+            """.trimIndent(),
+        )
     }
 }

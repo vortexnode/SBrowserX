@@ -267,6 +267,11 @@ public final class SBrowserXSettingsActivity extends Activity {
         if (!isCompactLayout && compactBtnSummaryView != null && compactBtnSummaryView.getParent() instanceof View) {
             ((View) compactBtnSummaryView.getParent()).setAlpha(0.42f);
         }
+        appearanceCard.addView(divider(night));
+        addSwitchRow(appearanceCard, SBrowserXStrings.get(SBrowserXStrings.HOME_LONG_PRESS_TITLE),
+                SBrowserXStrings.get(SBrowserXStrings.HOME_LONG_PRESS_SUMMARY),
+                SBrowserXPrefs.isHomeLongPressCloseBgEnabled(this), night, textPrimary, textSecondary, null,
+                (btn, checked) -> SBrowserXPrefs.setHomeLongPressCloseBgEnabled(this, checked));
         root.addView(appearanceCard);
 
         // --- New Features Highlight ---

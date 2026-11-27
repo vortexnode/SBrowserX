@@ -62,12 +62,18 @@ private val EXACT_AUTHORITY_SUFFIXES = setOf(
     "mlkitinitprovider",
 )
 
+private const val ICON_SBROWSERX = "sbrowserx"
+private const val ICON_ORIGINAL = "original"
+
 internal object SBrowserPackageRenameTarget {
     @Volatile
     var packageName: String = SBROWSER_DEFAULT_PATCHED_PACKAGE_NAME
 
     @Volatile
     var appName: String = SBROWSER_DEFAULT_APP_NAME
+
+    @Volatile
+    var useCustomIcon: Boolean = true
 }
 
 internal val changePackageAndAppNameResourcePatch = resourcePatch(
@@ -94,13 +100,16 @@ internal val changePackageAndAppNameResourcePatch = resourcePatch(
         }
 
         // Apply custom SBrowserX launcher icon ("X" badge) across all densities + monochrome theme
-        val iconClassLoader = SBrowserPackageRenameTarget::class.java.classLoader
-        for (density in listOf("mdpi", "xhdpi", "xxhdpi")) {
-            for (fileName in listOf("internet_foreground.webp", "internet_color_theme.webp")) {
-                val targetFile = get("res/drawable-$density/$fileName")
-                if (targetFile.exists()) {
-                    iconClassLoader.getResourceAsStream("sbrowserx/icon/drawable-$density/$fileName")?.use { input ->
-                        targetFile.outputStream().use { output -> input.copyTo(output) }
+        // unless the user chose the original Samsung Internet icon in patch options.
+        if (SBrowserPackageRenameTarget.useCustomIcon) {
+            val iconClassLoader = SBrowserPackageRenameTarget::class.java.classLoader
+            for (density in listOf("mdpi", "xhdpi", "xxhdpi")) {
+                for (fileName in listOf("internet_foreground.webp", "internet_color_theme.webp")) {
+                    val targetFile = get("res/drawable-$density/$fileName")
+                    if (targetFile.exists()) {
+                        iconClassLoader.getResourceAsStream("sbrowserx/icon/drawable-$density/$fileName")?.use { input ->
+                            targetFile.outputStream().use { output -> input.copyTo(output) }
+                        }
                     }
                 }
             }
@@ -111,7 +120,7 @@ internal val changePackageAndAppNameResourcePatch = resourcePatch(
 @Suppress("unused")
 val changePackageAndAppNamePatch = bytecodePatch(
     name = "Change package and app name",
-    description = "Changes the package name, custom permissions, provider authorities, internal content:// URIs, UriMatcher rules, and app display name so SBrowserX runs cleanly alongside stock Samsung Internet.",
+    description = "Changes the package name, custom permissions, provider authorities, internal content:// URIs, UriMatcher rules, app display name, and launcher icon (SBrowserX X logo or original Samsung Internet icon) so SBrowserX runs cleanly alongside stock Samsung Internet.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_SBROWSER)
@@ -146,9 +155,25 @@ val changePackageAndAppNamePatch = bytecodePatch(
         !value.isNullOrBlank()
     }
 
+    val targetAppIcon = stringOption(
+        key = "app_icon",
+        default = ICON_SBROWSERX,
+        values = linkedMapOf(
+            "SBrowserX (X logo)" to ICON_SBROWSERX,
+            "Original Samsung Internet" to ICON_ORIGINAL,
+        ),
+        title = "App icon",
+        description = "Choose between the SBrowserX icon with the X logo (default) or the original Samsung Internet icon.",
+        required = true,
+    ) { value ->
+        val trimmed = value?.trim()
+        trimmed == ICON_SBROWSERX || trimmed == ICON_ORIGINAL
+    }
+
     execute {
         val newPackage = checkNotNull(targetPackageName.value).trim()
         val newAppName = checkNotNull(targetAppName.value).trim()
+        val selectedIcon = checkNotNull(targetAppIcon.value).trim()
         require(PACKAGE_NAME_REGEX.matches(newPackage)) {
             "Invalid package name: '$newPackage'"
         }
@@ -158,6 +183,7 @@ val changePackageAndAppNamePatch = bytecodePatch(
 
         SBrowserPackageRenameTarget.packageName = newPackage
         SBrowserPackageRenameTarget.appName = newAppName
+        SBrowserPackageRenameTarget.useCustomIcon = (selectedIcon != ICON_ORIGINAL)
 
         if (newPackage == SBROWSER_PACKAGE_NAME) return@execute
 
