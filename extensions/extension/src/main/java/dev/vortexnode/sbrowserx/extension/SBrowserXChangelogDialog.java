@@ -1,27 +1,29 @@
 package dev.vortexnode.sbrowserx.extension;
 
 import android.app.Activity;
-import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.res.ColorStateList;
+import android.graphics.RenderEffect;
+import android.graphics.Shader;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
-import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
 /**
- * Samsung One UI-style "What's New" dialog displayed once on first launch after updating SBrowserX.
+ * Refined One UI frosted-glass "What's New" dialog displayed once on first launch after updating SBrowserX.
  */
 public final class SBrowserXChangelogDialog {
     public static final String CURRENT_VERSION = "1.3.7";
-    private static final String ACK_KEY_VERSION = "1.3.7-b16";
+    private static final String ACK_KEY_VERSION = "1.3.7-b17";
     private static volatile boolean sShowing = false;
 
     private SBrowserXChangelogDialog() {}
@@ -32,27 +34,40 @@ public final class SBrowserXChangelogDialog {
         if (ACK_KEY_VERSION.equals(seen)) return;
         sShowing = true;
         try {
-            boolean night = SBrowserXHooks.isBrowserNightMode(act);
-            int theme = night ? android.R.style.Theme_DeviceDefault_Dialog_Alert
-                    : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert;
-            float d = act.getResources().getDisplayMetrics().density;
-            int oneUiBlue = night ? 0xFF3E82F7 : 0xFF0381FE;
-            int uncheckedCol = night ? 0xFF6B7280 : 0xFF9CA3AF;
-            int cardBg = night ? 0xFF1C1C21 : 0xFFF3F4F6;
-            int textPrimary = night ? 0xFFF5F5F7 : 0xFF141416;
-            int textSecondary = night ? 0xFFD1D5DB : 0xFF374151;
+            final boolean night = SBrowserXHooks.isBrowserNightMode(act);
+            final float d = act.getResources().getDisplayMetrics().density;
+            final int oneUiBlue = night ? 0xFF3E82F7 : 0xFF0381FE;
+            final int uncheckedCol = night ? 0xFF7B8190 : 0xFF9CA3AF;
+            final int dialogGlassBg = night ? 0xDD151821 : 0xEBFAFBFD;
+            final int dialogBorder = night ? 0x2AFFFFFF : 0x1A000000;
+            final int cardBg = night ? 0x5A262B38 : 0xCCFFFFFF;
+            final int cardBorder = night ? 0x1CFFFFFF : 0x14000000;
+            final int promoBg = night ? 0x382563EB : 0x160381FE;
+            final int promoBorder = night ? 0x883E82F7 : 0x660381FE;
+            final int textPrimary = night ? 0xFFF8FAFC : 0xFF111827;
+            final int textSecondary = night ? 0xFFD8DEE9 : 0xFF374151;
 
             String lang = SBrowserXStrings.getAppLang();
             boolean ru = "ru".equals(lang);
             boolean uk = "uk".equals(lang);
 
-            String title = ru ? "Что нового в SBrowserX " + CURRENT_VERSION
-                    : (uk ? "Що нового в SBrowserX " + CURRENT_VERSION
-                    : "What's New in SBrowserX " + CURRENT_VERSION);
+            String title = ru ? "Что нового в SBrowserX"
+                    : (uk ? "Що нового в SBrowserX"
+                    : "What's New in SBrowserX");
+            String hPromo = ru ? "★ Рекомендация: подключите Gemini API"
+                    : (uk ? "★ Рекомендація: підключіть Gemini API"
+                    : "★ Tip: Connect Free Gemini API");
+            String promoBody = ru
+                    ? "Настоятельно рекомендуем открыть «Настройки → Ассистент по просмотру», создать бесплатный ключ Gemini API в Google AI Studio, вставить его в поле ключа и выбрать Gemini 3.5 Flash-Lite основным движком переводчика. Это даст самый быстрый и точный перевод с пониманием контекста и сразу включит ИИ-сводку страниц."
+                    : (uk
+                    ? "Наполегливо рекомендуємо відкрити «Налаштування → Асистент перегляду», створити безкоштовний ключ Gemini API в Google AI Studio, вставити його в поле ключа та вибрати Gemini 3.5 Flash-Lite основним перекладачем. Це дасть найшвидший і найточніший переклад із розумінням контексту та одразу ввімкне ШІ-зведення сторінок."
+                    : "We strongly recommend opening Settings → Browsing Assist, creating a free Gemini API key in Google AI Studio, pasting it into the API key field, and selecting Gemini 3.5 Flash-Lite as your primary translator. You'll get fast, context-aware translation plus AI Page Summary.");
+
             String hAdded = ru ? "Что добавлено" : (uk ? "Що додано" : "What's new");
             String hImproved = ru ? "Что улучшено и исправлено" : (uk ? "Що покращено та виправлено" : "Improved & fixed");
             String hRemoved = ru ? "Что удалено и защищено" : (uk ? "Що видалено та захищено" : "Removed & protected");
             String cbText = ru ? "Спасибо, всё понятно" : (uk ? "Дякую, все зрозуміло" : "Thanks, got it");
+            String okText = "OK";
 
             String addedBody = ru
                     ? "• Новые движки перевода: Bing (по умолчанию), Яндекс, DeepL API и Gemini 3.5 Flash-Lite (AI).\n"
@@ -99,87 +114,161 @@ public final class SBrowserXChangelogDialog {
                     + "• Blocked incompatible Manifest V2 (.crx/.zip) installs with a clear One UI warning dialog.\n"
                     + "• Removed the deprecated Microsoft Edge translator endpoint (HTTP 404).");
 
-            LinearLayout container = new LinearLayout(act);
-            container.setOrientation(LinearLayout.VERTICAL);
-            container.setPadding(dp(d, 20), dp(d, 10), dp(d, 20), dp(d, 6));
+            // Root frosted-glass One UI sheet
+            LinearLayout root = new LinearLayout(act);
+            root.setOrientation(LinearLayout.VERTICAL);
+            GradientDrawable rootBg = new GradientDrawable();
+            rootBg.setColor(dialogGlassBg);
+            rootBg.setCornerRadius(dp(d, 28));
+            rootBg.setStroke(Math.max(1, dp(d, 1)), dialogBorder);
+            root.setBackground(rootBg);
+            root.setPadding(dp(d, 20), dp(d, 20), dp(d, 20), dp(d, 16));
 
+            // Header row with title + version pill
+            LinearLayout headerRow = new LinearLayout(act);
+            headerRow.setOrientation(LinearLayout.HORIZONTAL);
+            headerRow.setGravity(Gravity.CENTER_VERTICAL);
+            headerRow.setPadding(dp(d, 4), 0, dp(d, 4), dp(d, 14));
+
+            TextView tvTitle = new TextView(act);
+            tvTitle.setText(title);
+            tvTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 19.5f);
+            tvTitle.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+            tvTitle.setTextColor(textPrimary);
+            headerRow.addView(tvTitle, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+            TextView badge = new TextView(act);
+            badge.setText("v" + CURRENT_VERSION);
+            badge.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f);
+            badge.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+            badge.setTextColor(0xFFFFFFFF);
+            GradientDrawable badgeBg = new GradientDrawable();
+            badgeBg.setColor(oneUiBlue);
+            badgeBg.setCornerRadius(dp(d, 12));
+            badge.setBackground(badgeBg);
+            badge.setPadding(dp(d, 10), dp(d, 4), dp(d, 10), dp(d, 4));
+            headerRow.addView(badge);
+            root.addView(headerRow);
+
+            // Scrollable cards area
             ScrollView sv = new ScrollView(act);
             sv.setVerticalScrollBarEnabled(false);
             sv.setOverScrollMode(View.OVER_SCROLL_NEVER);
             LinearLayout cards = new LinearLayout(act);
             cards.setOrientation(LinearLayout.VERTICAL);
 
-            cards.addView(buildSectionCard(act, d, cardBg, night ? 0xFF34D399 : 0xFF059669, textSecondary, hAdded, addedBody));
-            cards.addView(buildSectionCard(act, d, cardBg, oneUiBlue, textSecondary, hImproved, improvedBody));
-            cards.addView(buildSectionCard(act, d, cardBg, night ? 0xFFF87171 : 0xFFDC2626, textSecondary, hRemoved, removedBody));
+            // Separate highlighted Gemini API recommendation card at the top
+            cards.addView(buildSectionCard(act, d, promoBg, promoBorder,
+                    night ? 0xFF60A5FA : 0xFF0381FE, textPrimary, hPromo, promoBody, Math.max(2, dp(d, 1))));
+            cards.addView(buildSectionCard(act, d, cardBg, cardBorder,
+                    night ? 0xFF34D399 : 0xFF059669, textSecondary, hAdded, addedBody, 1));
+            cards.addView(buildSectionCard(act, d, cardBg, cardBorder,
+                    oneUiBlue, textSecondary, hImproved, improvedBody, 1));
+            cards.addView(buildSectionCard(act, d, cardBg, cardBorder,
+                    night ? 0xFFF87171 : 0xFFDC2626, textSecondary, hRemoved, removedBody, 1));
 
             sv.addView(cards);
+            int maxScrollH = Math.round(act.getResources().getDisplayMetrics().heightPixels * 0.56f);
             LinearLayout.LayoutParams svLp = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f);
-            container.addView(sv, svLp);
+                    LinearLayout.LayoutParams.MATCH_PARENT, maxScrollH);
+            root.addView(sv, svLp);
 
+            // One UI Blue Checkbox
             ColorStateList cbTint = new ColorStateList(
                     new int[][] { new int[] { android.R.attr.state_checked }, new int[] {} },
                     new int[] { oneUiBlue, uncheckedCol });
             CheckBox cb = new CheckBox(act);
             cb.setText(cbText);
-            cb.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f);
+            cb.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15.5f);
             cb.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
             cb.setTextColor(textPrimary);
             cb.setButtonTintList(cbTint);
-            cb.setPadding(dp(d, 8), dp(d, 14), 0, dp(d, 6));
-            container.addView(cb);
+            cb.setPadding(dp(d, 6), dp(d, 12), 0, dp(d, 10));
+            root.addView(cb);
 
-            AlertDialog dlg = new AlertDialog.Builder(act, theme)
-                    .setTitle(title)
-                    .setView(container)
-                    .setCancelable(false)
-                    .setPositiveButton(android.R.string.ok, (di, w) -> {
-                        SBrowserXPrefs.setLastSeenChangelogVersion(act, ACK_KEY_VERSION);
-                        sShowing = false;
-                    })
-                    .create();
+            // Pill-shaped One UI OK button
+            TextView okBtn = new TextView(act);
+            okBtn.setText(okText);
+            okBtn.setGravity(Gravity.CENTER);
+            okBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f);
+            okBtn.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+            okBtn.setPadding(0, dp(d, 12), 0, dp(d, 12));
+            final GradientDrawable okBg = new GradientDrawable();
+            okBg.setCornerRadius(dp(d, 22));
+            okBg.setColor(night ? 0x336B7280 : 0x269CA3AF);
+            okBtn.setBackground(okBg);
+            okBtn.setTextColor(uncheckedCol);
+            okBtn.setEnabled(false);
+            LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            btnLp.topMargin = dp(d, 2);
+            root.addView(okBtn, btnLp);
+
+            final Dialog dlg = new Dialog(act);
+            dlg.requestWindowFeature(Window.FEATURE_NO_TITLE);
+            dlg.setContentView(root);
+            dlg.setCancelable(false);
             dlg.setCanceledOnTouchOutside(false);
-            dlg.setOnDismissListener(di -> sShowing = false);
-            dlg.setOnShowListener(di -> {
-                Button okBtn = dlg.getButton(AlertDialog.BUTTON_POSITIVE);
-                if (okBtn != null) {
-                    okBtn.setEnabled(false);
-                    okBtn.setAlpha(0.4f);
-                    okBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f);
-                    cb.setOnCheckedChangeListener((btn, checked) -> {
-                        okBtn.setEnabled(checked);
-                        okBtn.setAlpha(checked ? 1.0f : 0.4f);
-                        okBtn.setTextColor(checked ? oneUiBlue : uncheckedCol);
-                    });
+
+            final View activityDecor = act.getWindow() != null ? act.getWindow().getDecorView() : null;
+            if (Build.VERSION.SDK_INT >= 31 && activityDecor != null) {
+                try {
+                    activityDecor.setRenderEffect(RenderEffect.createBlurEffect(20f, 20f, Shader.TileMode.CLAMP));
+                } catch (Throwable ignored) {}
+            }
+
+            Window win = dlg.getWindow();
+            if (win != null) {
+                win.setBackgroundDrawableResource(android.R.color.transparent);
+                if (Build.VERSION.SDK_INT >= 31) {
+                    win.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
                 }
-                Window win = dlg.getWindow();
-                if (win != null) {
-                    WindowManager.LayoutParams lp = win.getAttributes();
-                    lp.width = Math.round(act.getResources().getDisplayMetrics().widthPixels * 0.92f);
-                    lp.dimAmount = night ? 0.58f : 0.38f;
-                    if (android.os.Build.VERSION.SDK_INT >= 31) {
-                        win.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
-                        lp.setBlurBehindRadius(48);
-                    }
-                    win.setAttributes(lp);
+                WindowManager.LayoutParams lp = win.getAttributes();
+                lp.width = Math.round(act.getResources().getDisplayMetrics().widthPixels * 0.92f);
+                lp.height = WindowManager.LayoutParams.WRAP_CONTENT;
+                lp.dimAmount = night ? 0.42f : 0.28f;
+                if (Build.VERSION.SDK_INT >= 31) {
+                    try { lp.setBlurBehindRadius(36); } catch (Throwable ignored) {}
+                }
+                win.setAttributes(lp);
+            }
+
+            cb.setOnCheckedChangeListener((btn, checked) -> {
+                okBtn.setEnabled(checked);
+                okBg.setColor(checked ? oneUiBlue : (night ? 0x336B7280 : 0x269CA3AF));
+                okBtn.setTextColor(checked ? 0xFFFFFFFF : uncheckedCol);
+            });
+
+            okBtn.setOnClickListener(v -> {
+                SBrowserXPrefs.setLastSeenChangelogVersion(act, ACK_KEY_VERSION);
+                dlg.dismiss();
+            });
+
+            dlg.setOnDismissListener(di -> {
+                sShowing = false;
+                if (Build.VERSION.SDK_INT >= 31 && activityDecor != null) {
+                    try { activityDecor.setRenderEffect(null); } catch (Throwable ignored) {}
                 }
             });
+
             dlg.show();
         } catch (Throwable t) {
             sShowing = false;
         }
     }
 
-    private static View buildSectionCard(Activity act, float d, int bgColor, int headerColor, int bodyColor, String header, String body) {
+    private static View buildSectionCard(
+            Activity act, float d, int bgColor, int strokeColor, int headerColor,
+            int bodyColor, String header, String body, int strokePx
+    ) {
         LinearLayout card = new LinearLayout(act);
         card.setOrientation(LinearLayout.VERTICAL);
         GradientDrawable gd = new GradientDrawable();
         gd.setColor(bgColor);
-        gd.setCornerRadius(dp(d, 22));
-        gd.setStroke(1, bgColor == 0xFF1C1C21 ? 0x1AFFFFFF : 0x14000000);
+        gd.setCornerRadius(dp(d, 20));
+        gd.setStroke(strokePx, strokeColor);
         card.setBackground(gd);
-        card.setPadding(dp(d, 18), dp(d, 15), dp(d, 18), dp(d, 15));
+        card.setPadding(dp(d, 16), dp(d, 14), dp(d, 16), dp(d, 14));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         lp.bottomMargin = dp(d, 10);
@@ -187,7 +276,7 @@ public final class SBrowserXChangelogDialog {
 
         TextView tvH = new TextView(act);
         tvH.setText(header);
-        tvH.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15.5f);
+        tvH.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15.2f);
         tvH.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
         tvH.setTextColor(headerColor);
         tvH.setPadding(0, 0, 0, dp(d, 6));
@@ -195,7 +284,7 @@ public final class SBrowserXChangelogDialog {
 
         TextView tvB = new TextView(act);
         tvB.setText(body);
-        tvB.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14.8f);
+        tvB.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14.5f);
         tvB.setLineSpacing(dp(d, 3), 1.04f);
         tvB.setTextColor(bodyColor);
         card.addView(tvB);
