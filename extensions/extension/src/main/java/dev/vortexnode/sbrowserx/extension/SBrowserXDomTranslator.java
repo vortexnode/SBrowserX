@@ -309,7 +309,7 @@ public final class SBrowserXDomTranslator {
         String js = "(function(start,arr){"
                 + "if(!window.__sbxBlocks)return;"
                 + "function rebuild(parent,html,saved){"
-                + "  html=html.replace(/<\/a>\s+([,.;:!?])/g,'</a>$1').replace(/\s+([,.;:!?])(\s|$)/g,'$1$2');"
+                + "  html=html.replace(/<\\/a>\\s+([,.;:!?])/g,'</a>$1').replace(/\\s+([,.;:!?])(\\s|$)/g,'$1$2');"
                 + "  var tmp=document.createElement('div');tmp.innerHTML=html;"
                 + "  var frag=document.createDocumentFragment();"
                 + "  function walk(src,dst){"
