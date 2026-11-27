@@ -501,13 +501,13 @@ public final class SBrowserXBackupManager {
 
         final boolean localOn = SBrowserXPrefs.isLocalAutoBackupEnabled(appCtx);
         final String localUriStr = SBrowserXPrefs.getLocalBackupTreeUri(appCtx);
-        final long localInterval = intervalMillis(SBrowserXPrefs.getLocalBackupInterval(appCtx));
+        final long localInterval = intervalMillis(SBrowserXPrefs.getLocalAutoBackupInterval(appCtx));
         final boolean localDue = localOn && !localUriStr.isEmpty()
                 && (now - SBrowserXPrefs.getLocalBackupLastTs(appCtx) >= localInterval);
 
         final boolean driveOn = SBrowserXPrefs.isDriveAutoBackupEnabled(appCtx);
         final String driveUriStr = SBrowserXPrefs.getDriveBackupTreeUri(appCtx);
-        final long driveInterval = intervalMillis(SBrowserXPrefs.getDriveBackupInterval(appCtx));
+        final long driveInterval = intervalMillis(SBrowserXPrefs.getDriveAutoBackupInterval(appCtx));
         final boolean driveDue = driveOn && !driveUriStr.isEmpty()
                 && (now - SBrowserXPrefs.getDriveBackupLastTs(appCtx) >= driveInterval);
 
