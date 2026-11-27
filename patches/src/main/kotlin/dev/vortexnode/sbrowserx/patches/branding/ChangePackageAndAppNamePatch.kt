@@ -60,6 +60,8 @@ private val EXACT_AUTHORITY_SUFFIXES = setOf(
     "CapsuleProvider",
     "provider.routines.v3",
     "mlkitinitprovider",
+    "widget",
+    "widget2",
 )
 
 private const val ICON_SBROWSERX = "sbrowserx"
@@ -298,6 +300,18 @@ private fun rewriteAppLabels(root: Element, newAppName: String) {
         val label = el.getAttributeNS(ANDROID_NS, "label")
         if (label == "@string/app_name" || label == "@string/app_name_internet") {
             el.setAttributeNS(ANDROID_NS, "android:label", newAppName)
+        }
+        // SBrowserLauncherActivity handles ACTION_SEND (Share sheet) and MAIN/LAUNCHER
+        // and normally inherits label; set it explicitly so Share sheet shows newAppName.
+        if (el.tagName == "activity" &&
+            el.getAttributeNS(ANDROID_NS, "name") == "com.sec.android.app.sbrowser.SBrowserLauncherActivity"
+        ) {
+            el.setAttributeNS(ANDROID_NS, "android:label", newAppName)
+            val filters = el.getElementsByTagName("intent-filter")
+            for (j in 0 until filters.length) {
+                val inf = filters.item(j) as? Element ?: continue
+                inf.setAttributeNS(ANDROID_NS, "android:label", newAppName)
+            }
         }
     }
 }

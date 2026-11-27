@@ -274,6 +274,13 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
                     targetPkg, COMPACT_BTN_DIALOG_ACTIVITY_CLASS,
                 ),
             )
+            screen.appendChild(
+                createSwitchPref(
+                    xml, "sbrowserx_home_long_press_close_bg", "Long-press Home closes background tabs",
+                    "Hold Home (~500 ms) to close all background tabs and open/reload Start Page",
+                    false,
+                ),
+            )
         }
 
         // 6. Useful Features: Built-in Translator settings screen

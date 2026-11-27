@@ -3015,6 +3015,36 @@ public final class SBrowserXHooks {
                         .invoke(compactBtnPref, isCompact);
             }
 
+            bindNativeSwitch(findPref, fragment, "sbrowserx_home_long_press_close_bg",
+                    SBrowserXStrings.get(SBrowserXStrings.HOME_LONG_PRESS_TITLE),
+                    SBrowserXStrings.get(SBrowserXStrings.HOME_LONG_PRESS_SUMMARY),
+                    SBrowserXPrefs.isHomeLongPressCloseBgEnabled(ctx),
+                    checked -> SBrowserXPrefs.setHomeLongPressCloseBgEnabled(ctx, checked));
+
+            // Always bind every SBrowserX settings intent to the live runtime package name
+            // so arbitrary custom package names (e.g. com.sec.android.app.sbrowsers) never crash.
+            String livePkg = ctx.getPackageName();
+            String[] intentKeys = new String[] {
+                    "sbrowserx_settings_hub", "sbrowserx_sync_backup", "sbrowserx_browsing_assist",
+                    "sbrowserx_settings_bookmarks", "sbrowserx_settings_extensions", "sbrowserx_privacy_webrtc",
+                    "sbrowserx_external_downloader", "sbrowserx_layout_transparency",
+                    "sbrowserx_layout_compact_button", "sbrowserx_useful_translate"
+            };
+            for (String ik : intentKeys) {
+                try {
+                    Object p = findPref.invoke(fragment, ik);
+                    if (p == null) continue;
+                    Object itObj = p.getClass().getMethod("getIntent").invoke(p);
+                    if (itObj instanceof Intent) {
+                        Intent it = (Intent) itObj;
+                        android.content.ComponentName cn = it.getComponent();
+                        if (cn != null && !livePkg.equals(cn.getPackageName())) {
+                            it.setClassName(livePkg, cn.getClassName());
+                        }
+                    }
+                } catch (Throwable ignored) {}
+            }
+
             String transSum = (SBrowserXPrefs.isGoogleTranslateEnabled(ctx) ? onLbl : offLbl)
                     + " • " + SBrowserXGoogleTranslator.getLanguageDisplayName(SBrowserXPrefs.getTranslateTargetLang(ctx));
             setNativePref(findPref, fragment, "sbrowserx_useful_translate",
