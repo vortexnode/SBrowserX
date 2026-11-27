@@ -21,6 +21,7 @@ import android.widget.TextView;
  */
 public final class SBrowserXChangelogDialog {
     public static final String CURRENT_VERSION = "1.3.7";
+    private static final String ACK_KEY_VERSION = "1.3.7-b16";
     private static volatile boolean sShowing = false;
 
     private SBrowserXChangelogDialog() {}
@@ -28,7 +29,7 @@ public final class SBrowserXChangelogDialog {
     public static void showIfNeeded(Activity act) {
         if (act == null || act.isFinishing() || act.isDestroyed() || sShowing) return;
         String seen = SBrowserXPrefs.getLastSeenChangelogVersion(act);
-        if (CURRENT_VERSION.equals(seen)) return;
+        if (ACK_KEY_VERSION.equals(seen)) return;
         sShowing = true;
         try {
             boolean night = SBrowserXHooks.isBrowserNightMode(act);
@@ -134,7 +135,7 @@ public final class SBrowserXChangelogDialog {
                     .setView(container)
                     .setCancelable(false)
                     .setPositiveButton(android.R.string.ok, (di, w) -> {
-                        SBrowserXPrefs.setLastSeenChangelogVersion(act, CURRENT_VERSION);
+                        SBrowserXPrefs.setLastSeenChangelogVersion(act, ACK_KEY_VERSION);
                         sShowing = false;
                     })
                     .create();
