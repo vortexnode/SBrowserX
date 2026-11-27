@@ -3,8 +3,6 @@ package dev.vortexnode.sbrowserx.extension;
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.res.ColorStateList;
-import android.graphics.RenderEffect;
-import android.graphics.Shader;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
@@ -14,16 +12,20 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.CheckBox;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import java.lang.reflect.Method;
+
 /**
- * Refined One UI frosted-glass "What's New" dialog displayed once on first launch after updating SBrowserX.
+ * Full-screen One UI Quick-Panel-style live blurred backdrop + sleek frosted-glass "What's New" sheet.
+ * Shown once on first launch after updating SBrowserX.
  */
 public final class SBrowserXChangelogDialog {
     public static final String CURRENT_VERSION = "1.3.7";
-    private static final String ACK_KEY_VERSION = "1.3.7-b17";
+    private static final String ACK_KEY_VERSION = "1.3.7-b18";
     private static volatile boolean sShowing = false;
 
     private SBrowserXChangelogDialog() {}
@@ -38,12 +40,13 @@ public final class SBrowserXChangelogDialog {
             final float d = act.getResources().getDisplayMetrics().density;
             final int oneUiBlue = night ? 0xFF3E82F7 : 0xFF0381FE;
             final int uncheckedCol = night ? 0xFF7B8190 : 0xFF9CA3AF;
-            final int dialogGlassBg = night ? 0xDD151821 : 0xEBFAFBFD;
-            final int dialogBorder = night ? 0x2AFFFFFF : 0x1A000000;
-            final int cardBg = night ? 0x5A262B38 : 0xCCFFFFFF;
-            final int cardBorder = night ? 0x1CFFFFFF : 0x14000000;
-            final int promoBg = night ? 0x382563EB : 0x160381FE;
-            final int promoBorder = night ? 0x883E82F7 : 0x660381FE;
+            final int backdropTint = night ? 0x8C0D0F14 : 0x7AEEF0F5;
+            final int sheetBg = night ? 0xE2171A23 : 0xEEFFFFFF;
+            final int sheetBorder = night ? 0x26FFFFFF : 0x18000000;
+            final int cardBg = night ? 0x5C262B38 : 0xCCF2F4F8;
+            final int cardBorder = night ? 0x1AFFFFFF : 0x14000000;
+            final int promoBg = night ? 0x3A2563EB : 0x180381FE;
+            final int promoBorder = night ? 0x8C3E82F7 : 0x660381FE;
             final int textPrimary = night ? 0xFFF8FAFC : 0xFF111827;
             final int textSecondary = night ? 0xFFD8DEE9 : 0xFF374151;
 
@@ -67,60 +70,72 @@ public final class SBrowserXChangelogDialog {
             String hImproved = ru ? "Что улучшено и исправлено" : (uk ? "Що покращено та виправлено" : "Improved & fixed");
             String hRemoved = ru ? "Что удалено и защищено" : (uk ? "Що видалено та захищено" : "Removed & protected");
             String cbText = ru ? "Спасибо, всё понятно" : (uk ? "Дякую, все зрозуміло" : "Thanks, got it");
-            String okText = "OK";
+            String scrollHint = ru ? "↓ Пролистайте список до конца"
+                    : (uk ? "↓ Прогорніть список до кінця"
+                    : "↓ Scroll to the bottom to continue");
 
             String addedBody = ru
-                    ? "• Новые движки перевода: Bing (по умолчанию), Яндекс, DeepL API и Gemini 3.5 Flash-Lite (AI).\n"
-                    + "• Полная поддержка языка приложения (Per-App Language) и переводы на 20 мировых языков.\n"
-                    + "• Сетка ярлыков стартовой страницы (4 или 5 колонок) и режим заполнения плитки иконкой.\n"
-                    + "• Mate Translate добавлен в набор рекомендуемых расширений (теперь их 7)."
+                    ? "• Новые движки перевода: Bing (по умолчанию, с фоновым прогревом), Яндекс, DeepL API и Gemini 3.5 Flash-Lite (AI).\n"
+                    + "• Полная поддержка языка приложения (Per-App Language) и переводы на 20 мировых языков (включая персидский, индонезийский, вьетнамский, нидерландский и суахили).\n"
+                    + "• Настройки сетки ярлыков стартовой страницы (4 или 5 колонок) и режим заполнения плитки иконкой в стиле Quetta.\n"
+                    + "• Mate Translate добавлен в набор рекомендуемых расширений (теперь их 7).\n"
+                    + "• Одноразовая памятка переводчика в «Ассистенте по просмотру»."
                     : (uk
-                    ? "• Нові рушії перекладу: Bing (за замовчуванням), Яндекс, DeepL API та Gemini 3.5 Flash-Lite (AI).\n"
+                    ? "• Нові рушії перекладу: Bing (за замовчуванням, із фоновим прогрівом), Яндекс, DeepL API та Gemini 3.5 Flash-Lite (AI).\n"
                     + "• Підтримка мови додатка (Per-App Language) та локалізація на 20 світових мов.\n"
-                    + "• Сітка ярликів стартової сторінки (4 або 5 колонок) і режим заповнення плитки іконкою.\n"
-                    + "• Mate Translate додано до рекомендованих розширень (тепер їх 7)."
-                    : "• New translation engines: Bing (default), Yandex, DeepL API, and Gemini 3.5 Flash-Lite (AI).\n"
+                    + "• Сітка ярликів стартової сторінки (4 або 5 колонок) і режим заповнення плитки іконкою у стилі Quetta.\n"
+                    + "• Mate Translate додано до рекомендованих розширень (тепер їх 7).\n"
+                    + "• Одноразова пам'ятка перекладача в «Асистенті перегляду»."
+                    : "• New translation engines: Bing (default, with background warm-up), Yandex, DeepL API, and Gemini 3.5 Flash-Lite (AI).\n"
                     + "• Full Per-App Language support and natural translations across 20 major world languages.\n"
-                    + "• Start Page shortcut grid (4 or 5 columns) and edge-to-edge tile icon fill mode.\n"
-                    + "• Added Mate Translate to the Recommended Extensions Pack (now 7 extensions).");
+                    + "• Start Page shortcut grid (4 or 5 columns) and edge-to-edge Quetta-style icon tiles.\n"
+                    + "• Added Mate Translate to the Recommended Extensions Pack (now 7 extensions).\n"
+                    + "• One-time translator guide in Browsing Assist.");
 
             String improvedBody = ru
-                    ? "• Обновлённый экран «Настройки SBrowserX» с единой верхней карточкой и синими акцентами One UI.\n"
-                    + "• Бирюзовые точки (как в Morphe): пропадают автоматически после просмотра видимых пунктов.\n"
-                    + "• Стабильная стартовая страница (исправлен «Адрес null недоступен», живое обновление обоев и погоды).\n"
-                    + "• Белая иконка «Перевести» в тёмной теме везде, ровный баннер перевода и работа на Google News."
+                    ? "• Перекомпонован экран «Настройки SBrowserX»: единая верхняя карточка с синими подписями One UI, заголовок «Настройки SBrowserX», нижняя карточка «О SBrowserX» и «Источник патчей для Morphe».\n"
+                    + "• Бирюзовые точки (логика Morphe): отображаются в главном меню и хабе, синхронизированы и автоматически пропадают после просмотра видимых пунктов.\n"
+                    + "• Стартовая страница: исправлен баг «Адрес null недоступен» (синхронный старт + закрытие сокета при перезапуске), починено живое обновление обоев и погоды без перезапуска.\n"
+                    + "• Переводчик: обход Trusted Types CSP (теперь стабильно переводятся Google News, Reuters, Le Monde и SPA-сайты), перехват кнопки с нижней панели, белая иконка в тёмной теме везде, ровный баннер на 138dp и заголовок «Настройки переводчика»."
                     : (uk
-                    ? "• Оновлений екран «Налаштування SBrowserX» із єдиною верхньою карткою та синіми акцентами One UI.\n"
-                    + "• Бірюзові крапки (як у Morphe): зникають автоматично після перегляду видимих пунктів.\n"
-                    + "• Стабільна стартова сторінка (виправлено «Адреса null недоступна», живі шпалери та погода).\n"
-                    + "• Біла іконка «Перекласти» в темній темі всюди, охайний банер перекладу та робота на Google News."
-                    : "• Redesigned SBrowserX settings with a unified top card and One UI accent summaries.\n"
-                    + "• Visibility-based teal dots (Morphe-style): clear automatically once items appear on screen.\n"
-                    + "• Rock-solid Start Page (fixed null address error + instant live wallpaper & weather refresh).\n"
-                    + "• Crisp white Translate icon in Dark Mode everywhere, refined banner spacing, and Google News fix.");
+                    ? "• Оновлено екран «Налаштування SBrowserX»: єдина верхня картка з синіми підписами One UI, заголовок «Налаштування SBrowserX», нижній блок «Про SBrowserX».\n"
+                    + "• Бірюзові крапки (логіка Morphe): відображаються в головному меню і хабі та зникають автоматично після перегляду.\n"
+                    + "• Стартова сторінка: виправлено «Адреса null недоступна» та живе оновлення шпалер і погоди без перезапуску.\n"
+                    + "• Перекладач: обхід Trusted Types CSP (Google News, Reuters, Le Monde), перехоплення кнопки з нижньої панелі, біла іконка в темній темі всюди та рівний банер 138dp."
+                    : "• Redesigned SBrowserX settings with a unified top card, One UI accent summaries, and SBrowserX Settings header.\n"
+                    + "• Visibility-based teal dots (Morphe-style): synced across Main Settings and Hub, clearing automatically once seen.\n"
+                    + "• Rock-solid Start Page: fixed null address error + instant live wallpaper & weather refresh without restart.\n"
+                    + "• Translator: Trusted Types CSP bypass (Google News, Reuters, Le Monde), bottom-bar interception, white icon in Dark Mode everywhere, and refined 138dp floating banner.");
 
             String removedBody = ru
-                    ? "• Убран навязчивый промо-баннер «Сделать домашней страницей Samsung» в настройках.\n"
-                    + "• Скрыты пустые/лишние штатные пункты (блок конфиденциальности, «О Samsung Browser», Debug).\n"
-                    + "• Заблокирована установка устаревших Manifest V2 (.crx/.zip) до вылета с понятным диалогом One UI.\n"
-                    + "• Удалён устаревший движок Microsoft Edge (HTTP 404)."
+                    ? "• Полностью отключён навязчивый промо-баннер «Сделать домашней страницей Samsung» в настройках.\n"
+                    + "• Скрыты пустые/лишние штатные пункты (блок конфиденциальности, «О Samsung Browser», Debug settings).\n"
+                    + "• Заблокирована установка несовместимых Manifest V2 (.crx/.zip) до вылета с понятным диалогом One UI и рекомендацией uBlock Origin Lite (MV3).\n"
+                    + "• Удалён нерабочий движок Microsoft Edge (HTTP 404)."
                     : (uk
-                    ? "• Прибрано нав'язливий промо-банер «Зробити домашньою сторінкою Samsung» у налаштуваннях.\n"
-                    + "• Приховано зайві штатні пункти (конфіденційність, «Про Samsung Browser», Debug).\n"
+                    ? "• Повністю вимкнено промо-банер «Зробити домашньою сторінкою Samsung» у налаштуваннях.\n"
+                    + "• Приховано зайві штатні пункти (конфіденційність, «Про Samsung Browser», Debug settings).\n"
                     + "• Заблоковано встановлення застарілих Manifest V2 (.crx/.zip) до збою з діалогом One UI.\n"
                     + "• Видалено неробочий рушій Microsoft Edge (HTTP 404)."
                     : "• Removed the Samsung homepage promotion banner from Settings.\n"
                     + "• Hid unused stock Settings entries (Privacy block, About Samsung Browser, Debug settings).\n"
-                    + "• Blocked incompatible Manifest V2 (.crx/.zip) installs with a clear One UI warning dialog.\n"
+                    + "• Blocked incompatible Manifest V2 (.crx/.zip) installs with a clear One UI dialog recommending uBlock Origin Lite (MV3).\n"
                     + "• Removed the deprecated Microsoft Edge translator endpoint (HTTP 404).");
 
-            // Root frosted-glass One UI sheet
+            // Full-screen blurred backdrop (One UI Quick Settings shade look)
+            FrameLayout backdrop = new FrameLayout(act);
+            backdrop.setLayoutParams(new FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+            backdrop.setBackgroundColor(backdropTint);
+            applyOneUiWindowBlur(backdrop, 220, backdropTint);
+
+            // Sleek frosted-glass sheet positioned slightly below vertical center
             LinearLayout root = new LinearLayout(act);
             root.setOrientation(LinearLayout.VERTICAL);
             GradientDrawable rootBg = new GradientDrawable();
-            rootBg.setColor(dialogGlassBg);
+            rootBg.setColor(sheetBg);
             rootBg.setCornerRadius(dp(d, 28));
-            rootBg.setStroke(Math.max(1, dp(d, 1)), dialogBorder);
+            rootBg.setStroke(Math.max(1, dp(d, 1)), sheetBorder);
             root.setBackground(rootBg);
             root.setPadding(dp(d, 20), dp(d, 20), dp(d, 20), dp(d, 16));
 
@@ -151,13 +166,12 @@ public final class SBrowserXChangelogDialog {
             root.addView(headerRow);
 
             // Scrollable cards area
-            ScrollView sv = new ScrollView(act);
+            final ScrollView sv = new ScrollView(act);
             sv.setVerticalScrollBarEnabled(false);
             sv.setOverScrollMode(View.OVER_SCROLL_NEVER);
-            LinearLayout cards = new LinearLayout(act);
+            final LinearLayout cards = new LinearLayout(act);
             cards.setOrientation(LinearLayout.VERTICAL);
 
-            // Separate highlighted Gemini API recommendation card at the top
             cards.addView(buildSectionCard(act, d, promoBg, promoBorder,
                     night ? 0xFF60A5FA : 0xFF0381FE, textPrimary, hPromo, promoBody, Math.max(2, dp(d, 1))));
             cards.addView(buildSectionCard(act, d, cardBg, cardBorder,
@@ -168,27 +182,35 @@ public final class SBrowserXChangelogDialog {
                     night ? 0xFFF87171 : 0xFFDC2626, textSecondary, hRemoved, removedBody, 1));
 
             sv.addView(cards);
-            int maxScrollH = Math.round(act.getResources().getDisplayMetrics().heightPixels * 0.56f);
-            LinearLayout.LayoutParams svLp = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, maxScrollH);
-            root.addView(sv, svLp);
+            int maxScrollH = Math.round(act.getResources().getDisplayMetrics().heightPixels * 0.54f);
+            root.addView(sv, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, maxScrollH));
+
+            // Scroll hint (shown only while content needs scrolling)
+            final TextView tvHint = new TextView(act);
+            tvHint.setText(scrollHint);
+            tvHint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f);
+            tvHint.setTextColor(oneUiBlue);
+            tvHint.setGravity(Gravity.CENTER);
+            tvHint.setPadding(0, dp(d, 6), 0, 0);
+            tvHint.setVisibility(View.GONE);
+            root.addView(tvHint);
 
             // One UI Blue Checkbox
             ColorStateList cbTint = new ColorStateList(
                     new int[][] { new int[] { android.R.attr.state_checked }, new int[] {} },
                     new int[] { oneUiBlue, uncheckedCol });
-            CheckBox cb = new CheckBox(act);
+            final CheckBox cb = new CheckBox(act);
             cb.setText(cbText);
             cb.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15.5f);
             cb.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
             cb.setTextColor(textPrimary);
             cb.setButtonTintList(cbTint);
-            cb.setPadding(dp(d, 6), dp(d, 12), 0, dp(d, 10));
+            cb.setPadding(dp(d, 6), dp(d, 10), 0, dp(d, 10));
             root.addView(cb);
 
             // Pill-shaped One UI OK button
-            TextView okBtn = new TextView(act);
-            okBtn.setText(okText);
+            final TextView okBtn = new TextView(act);
+            okBtn.setText("OK");
             okBtn.setGravity(Gravity.CENTER);
             okBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f);
             okBtn.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
@@ -199,38 +221,57 @@ public final class SBrowserXChangelogDialog {
             okBtn.setBackground(okBg);
             okBtn.setTextColor(uncheckedCol);
             okBtn.setEnabled(false);
-            LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            btnLp.topMargin = dp(d, 2);
-            root.addView(okBtn, btnLp);
+            root.addView(okBtn, new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
-            final Dialog dlg = new Dialog(act);
+            // Center horizontally and shift slightly below vertical center (One UI ergonomic position)
+            int sheetW = Math.round(act.getResources().getDisplayMetrics().widthPixels * 0.92f);
+            FrameLayout.LayoutParams sheetLp = new FrameLayout.LayoutParams(
+                    sheetW, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER);
+            sheetLp.topMargin = dp(d, 30);
+            backdrop.addView(root, sheetLp);
+
+            // Smart scroll-to-bottom lock: lock checkbox only if ScrollView actually overflows
+            final boolean[] unlocked = new boolean[] { false };
+            Runnable checkScrollBottom = () -> {
+                if (unlocked[0]) return;
+                int contentH = cards.getHeight();
+                int viewH = sv.getHeight();
+                if (viewH <= 0) return;
+                if (contentH <= viewH + dp(d, 12) || (sv.getScrollY() + viewH) >= contentH - dp(d, 24)) {
+                    unlocked[0] = true;
+                    cb.setEnabled(true);
+                    cb.setAlpha(1.0f);
+                    tvHint.setVisibility(View.GONE);
+                } else {
+                    cb.setEnabled(false);
+                    cb.setAlpha(0.42f);
+                    tvHint.setVisibility(View.VISIBLE);
+                }
+            };
+            sv.post(checkScrollBottom);
+            sv.getViewTreeObserver().addOnScrollChangedListener(checkScrollBottom::run);
+
+            final Dialog dlg = new Dialog(act, android.R.style.Theme_Translucent_NoTitleBar);
             dlg.requestWindowFeature(Window.FEATURE_NO_TITLE);
-            dlg.setContentView(root);
+            dlg.setContentView(backdrop);
             dlg.setCancelable(false);
             dlg.setCanceledOnTouchOutside(false);
 
-            final View activityDecor = act.getWindow() != null ? act.getWindow().getDecorView() : null;
-            if (Build.VERSION.SDK_INT >= 31 && activityDecor != null) {
-                try {
-                    activityDecor.setRenderEffect(RenderEffect.createBlurEffect(20f, 20f, Shader.TileMode.CLAMP));
-                } catch (Throwable ignored) {}
-            }
-
             Window win = dlg.getWindow();
             if (win != null) {
-                win.setBackgroundDrawableResource(android.R.color.transparent);
+                win.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT);
+                win.setStatusBarColor(0x00000000);
+                win.setNavigationBarColor(0x00000000);
+                win.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
                 if (Build.VERSION.SDK_INT >= 31) {
                     win.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
+                    try {
+                        WindowManager.LayoutParams lp = win.getAttributes();
+                        lp.setBlurBehindRadius(90);
+                        win.setAttributes(lp);
+                    } catch (Throwable ignored) {}
                 }
-                WindowManager.LayoutParams lp = win.getAttributes();
-                lp.width = Math.round(act.getResources().getDisplayMetrics().widthPixels * 0.92f);
-                lp.height = WindowManager.LayoutParams.WRAP_CONTENT;
-                lp.dimAmount = night ? 0.42f : 0.28f;
-                if (Build.VERSION.SDK_INT >= 31) {
-                    try { lp.setBlurBehindRadius(36); } catch (Throwable ignored) {}
-                }
-                win.setAttributes(lp);
             }
 
             cb.setOnCheckedChangeListener((btn, checked) -> {
@@ -244,17 +285,25 @@ public final class SBrowserXChangelogDialog {
                 dlg.dismiss();
             });
 
-            dlg.setOnDismissListener(di -> {
-                sShowing = false;
-                if (Build.VERSION.SDK_INT >= 31 && activityDecor != null) {
-                    try { activityDecor.setRenderEffect(null); } catch (Throwable ignored) {}
-                }
-            });
-
+            dlg.setOnDismissListener(di -> sShowing = false);
             dlg.show();
         } catch (Throwable t) {
             sShowing = false;
         }
+    }
+
+    private static void applyOneUiWindowBlur(View view, int radius, int tintColor) {
+        if (view == null) return;
+        try {
+            Class<?> blurInfoCls = Class.forName("android.view.SemBlurInfo");
+            Class<?> builderCls = Class.forName("android.view.SemBlurInfo$Builder");
+            Object builder = builderCls.getConstructor(int.class).newInstance(0); // BLUR_MODE_WINDOW
+            try { builderCls.getMethod("setRadius", int.class).invoke(builder, radius); } catch (Throwable ignored) {}
+            try { builderCls.getMethod("setBackgroundColor", int.class).invoke(builder, tintColor); } catch (Throwable ignored) {}
+            Object info = builderCls.getMethod("build").invoke(builder);
+            Method setBlur = View.class.getMethod("semSetBlurInfo", blurInfoCls);
+            setBlur.invoke(view, info);
+        } catch (Throwable ignored) {}
     }
 
     private static View buildSectionCard(
