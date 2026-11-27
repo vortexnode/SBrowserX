@@ -540,17 +540,19 @@ public final class SBrowserXHooks {
                     if (navId != 0) {
                         View navView = decor.findViewById(navId);
                         if (navView != null) {
-                            boolean useGpuBlur = android.os.Build.VERSION.SDK_INT >= 31 && isBottomBarBlurEnabled() && !isCompactLayoutActive();
+                            boolean compact = isCompactLayoutActive();
+                            int sliceTint = compact ? 0x26000000 : navColor;
+                            boolean useGpuBlur = android.os.Build.VERSION.SDK_INT >= 31 && isBottomBarBlurEnabled() && !compact;
                             if (useGpuBlur && bmp != null && !bmp.isRecycled()) {
-                                navView.setBackground(new WindowSliceWallpaperDrawable(bmp, dim, navColor, true, fullW, fullH));
+                                navView.setBackground(new WindowSliceWallpaperDrawable(bmp, dim, sliceTint, true, fullW, fullH));
                                 try {
                                     navView.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(
                                             48f, 48f, android.graphics.Shader.TileMode.CLAMP));
                                 } catch (Throwable ignored) {}
-                            } else if (blurred != null && !blurred.isRecycled()) {
-                                navView.setBackground(new WindowSliceWallpaperDrawable(blurred, dim, navColor, true, fullW, fullH));
+                            } else if (bmp != null && !bmp.isRecycled()) {
+                                navView.setBackground(new WindowSliceWallpaperDrawable(bmp, dim, sliceTint, true, fullW, fullH));
                             } else {
-                                navView.setBackgroundColor(navColor);
+                                navView.setBackgroundColor(sliceTint);
                             }
                         }
                     }
