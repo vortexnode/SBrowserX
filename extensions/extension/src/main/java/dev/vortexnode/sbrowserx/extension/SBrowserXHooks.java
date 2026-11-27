@@ -560,9 +560,10 @@ public final class SBrowserXHooks {
             } else {
                 boolean night = isBrowserNightMode(act);
                 int c = night ? (isAmoledBlackEnabled() ? 0xFF000000 : 0xFF141418) : 0xFFFFFFFF;
-                boolean transparentNavForBlur = !isCompactLayoutActive() && isBottomBarBlurEnabled();
-                int navBg = transparentNavForBlur ? 0x00000000 : c;
-                win.setStatusBarColor(c);
+                boolean transparentForBlur = !isCompactLayoutActive() && isBottomBarBlurEnabled();
+                int stBg = transparentForBlur ? 0x00000000 : c;
+                int navBg = transparentForBlur ? 0x00000000 : c;
+                win.setStatusBarColor(stBg);
                 win.setNavigationBarColor(navBg);
                 syncStatusBarIconAppearance(win, !night);
                 syncSystemBarIconAppearance(win, night);
@@ -570,7 +571,7 @@ public final class SBrowserXHooks {
                     int stId = act.getResources().getIdentifier("status_bar_background", "id", pkg);
                     if (stId != 0) {
                         View stView = decor.findViewById(stId);
-                        if (stView != null) stView.setBackgroundColor(c);
+                        if (stView != null) stView.setBackgroundColor(stBg);
                     }
                     int navId = act.getResources().getIdentifier("navigation_bar_background", "id", pkg);
                     if (navId != 0) {
@@ -772,6 +773,10 @@ public final class SBrowserXHooks {
                         : 0xFFFFFFFF;
                 syncMainWindowBackground(window, c);
                 return c;
+            }
+            if (stockColor == 0 && isBottomBarBlurEnabled()) {
+                // Preserve stock transparent status bar so Chromium's live BITMAP_LAYER_TOPBAR blur shows on scroll
+                return 0x00000000;
             }
             if (isBrowserNightMode(ctx)) {
                 return isAmoledBlackEnabled() ? 0xFF000000 : 0xFF141418;
