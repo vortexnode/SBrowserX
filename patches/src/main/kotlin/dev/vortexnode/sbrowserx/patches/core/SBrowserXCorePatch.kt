@@ -204,6 +204,12 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
             aboutMorphePref.setAttributeNS(ANDROID_NS, "android:title", "Morphe patch source")
             aboutMorphePref.setAttributeNS(ANDROID_NS, "android:summary", " ")
             screen.appendChild(aboutMorphePref)
+
+            val aboutSupportPref = xml.createElement("com.sec.android.app.sbrowser.common.settings.PreferenceCustom")
+            aboutSupportPref.setAttributeNS(ANDROID_NS, "android:key", "sbrowserx_about_support")
+            aboutSupportPref.setAttributeNS(ANDROID_NS, "android:title", "Support the author")
+            aboutSupportPref.setAttributeNS(ANDROID_NS, "android:summary", " ")
+            screen.appendChild(aboutSupportPref)
         }
 
         // 2. Privacy & Security: WebRTC in-place dialog + native in-place switches

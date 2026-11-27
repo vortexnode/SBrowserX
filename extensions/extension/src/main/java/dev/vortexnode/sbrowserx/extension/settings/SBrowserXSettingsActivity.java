@@ -49,7 +49,7 @@ public final class SBrowserXSettingsActivity extends Activity {
     private LinearLayout urlBlurLevelRow;
     private TextView compactBlurLevelValueView;
     private LinearLayout compactBlurLevelRow;
-    private View extInstallDot, extPackDot, webrtcDot, fingerprintDot, hideAdsDot, gtransDot, extDlDot, amoledDot, forceDarkDot, blurDot;
+    private View extInstallDot, extPackDot, webrtcDot, fingerprintDot, hideAdsDot, gtransDot, extDlDot, amoledDot, forceDarkDot, blurDot, supportDot;
     private ScrollView mainScrollView;
 
     @Override
@@ -83,7 +83,21 @@ public final class SBrowserXSettingsActivity extends Activity {
         applyOneUiEdgeToEdgePadding(root, dp(16), dp(14), dp(16), dp(36));
 
         // One UI 8 Top Bar with circular '<' back button
-        root.addView(buildOneUiHeader(this, SBrowserXStrings.get(SBrowserXStrings.TITLE_HUB), night, textPrimary, v -> finish()));
+        LinearLayout hubHeader = buildOneUiHeader(this, SBrowserXStrings.get(SBrowserXStrings.TITLE_HUB), night, textPrimary, v -> finish());
+        TextView heartBtn = new TextView(this);
+        heartBtn.setText("\u2665");
+        heartBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 19f);
+        heartBtn.setTextColor(night ? 0xFFFF6B6B : 0xFFE11D48);
+        heartBtn.setGravity(Gravity.CENTER);
+        TypedValue hRipple = new TypedValue();
+        getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, hRipple, true);
+        if (hRipple.resourceId != 0) heartBtn.setBackgroundResource(hRipple.resourceId);
+        LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(dp(38), dp(38));
+        hlp.rightMargin = dp(4);
+        heartBtn.setOnClickListener(v -> dev.vortexnode.sbrowserx.extension.SBrowserXSupportDialog.show(this, this::refreshDynamicViews));
+        int insertIdx = Math.max(0, hubHeader.getChildCount() - 1);
+        hubHeader.addView(heartBtn, insertIdx, hlp);
+        root.addView(hubHeader);
 
         // --- Extensions (user-requested order: 1. Pack, 2. Manage, 3. CWS, 4. Install from file) ---
         root.addView(sectionHeader(SBrowserXStrings.get(SBrowserXStrings.CAT_EXTENSIONS), textSecondary));
@@ -289,6 +303,17 @@ public final class SBrowserXSettingsActivity extends Activity {
                 });
         root.addView(highlightCard);
 
+        // --- Support the author ---
+        LinearLayout supportCard = card(cardColor);
+        LinearLayout.LayoutParams slp = (LinearLayout.LayoutParams) supportCard.getLayoutParams();
+        slp.topMargin = dp(16);
+        supportDot = createCoralDot();
+        addActionRow(supportCard, SBrowserXStrings.getSupportTitle(),
+                SBrowserXStrings.getSupportSubtitle(),
+                textPrimary, textSecondary, supportDot,
+                v -> dev.vortexnode.sbrowserx.extension.SBrowserXSupportDialog.show(this, this::refreshDynamicViews));
+        root.addView(supportCard);
+
         // --- Restart ---
         LinearLayout restartCard = card(cardColor);
         LinearLayout.LayoutParams rlp = (LinearLayout.LayoutParams) restartCard.getLayoutParams();
@@ -445,6 +470,9 @@ public final class SBrowserXSettingsActivity extends Activity {
         setDot(extDlDot, SBrowserXPrefs.FEATURE_EXT_DOWNLOADER);
         setDot(amoledDot, SBrowserXPrefs.FEATURE_AMOLED);
         setDot(blurDot, SBrowserXPrefs.FEATURE_BOTTOM_BLUR);
+        if (supportDot != null) {
+            supportDot.setVisibility(SBrowserXPrefs.isSupportBadgeVisible(this) ? View.VISIBLE : View.GONE);
+        }
         if (blurLevelValueView != null) {
             boolean blurOn = SBrowserXPrefs.isBottomBarBlurEnabled(this);
             int pct = SBrowserXPrefs.getBottomBarTransparency(this);
@@ -507,6 +535,19 @@ public final class SBrowserXSettingsActivity extends Activity {
         if (dot != null) {
             dot.setVisibility(SBrowserXPrefs.isFeatureNew(this, feat) ? View.VISIBLE : View.GONE);
         }
+    }
+
+    private View createCoralDot() {
+        View dot = new View(this);
+        GradientDrawable gd = new GradientDrawable();
+        gd.setShape(GradientDrawable.OVAL);
+        gd.setColor(0xFFFF5252);
+        dot.setBackground(gd);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(8), dp(8));
+        lp.leftMargin = dp(8);
+        lp.gravity = Gravity.CENTER_VERTICAL;
+        dot.setLayoutParams(lp);
+        return dot;
     }
 
     private View createTealDot() {

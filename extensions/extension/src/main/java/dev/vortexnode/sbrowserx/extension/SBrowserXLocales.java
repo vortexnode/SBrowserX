@@ -686,5 +686,106 @@ final class SBrowserXLocales {
                     + "• Google — uses the public NMT endpoint since Chrome's private keys are closed.";
         }
     }
+
+    static String supportTitle(String lang) {
+        switch (lang) {
+            case "ru": return "Поддержать автора";
+            case "uk": return "Підтримати автора";
+            case "es": return "Apoyar al autor";
+            case "pt": return "Apoiar o autor";
+            case "de": return "Autor unterstützen";
+            case "fr": return "Soutenir l'auteur";
+            case "it": return "Supporta l'autore";
+            case "pl": return "Wesprzyj autora";
+            case "tr": return "Geliştiriciyi destekle";
+            case "ar": return "ادعم المطوّر";
+            case "fa": return "حمایت از توسعه‌دهنده";
+            case "hi": return "डेवलपर का समर्थन करें";
+            case "zh": return "支持作者";
+            case "ja": return "開発者を支援";
+            case "ko": return "개발자 후원";
+            case "id": return "Dukung pengembang";
+            case "vi": return "Ủng hộ tác giả";
+            case "nl": return "Steun de maker";
+            case "sw": return "Muunge mkono mwandishi";
+            default: return "Support the author";
+        }
+    }
+
+    static String supportSubtitle(String lang) {
+        switch (lang) {
+            case "ru": return "Угостить чашечкой кофе";
+            case "uk": return "Пригостити філіжанкою кави";
+            case "es": return "Invitar un café";
+            case "pt": return "Pagar um café";
+            case "de": return "Einen Kaffee spendieren";
+            case "fr": return "Offrir un café";
+            case "it": return "Offri un caffè";
+            case "pl": return "Postaw kawę";
+            case "tr": return "Bir kahve ısmarla";
+            case "ar": return "قدّم كوب قهوة";
+            case "fa": return "یک فنجان قهوه مهمان کن";
+            case "hi": return "एक कॉफ़ी पिलाएँ";
+            case "zh": return "请作者喝杯咖啡";
+            case "ja": return "コーヒーを一杯おごる";
+            case "ko": return "커피 한 잔 후원하기";
+            case "id": return "Traktir secangkir kopi";
+            case "vi": return "Mời một ly cà phê";
+            case "nl": return "Trakteer op een kop koffie";
+            case "sw": return "Mnunulie kikombe cha kahawa";
+            default: return "Buy me a coffee";
+        }
+    }
+
+    static String supportCopied(String lang) {
+        switch (lang) {
+            case "ru": return "Адрес скопирован";
+            case "uk": return "Адресу скопійовано";
+            case "es": return "Dirección copiada";
+            case "pt": return "Endereço copiado";
+            case "de": return "Adresse kopiert";
+            case "fr": return "Adresse copiée";
+            case "it": return "Indirizzo copiato";
+            case "pl": return "Adres skopiowany";
+            case "tr": return "Adres kopyalandı";
+            case "ar": return "تم نسخ العنوان";
+            case "fa": return "آدرس کپی شد";
+            case "hi": return "पता कॉपी हो गया";
+            case "zh": return "地址已复制";
+            case "ja": return "アドレスをコピーしました";
+            case "ko": return "주소가 복사되었습니다";
+            case "id": return "Alamat disalin";
+            case "vi": return "Đã sao chép địa chỉ";
+            case "nl": return "Adres gekopieerd";
+            case "sw": return "Anwani imenakiliwa";
+            default: return "Address copied";
+        }
+    }
+
+    static String supportClose(String lang) {
+        switch (lang) {
+            case "ru": return "Закрыть";
+            case "uk": return "Закрити";
+            case "es": return "Cerrar";
+            case "pt": return "Fechar";
+            case "de": return "Schließen";
+            case "fr": return "Fermer";
+            case "it": return "Chiudi";
+            case "pl": return "Zamknij";
+            case "tr": return "Kapat";
+            case "ar": return "إغلاق";
+            case "fa": return "بستن";
+            case "hi": return "बंद करें";
+            case "zh": return "关闭";
+            case "ja": return "閉じる";
+            case "ko": return "닫기";
+            case "id": return "Tutup";
+            case "vi": return "Đóng";
+            case "nl": return "Sluiten";
+            case "sw": return "Funga";
+            default: return "Close";
+        }
+    }
 }
+
 

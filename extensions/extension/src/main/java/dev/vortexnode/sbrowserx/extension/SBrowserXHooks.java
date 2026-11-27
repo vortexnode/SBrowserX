@@ -3040,6 +3040,14 @@ public final class SBrowserXHooks {
                 setAccentSummary(aboutMorphe, ctx, mSum);
                 bindUrlClick(aboutMorphe, ctx, "https://morphe.software/add-source?github=vortexnode/SBrowserX");
             }
+            Object aboutSupport = findPref.invoke(fragment, "sbrowserx_about_support");
+            if (aboutSupport != null) {
+                boolean showDot = SBrowserXPrefs.isSupportBadgeVisible(ctx);
+                CharSequence sTitle = titleWithColorDot(SBrowserXStrings.getSupportTitle(), showDot, 0xFFFF5252);
+                aboutSupport.getClass().getMethod("setTitle", CharSequence.class).invoke(aboutSupport, sTitle);
+                setAccentSummary(aboutSupport, ctx, SBrowserXStrings.getSupportSubtitle());
+                bindSupportDialogClick(aboutSupport, fragment, ctx);
+            }
 
             String onLbl = SBrowserXStrings.get(SBrowserXStrings.BTN_ENABLE);
             String offLbl = SBrowserXStrings.get(SBrowserXStrings.BTN_DISABLE);
@@ -4227,6 +4235,47 @@ public final class SBrowserXHooks {
             setSum.invoke(pref, oneUiAccentSummary(ctx, text));
         } catch (Throwable ignored) {}
     }
+    private static CharSequence titleWithColorDot(String base, boolean showDot, int dotColor) {
+        if (base == null) return "";
+        if (!showDot) return base;
+        try {
+            android.text.SpannableString sp = new android.text.SpannableString(base + "  \u25CF");
+            sp.setSpan(new android.text.style.ForegroundColorSpan(dotColor),
+                    sp.length() - 1, sp.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            return sp;
+        } catch (Throwable ignored) {
+            return base;
+        }
+    }
+
+    private static void bindSupportDialogClick(Object pref, Object fragment, Context ctx) {
+        if (pref == null) return;
+        try {
+            Class<?> listenerCls = Class.forName("androidx.preference.Preference$OnPreferenceClickListener");
+            Object proxy = Proxy.newProxyInstance(
+                    listenerCls.getClassLoader(),
+                    new Class<?>[] { listenerCls },
+                    (p, m, args) -> {
+                        if ("onPreferenceClick".equals(m.getName())) {
+                            try {
+                                Object actObj = fragment.getClass().getMethod("getActivity").invoke(fragment);
+                                if (actObj instanceof Activity) {
+                                    SBrowserXSupportDialog.show((Activity) actObj, () -> {
+                                        try {
+                                            pref.getClass().getMethod("setTitle", CharSequence.class)
+                                                    .invoke(pref, SBrowserXStrings.getSupportTitle());
+                                        } catch (Throwable ignored2) {}
+                                    });
+                                }
+                            } catch (Throwable ignored) {}
+                            return Boolean.TRUE;
+                        }
+                        return null;
+                    });
+            pref.getClass().getMethod("setOnPreferenceClickListener", listenerCls).invoke(pref, proxy);
+        } catch (Throwable ignored) {}
+    }
+
 
     private static CharSequence titleWithTealDot(CharSequence rawTitle, boolean showDot) {
         String base = rawTitle != null ? rawTitle.toString() : "";

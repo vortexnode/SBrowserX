@@ -859,6 +859,22 @@ public final class SBrowserXStrings {
         return SBrowserXLocales.transGuideCheck(getAppLang());
     }
 
+    public static String getSupportTitle() {
+        return SBrowserXLocales.supportTitle(getAppLang());
+    }
+
+    public static String getSupportSubtitle() {
+        return SBrowserXLocales.supportSubtitle(getAppLang());
+    }
+
+    public static String getSupportCopied() {
+        return SBrowserXLocales.supportCopied(getAppLang());
+    }
+
+    public static String getSupportClose() {
+        return SBrowserXLocales.supportClose(getAppLang());
+    }
+
     public static String get(String key) {
         String lang = getAppLang();
         Map<String, String> map = CATALOG.get(lang);
