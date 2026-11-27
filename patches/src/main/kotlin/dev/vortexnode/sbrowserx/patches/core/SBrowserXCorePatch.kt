@@ -102,10 +102,14 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
     description = "Adds the SBrowserX settings hub and integrates extra privacy, appearance, and utility options into browser Settings.",
 ) {
     finalize {
-        val targetPkg = SBrowserPackageRenameTarget.packageName
+        var manifestPkg = "com.sec.android.app.sbrowser"
 
         document("AndroidManifest.xml").use { manifest ->
             val root = manifest.documentElement ?: error("Missing <manifest>")
+            val pkgAttr = root.getAttribute("package")
+            if (!pkgAttr.isNullOrBlank()) {
+                manifestPkg = pkgAttr.trim()
+            }
             val application = root.getElementsByTagName("application").item(0) as? Element
                 ?: error("Missing <application>")
 
@@ -123,6 +127,8 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
             ensureActivity(manifest, application, START_PAGE_ACTIVITY_CLASS, "@android:style/Theme.DeviceDefault.NoActionBar")
             ensureActivity(manifest, application, BOOKMARKS_BRIDGE_ACTIVITY_CLASS, "@android:style/Theme.Translucent.NoTitleBar")
         }
+
+        val targetPkg = SBrowserPackageRenameTarget.packageName ?: manifestPkg
 
         // 1. Main Settings: Standalone SBrowserX card -> Sync & Backup + Browsing Assist card -> Extensions inside Privacy card
         document("res/xml/settings_fragment.xml").use { xml ->
@@ -266,6 +272,13 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
                     xml, "sbrowserx_layout_compact_button", "Compact bar custom button (replaces AI)",
                     "New tab",
                     targetPkg, COMPACT_BTN_DIALOG_ACTIVITY_CLASS,
+                ),
+            )
+            screen.appendChild(
+                createSwitchPref(
+                    xml, "sbrowserx_home_long_press_close_bg", "Long-press Home closes background tabs",
+                    "Hold Home (~500 ms) to close all background tabs and open/reload Start Page",
+                    false,
                 ),
             )
         }
@@ -665,6 +678,26 @@ val sbrowserXCorePatch = bytecodePatch(
                 if-eqz v0, :sbrowserx_stock_add_qa
                 return-void
                 :sbrowserx_stock_add_qa
+                nop
+            """.trimIndent(),
+        )
+
+        // Optional long-press on Home button: close all background tabs & open/reload Start Page.
+        // ToolbarEventHandler.performToolbarButtonLongClick(I)Z (.locals 7 -> v0 free)
+        findMethodOrThrow(
+            classType = "Lcom/sec/android/app/sbrowser/main_view/toolbar/ToolbarEventHandler;",
+            methodName = "performToolbarButtonLongClick",
+            parameterTypes = listOf("I"),
+            returnType = "Z",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {p0, p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onToolbarButtonLongClick(Ljava/lang/Object;I)Z
+                move-result v0
+                if-eqz v0, :sbrowserx_orig_toolbar_long_click
+                const/4 v0, 0x1
+                return v0
+                :sbrowserx_orig_toolbar_long_click
                 nop
             """.trimIndent(),
         )

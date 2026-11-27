@@ -267,6 +267,11 @@ public final class SBrowserXSettingsActivity extends Activity {
         if (!isCompactLayout && compactBtnSummaryView != null && compactBtnSummaryView.getParent() instanceof View) {
             ((View) compactBtnSummaryView.getParent()).setAlpha(0.42f);
         }
+        appearanceCard.addView(divider(night));
+        addSwitchRow(appearanceCard, SBrowserXStrings.get(SBrowserXStrings.HOME_LONG_PRESS_TITLE),
+                SBrowserXStrings.get(SBrowserXStrings.HOME_LONG_PRESS_SUMMARY),
+                SBrowserXPrefs.isHomeLongPressCloseBgEnabled(this), night, textPrimary, textSecondary, null,
+                (btn, checked) -> SBrowserXPrefs.setHomeLongPressCloseBgEnabled(this, checked));
         root.addView(appearanceCard);
 
         // --- New Features Highlight ---
@@ -290,6 +295,35 @@ public final class SBrowserXSettingsActivity extends Activity {
                 SBrowserXStrings.get(SBrowserXStrings.RESTART_SUMMARY),
                 textPrimary, textSecondary, null, v -> SBrowserXWebRtcManager.restartBrowser(this));
         root.addView(restartCard);
+
+        // --- About SBrowserX ---
+        boolean isRu = "ru".equals(java.util.Locale.getDefault().getLanguage());
+        boolean isUk = "uk".equals(java.util.Locale.getDefault().getLanguage());
+        String aboutHeader = isRu ? "О SBrowserX" : (isUk ? "Про SBrowserX" : "About SBrowserX");
+        String verSummary = isRu ? "Официальная сборка • github.com/vortexnode/SBrowserX"
+                : (isUk ? "Офіційна збірка • github.com/vortexnode/SBrowserX"
+                : "Official build • github.com/vortexnode/SBrowserX");
+        String morpheTitle = isRu ? "Источник патчей для Morphe"
+                : (isUk ? "Джерело патчів для Morphe" : "Morphe patch source");
+        String morpheSummary = isRu ? "Добавить официальный репозиторий в Morphe в один тап"
+                : (isUk ? "Додати офіційний репозиторій у Morphe в один тап"
+                : "Add the official repository to Morphe in one tap");
+
+        root.addView(sectionHeader(aboutHeader, textSecondary));
+        LinearLayout aboutCard = card(cardColor);
+        addActionRow(aboutCard, "SBrowserX v1.3.6", verSummary, textPrimary, textSecondary, null, v -> {
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/vortexnode/SBrowserX")));
+            } catch (Throwable ignored) {}
+        });
+        aboutCard.addView(divider(night));
+        addActionRow(aboutCard, morpheTitle, morpheSummary, textPrimary, textSecondary, null, v -> {
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW,
+                        Uri.parse("https://morphe.software/add-source?github=vortexnode/SBrowserX")));
+            } catch (Throwable ignored) {}
+        });
+        root.addView(aboutCard);
 
         scroll.addView(root);
         setContentView(scroll);

@@ -21,6 +21,7 @@ public final class SBrowserXPrefs {
     public static final String KEY_COMPACT_BAR_BLUR = "compact_bar_blur_enabled";
     public static final String KEY_COMPACT_BAR_TRANSPARENCY = "compact_bar_transparency_percent";
     public static final String KEY_COMPACT_AI_BUTTON = "compact_ai_slot_button";
+    public static final String KEY_HOME_LONG_PRESS_CLOSE_BG = "home_long_press_close_bg";
     public static final String KEY_UNLIMITED_TABS = "unlimited_tabs_enabled";
     public static final String KEY_TEXT_REFLOW_ZOOM = "text_reflow_zoom_enabled";
     public static final String KEY_BACKUP_LOCAL_AUTO = "backup_local_auto";
@@ -607,6 +608,14 @@ public final class SBrowserXPrefs {
 
     public static void markFeatureViewed(Context context, String featureId) {
         prefs(context).edit().putBoolean("viewed_" + featureId, true).apply();
+    }
+
+    public static boolean isHomeLongPressCloseBgEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_HOME_LONG_PRESS_CLOSE_BG, false);
+    }
+
+    public static void setHomeLongPressCloseBgEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_HOME_LONG_PRESS_CLOSE_BG, enabled).apply();
     }
 
     public static void markAllViewed(Context context) {
