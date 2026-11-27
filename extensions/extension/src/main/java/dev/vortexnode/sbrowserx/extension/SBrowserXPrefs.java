@@ -596,6 +596,14 @@ public final class SBrowserXPrefs {
         if (editor != null) editor.apply();
     }
 
+    public static boolean isAnyFeatureNew(Context context) {
+        if (getHighlightDays(context) <= 0) return false;
+        for (String feat : ALL_FEATURES) {
+            if (isFeatureNew(context, feat)) return true;
+        }
+        return false;
+    }
+
     public static boolean isFeatureNew(Context context, String featureId) {
         int days = getHighlightDays(context);
         if (days <= 0) return false;

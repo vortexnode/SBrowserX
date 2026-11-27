@@ -192,24 +192,17 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
             }
 
             // Append "SBrowserX" & "Morphe patch source" directly in the bottom About card
+            // (Click handlers attached cleanly at runtime in SBrowserXHooks so Uri is never null)
             val aboutVerPref = xml.createElement("com.sec.android.app.sbrowser.common.settings.PreferenceCustom")
             aboutVerPref.setAttributeNS(ANDROID_NS, "android:key", "sbrowserx_about_version")
             aboutVerPref.setAttributeNS(ANDROID_NS, "android:title", "SBrowserX")
-            aboutVerPref.setAttributeNS(ANDROID_NS, "android:summary", "v1.3.7 • GitHub")
-            val ghIntent = xml.createElement("intent")
-            ghIntent.setAttributeNS(ANDROID_NS, "android:action", "android.intent.action.VIEW")
-            ghIntent.setAttributeNS(ANDROID_NS, "android:data", "https://github.com/vortexnode/SBrowserX")
-            aboutVerPref.appendChild(ghIntent)
+            aboutVerPref.setAttributeNS(ANDROID_NS, "android:summary", " ")
             screen.appendChild(aboutVerPref)
 
             val aboutMorphePref = xml.createElement("com.sec.android.app.sbrowser.common.settings.PreferenceCustom")
             aboutMorphePref.setAttributeNS(ANDROID_NS, "android:key", "sbrowserx_about_morphe")
             aboutMorphePref.setAttributeNS(ANDROID_NS, "android:title", "Morphe patch source")
-            aboutMorphePref.setAttributeNS(ANDROID_NS, "android:summary", "Official repository")
-            val mIntent = xml.createElement("intent")
-            mIntent.setAttributeNS(ANDROID_NS, "android:action", "android.intent.action.VIEW")
-            mIntent.setAttributeNS(ANDROID_NS, "android:data", "https://morphe.software/add-source?github=vortexnode/SBrowserX")
-            aboutMorphePref.appendChild(mIntent)
+            aboutMorphePref.setAttributeNS(ANDROID_NS, "android:summary", " ")
             screen.appendChild(aboutMorphePref)
         }
 

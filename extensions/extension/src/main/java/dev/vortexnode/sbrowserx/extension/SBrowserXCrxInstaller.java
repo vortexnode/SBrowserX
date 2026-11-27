@@ -72,6 +72,22 @@ public final class SBrowserXCrxInstaller {
                     throw new IllegalArgumentException("Unsupported file format (expected .crx or .zip)");
                 }
 
+                int mv = inspectManifestVersion(crxBytes);
+                if (mv <= 0) {
+                    throw new IllegalArgumentException("Invalid extension package: manifest.json not found");
+                }
+                if (mv == 2) {
+                    final boolean ru = "ru".equals(java.util.Locale.getDefault().getLanguage());
+                    final String warn = ru
+                            ? "Manifest V2 (экспериментально). Если установка не удастся — используйте MV3 (например, uBlock Origin Lite)."
+                            : "Manifest V2 (experimental). If install fails, use an MV3 version (e.g. uBlock Origin Lite).";
+                    new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                        try {
+                            android.widget.Toast.makeText(context.getApplicationContext(), warn, android.widget.Toast.LENGTH_LONG).show();
+                        } catch (Throwable ignored) {}
+                    });
+                }
+
                 File outFile = saveCrxToCache(context, extId, crxBytes);
                 launchNativeInstall(extId, outFile.getAbsolutePath(), callback);
             } catch (Throwable t) {
@@ -461,5 +477,33 @@ public final class SBrowserXCrxInstaller {
 
     private static void postResult(Callback cb, boolean ok, String msg) {
         new Handler(Looper.getMainLooper()).post(() -> cb.onResult(ok, msg));
+    }
+
+    private static int inspectManifestVersion(byte[] data) {
+        if (data == null || data.length < 30) return -1;
+        int zipStart = -1;
+        for (int i = 0; i <= data.length - 4; i++) {
+            if (data[i] == 'P' && data[i + 1] == 'K' && data[i + 2] == 3 && data[i + 3] == 4) {
+                zipStart = i;
+                break;
+            }
+        }
+        if (zipStart < 0) return -1;
+        try (java.util.zip.ZipInputStream zis = new java.util.zip.ZipInputStream(
+                new java.io.ByteArrayInputStream(data, zipStart, data.length - zipStart))) {
+            java.util.zip.ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                String name = entry.getName();
+                if ("manifest.json".equals(name) || (name != null && name.endsWith("/manifest.json"))) {
+                    byte[] mBytes = readAll(zis);
+                    String json = new String(mBytes, java.nio.charset.StandardCharsets.UTF_8);
+                    org.json.JSONObject obj = new org.json.JSONObject(json);
+                    return obj.optInt("manifest_version", 0);
+                }
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "inspectManifestVersion failed: " + t.getMessage());
+        }
+        return -1;
     }
 }

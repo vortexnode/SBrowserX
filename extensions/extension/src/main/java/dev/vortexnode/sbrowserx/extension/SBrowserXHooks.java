@@ -1114,6 +1114,7 @@ public final class SBrowserXHooks {
                 appendSwitch.invoke(null, "enable-gpu-rasterization");
                 appendSwitch.invoke(null, "enable-zero-copy");
                 appendSwitch.invoke(null, "enable-smooth-scrolling");
+                appendSwitch.invoke(null, "allow-legacy-extension-manifests");
             } catch (Throwable ignored) {}
             boolean darkActive = isBrowserNightModeAtStartup(ctx);
             boolean forceLightSites = isApplyDefaultDarkSitesAtStartup(ctx);
@@ -2962,22 +2963,37 @@ public final class SBrowserXHooks {
                 String summary = "ru".equals(lang) ? "Расширения • Приватность • Интерфейс"
                         : ("uk".equals(lang) ? "Розширення • Приватність • Інтерфейс"
                         : "Extensions • Privacy • Interface");
-                hub.getClass().getMethod("setTitle", CharSequence.class).invoke(hub, "SBrowserX");
-                hub.getClass().getMethod("setSummary", CharSequence.class).invoke(hub, oneUiAccentSummary(ctx, summary));
+                hub.getClass().getMethod("setTitle", CharSequence.class)
+                        .invoke(hub, titleWithTealDot("SBrowserX", SBrowserXPrefs.isAnyFeatureNew(ctx)));
+                setAccentSummary(hub, ctx, summary);
             }
 
             Object extTopPref = findPref.invoke(fragment, "sbrowserx_settings_extensions");
             if (extTopPref != null) {
-                extTopPref.getClass().getMethod("setSummary", CharSequence.class)
-                        .invoke(extTopPref, oneUiAccentSummary(ctx, "Chrome Web Store"));
+                boolean extNew = SBrowserXPrefs.isFeatureNew(ctx, SBrowserXPrefs.FEATURE_EXT_PACK)
+                        || SBrowserXPrefs.isFeatureNew(ctx, SBrowserXPrefs.FEATURE_EXT_INSTALLER);
+                applyTealDotToExistingTitle(extTopPref, extNew);
+                setAccentSummary(extTopPref, ctx, "Chrome Web Store");
             }
 
-            // Bottom "About SBrowserX" items with One UI accent summaries
+            // Mirror teal dots onto main Settings stock rows containing unviewed SBrowserX features
+            applyTealDotToKey(findPref, fragment, "pref_auto_close_unused_tabs",
+                    SBrowserXPrefs.isFeatureNew(ctx, SBrowserXPrefs.FEATURE_AUTO_CLOSE_1DAY));
+            applyTealDotToKey(findPref, fragment, "layout_and_menu",
+                    SBrowserXPrefs.isFeatureNew(ctx, SBrowserXPrefs.FEATURE_BOTTOM_BLUR));
+            applyTealDotToKey(findPref, fragment, "privacy",
+                    SBrowserXPrefs.isFeatureNew(ctx, SBrowserXPrefs.FEATURE_WEBRTC)
+                            || SBrowserXPrefs.isFeatureNew(ctx, SBrowserXPrefs.FEATURE_FINGERPRINT)
+                            || SBrowserXPrefs.isFeatureNew(ctx, SBrowserXPrefs.FEATURE_HIDE_ADBLOCKERS));
+            applyTealDotToKey(findPref, fragment, "sites_and_contents",
+                    SBrowserXPrefs.isFeatureNew(ctx, SBrowserXPrefs.FEATURE_EXT_DOWNLOADER));
+
+            // Bottom "About SBrowserX" items with One UI accent summaries & direct URL click handlers
             Object aboutVer = findPref.invoke(fragment, "sbrowserx_about_version");
             if (aboutVer != null) {
                 aboutVer.getClass().getMethod("setTitle", CharSequence.class).invoke(aboutVer, "SBrowserX");
-                aboutVer.getClass().getMethod("setSummary", CharSequence.class)
-                        .invoke(aboutVer, oneUiAccentSummary(ctx, "v1.3.7 • GitHub"));
+                setAccentSummary(aboutVer, ctx, "v1.3.7 • GitHub");
+                bindUrlClick(aboutVer, ctx, "https://github.com/vortexnode/SBrowserX");
             }
             Object aboutMorphe = findPref.invoke(fragment, "sbrowserx_about_morphe");
             if (aboutMorphe != null) {
@@ -2987,8 +3003,8 @@ public final class SBrowserXHooks {
                 String mSum = "ru".equals(lang) ? "Официальный репозиторий"
                         : ("uk".equals(lang) ? "Офіційний репозиторій" : "Official repository");
                 aboutMorphe.getClass().getMethod("setTitle", CharSequence.class).invoke(aboutMorphe, mTitle);
-                aboutMorphe.getClass().getMethod("setSummary", CharSequence.class)
-                        .invoke(aboutMorphe, oneUiAccentSummary(ctx, mSum));
+                setAccentSummary(aboutMorphe, ctx, mSum);
+                bindUrlClick(aboutMorphe, ctx, "https://morphe.software/add-source?github=vortexnode/SBrowserX");
             }
 
             String onLbl = SBrowserXStrings.get(SBrowserXStrings.BTN_ENABLE);
@@ -3100,16 +3116,17 @@ public final class SBrowserXHooks {
             Object baPref = findPref.invoke(fragment, "sbrowserx_browsing_assist");
             if (baPref != null) {
                 baPref.getClass().getMethod("setTitle", CharSequence.class)
-                        .invoke(baPref, SBrowserXStrings.get(SBrowserXStrings.ASSIST_TITLE));
-                baPref.getClass().getMethod("setSummary", CharSequence.class)
-                        .invoke(baPref, oneUiAccentSummary(ctx, assistShort));
+                        .invoke(baPref, titleWithTealDot(
+                                SBrowserXStrings.get(SBrowserXStrings.ASSIST_TITLE),
+                                SBrowserXPrefs.isFeatureNew(ctx, SBrowserXPrefs.FEATURE_GOOGLE_TRANSLATE)));
+                setAccentSummary(baPref, ctx, assistShort);
             }
 
             String[] deadKeys = new String[] {
                     "cloud_sync", "pref_browsing_assist", "pref_drawing_assist",
                     "pref_shopping_assistant", "pref_read_aloud", "pref_contact_us", "pref_leave_internet",
                     "sbrowserx_stock_privacy_cat", "pref_privacy_notice", "notice_board",
-                    "pref_permissions", "debug_settings"
+                    "pref_permissions", "debug_settings", "about"
             };
             for (String dk : deadKeys) {
                 try {
@@ -4097,6 +4114,80 @@ public final class SBrowserXHooks {
         } catch (Throwable ignored) {
             return text;
         }
+    }
+
+    private static void setAccentSummary(Object pref, Context ctx, String text) {
+        try {
+            Method setSum = pref.getClass().getMethod("setSummary", CharSequence.class);
+            setSum.invoke(pref, "");
+            setSum.invoke(pref, oneUiAccentSummary(ctx, text));
+        } catch (Throwable ignored) {}
+    }
+
+    private static CharSequence titleWithTealDot(CharSequence rawTitle, boolean showDot) {
+        String base = rawTitle != null ? rawTitle.toString() : "";
+        int dotIdx = base.indexOf("  ●");
+        if (dotIdx >= 0) base = base.substring(0, dotIdx);
+        if (!showDot) return base;
+        try {
+            String full = base + "  ●";
+            android.text.SpannableString sp = new android.text.SpannableString(full);
+            sp.setSpan(new android.text.style.ForegroundColorSpan(0xFF00C9A7),
+                    full.length() - 1, full.length(),
+                    android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            return sp;
+        } catch (Throwable ignored) {
+            return base;
+        }
+    }
+
+    private static void applyTealDotToExistingTitle(Object pref, boolean showDot) {
+        if (pref == null) return;
+        try {
+            Object t = pref.getClass().getMethod("getTitle").invoke(pref);
+            if (t instanceof CharSequence) {
+                CharSequence updated = titleWithTealDot((CharSequence) t, showDot);
+                Method setT = pref.getClass().getMethod("setTitle", CharSequence.class);
+                setT.invoke(pref, "");
+                setT.invoke(pref, updated);
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    private static void applyTealDotToKey(Method findPref, Object fragment, String key, boolean showDot) {
+        try {
+            Object pref = findPref.invoke(fragment, key);
+            if (pref != null) applyTealDotToExistingTitle(pref, showDot);
+        } catch (Throwable ignored) {}
+    }
+
+    private static void bindUrlClick(Object pref, Context ctx, String url) {
+        try {
+            Method setClick = null;
+            for (Method m : pref.getClass().getMethods()) {
+                if ("setOnPreferenceClickListener".equals(m.getName()) && m.getParameterTypes().length == 1) {
+                    setClick = m;
+                    break;
+                }
+            }
+            if (setClick != null) {
+                Class<?> iface = setClick.getParameterTypes()[0];
+                Object proxy = Proxy.newProxyInstance(
+                        iface.getClassLoader(),
+                        new Class<?>[] { iface },
+                        (p, method, args) -> {
+                            try {
+                                Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                                if (!(ctx instanceof Activity)) {
+                                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                                }
+                                ctx.startActivity(i);
+                            } catch (Throwable ignored) {}
+                            return Boolean.TRUE;
+                        });
+                setClick.invoke(pref, proxy);
+            }
+        } catch (Throwable ignored) {}
     }
 
     /**
