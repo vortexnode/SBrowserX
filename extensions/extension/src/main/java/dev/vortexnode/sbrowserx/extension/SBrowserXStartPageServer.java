@@ -650,6 +650,9 @@ public final class SBrowserXStartPageServer {
                 + "    }"
                 + "  }catch(e){}"
                 + "}"
+                + "async function refreshShortcuts(){try{const r=await fetch('/api/state');const s=await r.json();if(s&&Array.isArray(s.shortcuts)){STATE.shortcuts=s.shortcuts;renderShortcuts();}}catch(e){}}"
+                + "document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshShortcuts();});"
+                + "window.addEventListener('pageshow',()=>refreshShortcuts());"
                 + "loadAll();"
                 + "</script></body></html>";
     }

@@ -648,5 +648,25 @@ val sbrowserXCorePatch = bytecodePatch(
                 }
             }
         }
+
+        // Route "Add page to -> Quick access" to SBrowserX Start Page when it is the active start page,
+        // or fall through to Samsung's stock QuickAccess when stock QuickAccess is selected.
+        // AddToMenu.addQuickAccess()V (.locals 4 -> v0 free)
+        findMethodOrThrow(
+            classType = "Lcom/sec/android/app/sbrowser/main_view/menu/AddToMenu;",
+            methodName = "addQuickAccess",
+            parameterTypes = emptyList(),
+            returnType = "V",
+        ).addInstructions(
+            0,
+            """
+                invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->tryAddCurrentPageToStartPage(Ljava/lang/Object;)Z
+                move-result v0
+                if-eqz v0, :sbrowserx_stock_add_qa
+                return-void
+                :sbrowserx_stock_add_qa
+                nop
+            """.trimIndent(),
+        )
     }
 }

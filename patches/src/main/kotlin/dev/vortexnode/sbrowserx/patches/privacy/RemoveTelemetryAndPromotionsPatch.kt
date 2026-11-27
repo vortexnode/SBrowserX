@@ -168,5 +168,16 @@ val removeTelemetryAndPromotionsPatch = bytecodePatch(
                 invoke-static {v0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->filterBlockedSearchEngines(Ljava/util/List;)V
             """.trimIndent(),
         )
+
+        // 11. Disable Samsung Internet activation ping (terms.internet.apps.samsung.com/activated)
+        findMethodOrThrow(
+            classType = "Lcom/sec/android/app/sbrowser/common/tnc/SIActivatedLoggingTask;",
+            methodName = "onStartTask",
+            parameterTypes = listOf(
+                "Ljava/lang/String;",
+                "Lcom/sec/android/app/sbrowser/common/model/general/GeneralCallback;",
+            ),
+            returnType = "V",
+        ).returnVoidEarly()
     }
 }

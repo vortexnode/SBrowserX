@@ -3207,6 +3207,95 @@ public final class SBrowserXHooks {
                 || trimmed.startsWith("https://127.0.0.1:");
     }
 
+    public static boolean tryAddCurrentPageToStartPage(Object addToMenu) {
+        try {
+            Context ctx = SBrowserXPrefs.getAppContext();
+            Activity act = sMainActivityRef.get();
+            if (ctx == null && act != null) ctx = act.getApplicationContext();
+            if (ctx == null || !SBrowserXPrefs.isStartPageEnabled(ctx)) {
+                return false;
+            }
+            if (addToMenu == null) return false;
+            Method getTab = addToMenu.getClass().getDeclaredMethod("getCurrentTab");
+            getTab.setAccessible(true);
+            Object tab = getTab.invoke(addToMenu);
+            if (tab == null) return true;
+
+            String url = null;
+            String title = null;
+            try {
+                Object u = tab.getClass().getMethod("getUrl").invoke(tab);
+                if (u instanceof String) url = ((String) u).trim();
+            } catch (Throwable ignored) {}
+            try {
+                Object t = tab.getClass().getMethod("getTitle").invoke(tab);
+                if (t instanceof String) title = ((String) t).trim();
+            } catch (Throwable ignored) {}
+
+            if (url == null || url.isEmpty()
+                    || SBrowserXStartPageServer.isStartPageUrl(url)
+                    || url.startsWith("about:")
+                    || url.startsWith("internet-native://")
+                    || url.startsWith("chrome-native://")) {
+                return true;
+            }
+
+            if (title == null || title.isEmpty()) {
+                try {
+                    String host = android.net.Uri.parse(url).getHost();
+                    if (host != null && !host.isEmpty()) {
+                        title = host.startsWith("www.") ? host.substring(4) : host;
+                    }
+                } catch (Throwable ignored) {}
+            }
+            if (title == null || title.isEmpty()) title = url;
+
+            String raw = SBrowserXPrefs.getStartPageShortcutsJson(ctx);
+            org.json.JSONArray arr;
+            try {
+                arr = new org.json.JSONArray(raw != null ? raw : "[]");
+            } catch (Throwable t) {
+                arr = new org.json.JSONArray();
+            }
+
+            String normTarget = url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
+            boolean exists = false;
+            for (int i = 0; i < arr.length(); i++) {
+                org.json.JSONObject obj = arr.optJSONObject(i);
+                if (obj == null) continue;
+                String existing = obj.optString("url", "").trim();
+                String normEx = existing.endsWith("/") ? existing.substring(0, existing.length() - 1) : existing;
+                if (normTarget.equalsIgnoreCase(normEx)) {
+                    exists = true;
+                    break;
+                }
+            }
+
+            if (!exists) {
+                org.json.JSONObject item = new org.json.JSONObject();
+                item.put("title", title);
+                item.put("url", url);
+                arr.put(item);
+                SBrowserXPrefs.setStartPageShortcutsJson(ctx, arr.toString());
+            }
+
+            final Context toastCtx = act != null ? act : ctx;
+            final boolean alreadyExists = exists;
+            final boolean ru = "ru".equalsIgnoreCase(java.util.Locale.getDefault().getLanguage());
+            final String msg = alreadyExists
+                    ? (ru ? "Ярлык уже добавлен на стартовую страницу." : "Shortcut is already on your Start Page.")
+                    : (ru ? "Ярлык быстрого доступа сохранён." : "Quick access shortcut saved.");
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                try {
+                    android.widget.Toast.makeText(toastCtx, msg, android.widget.Toast.LENGTH_SHORT).show();
+                } catch (Throwable ignored) {}
+            });
+            return true;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
     public static boolean shouldForceBlankOmnibox(String url, boolean origForceBlank) {
         return origForceBlank || isStartPageOmniboxUrl(url);
     }
