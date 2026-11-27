@@ -2950,18 +2950,45 @@ public final class SBrowserXHooks {
                 String lang = java.util.Locale.getDefault().getLanguage();
                 String bmTitle = "ru".equals(lang) ? "Закладки"
                         : ("uk".equals(lang) ? "Закладки" : "Bookmarks");
-                String bmSum = "ru".equals(lang) ? "Быстрый переход к закладкам и папкам"
-                        : ("uk".equals(lang) ? "Швидкий перехід до закладок і папок"
-                        : "Quick access to bookmarks & folders");
+                String bmSum = "ru".equals(lang) ? "Быстрый переход"
+                        : ("uk".equals(lang) ? "Швидкий перехід" : "Quick access");
                 bmPref.getClass().getMethod("setTitle", CharSequence.class).invoke(bmPref, bmTitle);
-                bmPref.getClass().getMethod("setSummary", CharSequence.class).invoke(bmPref, bmSum);
+                bmPref.getClass().getMethod("setSummary", CharSequence.class).invoke(bmPref, oneUiAccentSummary(ctx, bmSum));
             }
 
             Object hub = findPref.invoke(fragment, "sbrowserx_settings_hub");
             if (hub != null) {
-                String summary = SBrowserXStrings.get(SBrowserXStrings.CAT_EXTENSIONS) + ", WebRTC, "
-                        + SBrowserXStrings.get(SBrowserXStrings.CAT_APPEARANCE);
-                hub.getClass().getMethod("setSummary", CharSequence.class).invoke(hub, summary);
+                String lang = java.util.Locale.getDefault().getLanguage();
+                String summary = "ru".equals(lang) ? "Расширения • Приватность • Интерфейс"
+                        : ("uk".equals(lang) ? "Розширення • Приватність • Інтерфейс"
+                        : "Extensions • Privacy • Interface");
+                hub.getClass().getMethod("setTitle", CharSequence.class).invoke(hub, "SBrowserX");
+                hub.getClass().getMethod("setSummary", CharSequence.class).invoke(hub, oneUiAccentSummary(ctx, summary));
+            }
+
+            Object extTopPref = findPref.invoke(fragment, "sbrowserx_settings_extensions");
+            if (extTopPref != null) {
+                extTopPref.getClass().getMethod("setSummary", CharSequence.class)
+                        .invoke(extTopPref, oneUiAccentSummary(ctx, "Chrome Web Store"));
+            }
+
+            // Bottom "About SBrowserX" items with One UI accent summaries
+            Object aboutVer = findPref.invoke(fragment, "sbrowserx_about_version");
+            if (aboutVer != null) {
+                aboutVer.getClass().getMethod("setTitle", CharSequence.class).invoke(aboutVer, "SBrowserX");
+                aboutVer.getClass().getMethod("setSummary", CharSequence.class)
+                        .invoke(aboutVer, oneUiAccentSummary(ctx, "v1.3.7 • GitHub"));
+            }
+            Object aboutMorphe = findPref.invoke(fragment, "sbrowserx_about_morphe");
+            if (aboutMorphe != null) {
+                String lang = java.util.Locale.getDefault().getLanguage();
+                String mTitle = "ru".equals(lang) ? "Источник патчей для Morphe"
+                        : ("uk".equals(lang) ? "Джерело патчів для Morphe" : "Morphe patch source");
+                String mSum = "ru".equals(lang) ? "Официальный репозиторий"
+                        : ("uk".equals(lang) ? "Офіційний репозиторій" : "Official repository");
+                aboutMorphe.getClass().getMethod("setTitle", CharSequence.class).invoke(aboutMorphe, mTitle);
+                aboutMorphe.getClass().getMethod("setSummary", CharSequence.class)
+                        .invoke(aboutMorphe, oneUiAccentSummary(ctx, mSum));
             }
 
             String onLbl = SBrowserXStrings.get(SBrowserXStrings.BTN_ENABLE);
@@ -3057,17 +3084,32 @@ public final class SBrowserXHooks {
                     SBrowserXPrefs.isUnlimitedTabsEnabled(ctx),
                     checked -> SBrowserXPrefs.setUnlimitedTabsEnabled(ctx, checked));
 
-            setNativePref(findPref, fragment, "sbrowserx_sync_backup",
-                    SBrowserXStrings.get(SBrowserXStrings.SYNC_BACKUP_TITLE),
-                    SBrowserXStrings.get(SBrowserXStrings.SYNC_BACKUP_SUMMARY));
+            String langShort = java.util.Locale.getDefault().getLanguage();
+            String backupShort = "ru".equals(langShort) ? "Локальный бэкап • Google Диск"
+                    : ("uk".equals(langShort) ? "Локальний бекап • Google Диск" : "Local backup • Google Drive");
+            String assistShort = "ru".equals(langShort) ? "Gemini • Переводчик"
+                    : ("uk".equals(langShort) ? "Gemini • Перекладач" : "Gemini • Translator");
 
-            setNativePref(findPref, fragment, "sbrowserx_browsing_assist",
-                    SBrowserXStrings.get(SBrowserXStrings.ASSIST_TITLE),
-                    SBrowserXStrings.get(SBrowserXStrings.ASSIST_SUMMARY));
+            Object sbPref = findPref.invoke(fragment, "sbrowserx_sync_backup");
+            if (sbPref != null) {
+                sbPref.getClass().getMethod("setTitle", CharSequence.class)
+                        .invoke(sbPref, SBrowserXStrings.get(SBrowserXStrings.SYNC_BACKUP_TITLE));
+                sbPref.getClass().getMethod("setSummary", CharSequence.class)
+                        .invoke(sbPref, oneUiAccentSummary(ctx, backupShort));
+            }
+            Object baPref = findPref.invoke(fragment, "sbrowserx_browsing_assist");
+            if (baPref != null) {
+                baPref.getClass().getMethod("setTitle", CharSequence.class)
+                        .invoke(baPref, SBrowserXStrings.get(SBrowserXStrings.ASSIST_TITLE));
+                baPref.getClass().getMethod("setSummary", CharSequence.class)
+                        .invoke(baPref, oneUiAccentSummary(ctx, assistShort));
+            }
 
             String[] deadKeys = new String[] {
                     "cloud_sync", "pref_browsing_assist", "pref_drawing_assist",
-                    "pref_shopping_assistant", "pref_read_aloud", "pref_contact_us", "pref_leave_internet"
+                    "pref_shopping_assistant", "pref_read_aloud", "pref_contact_us", "pref_leave_internet",
+                    "sbrowserx_stock_privacy_cat", "pref_privacy_notice", "notice_board",
+                    "pref_permissions", "debug_settings"
             };
             for (String dk : deadKeys) {
                 try {
@@ -4037,6 +4079,109 @@ public final class SBrowserXHooks {
         } catch (Throwable t) {
             Log.e(TAG, "onToolbarButtonLongClick failed", t);
             return false;
+        }
+    }
+
+    /**
+     * Styles a short One UI preference summary in the native Samsung One UI accent blue.
+     */
+    private static CharSequence oneUiAccentSummary(Context ctx, String text) {
+        if (text == null) return "";
+        try {
+            boolean night = isBrowserNightMode(ctx);
+            int color = night ? 0xFF3E91FF : 0xFF0381FE;
+            android.text.SpannableString sp = new android.text.SpannableString(text);
+            sp.setSpan(new android.text.style.ForegroundColorSpan(color), 0, text.length(),
+                    android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            return sp;
+        } catch (Throwable ignored) {
+            return text;
+        }
+    }
+
+    /**
+     * Adds Permissions, Privacy Notice History, and Debug Settings buttons neatly under
+     * Open Source Licenses inside Samsung's AboutFragment ("About Samsung Browser").
+     */
+    public static void onAboutFragmentViewCreated(Object fragment, View rootView) {
+        if (fragment == null || rootView == null) return;
+        try {
+            Context ctx = rootView.getContext();
+            if (ctx == null) return;
+            int licId = ctx.getResources().getIdentifier("open_source_license", "id", ctx.getPackageName());
+            if (licId == 0) return;
+            View licBtn = rootView.findViewById(licId);
+            if (!(licBtn instanceof android.widget.Button)) return;
+            android.view.ViewParent parent = licBtn.getParent();
+            if (!(parent instanceof android.widget.LinearLayout)) return;
+            android.widget.LinearLayout container = (android.widget.LinearLayout) parent;
+            if (container.findViewWithTag("sbrowserx_about_extras") != null) return;
+
+            final Activity act = (ctx instanceof Activity) ? (Activity) ctx
+                    : (fragment.getClass().getMethod("getActivity").invoke(fragment) instanceof Activity
+                            ? (Activity) fragment.getClass().getMethod("getActivity").invoke(fragment) : null);
+            if (act == null) return;
+
+            android.widget.Button template = (android.widget.Button) licBtn;
+            String lang = java.util.Locale.getDefault().getLanguage();
+            boolean ru = "ru".equals(lang);
+            boolean uk = "uk".equals(lang);
+
+            String[][] entries = new String[][] {
+                    { ru ? "Разрешения" : (uk ? "Дозволи" : "Permissions"),
+                      "com.sec.android.app.sbrowser.settings.NoticePermissionsFragment" },
+                    { ru ? "Журнал уведомлений о конфиденц." : (uk ? "Журнал сповіщень про конфіденц." : "Privacy notice history"),
+                      "com.sec.android.app.sbrowser.settings.notice.NoticeListFragment" },
+                    { "Debug settings",
+                      "com.sec.android.app.sbrowser.settings.debug.DebugSettingsFragment" }
+            };
+
+            float density = ctx.getResources().getDisplayMetrics().density;
+            int topMargin = (int) (12f * density + 0.5f);
+
+            for (int i = 0; i < entries.length; i++) {
+                final String label = entries[i][0];
+                final String fragClass = entries[i][1];
+                android.widget.Button btn = new android.widget.Button(ctx);
+                if (i == 0) btn.setTag("sbrowserx_about_extras");
+                btn.setText(label);
+                btn.setAllCaps(false);
+                btn.setTextColor(template.getTextColors());
+                btn.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, template.getTextSize());
+                btn.setTypeface(template.getTypeface());
+                btn.setMinWidth(template.getMinWidth());
+                btn.setMinHeight(template.getMinHeight());
+                btn.setPadding(template.getPaddingLeft(), template.getPaddingTop(),
+                        template.getPaddingRight(), template.getPaddingBottom());
+                btn.setGravity(android.view.Gravity.CENTER);
+                Drawable bg = template.getBackground();
+                if (bg != null && bg.getConstantState() != null) {
+                    btn.setBackground(bg.getConstantState().newDrawable(ctx.getResources()));
+                }
+                android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(
+                        android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                        android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
+                lp.gravity = android.view.Gravity.CENTER_HORIZONTAL;
+                lp.topMargin = topMargin;
+                btn.setLayoutParams(lp);
+                btn.setOnClickListener(v -> {
+                    try {
+                        Class<?> helper = Class.forName("com.sec.android.app.sbrowser.settings.FragmentCommonHelper");
+                        for (Method m : helper.getDeclaredMethods()) {
+                            if ("startFragment".equals(m.getName()) && m.getParameterTypes().length == 3) {
+                                m.setAccessible(true);
+                                m.invoke(null, act, fragClass, null);
+                                return;
+                            }
+                        }
+                    } catch (Throwable t) {
+                        Log.w(TAG, "open About extra fragment failed: " + fragClass, t);
+                    }
+                });
+                container.addView(btn);
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "onAboutFragmentViewCreated failed", t);
         }
     }
 }
