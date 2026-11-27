@@ -3898,7 +3898,7 @@ public final class SBrowserXHooks {
                     if (c instanceof Context) ctx = (Context) c;
                 } catch (Throwable ignored) {}
             }
-            if (ctx == null) ctx = sAppContext;
+            if (ctx == null) ctx = SBrowserXPrefs.getAppContext();
             if (ctx == null) return false;
 
             if (!SBrowserXPrefs.isHomeLongPressCloseBgEnabled(ctx)) {
@@ -4000,7 +4000,7 @@ public final class SBrowserXHooks {
                         ? String.format(java.util.Locale.getDefault(),
                                 SBrowserXStrings.get(SBrowserXStrings.HOME_LONG_PRESS_TOAST_CLOSED), closedBgTabs)
                         : SBrowserXStrings.get(SBrowserXStrings.HOME_LONG_PRESS_TOAST_RELOADED);
-                Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show();
+                android.widget.Toast.makeText(ctx, msg, android.widget.Toast.LENGTH_SHORT).show();
             } catch (Throwable ignored) {}
 
             return true;
