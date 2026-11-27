@@ -248,5 +248,13 @@ val removeTelemetryAndPromotionsPatch = bytecodePatch(
                 return p0
             """.trimIndent(),
         )
+
+        // 17. Silence the annoying "This page was opened by <App>" snackbar while keeping Intent Blocker intact
+        findMethodOrThrow(
+            classType = "Lcom/sec/android/app/sbrowser/main_activity/BackgroundCallerHandler;",
+            methodName = "showSnackBar",
+            parameterTypes = emptyList(),
+            returnType = "V",
+        ).returnVoidEarly()
     }
 }
