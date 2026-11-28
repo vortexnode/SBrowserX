@@ -25,7 +25,7 @@ import java.lang.reflect.Method;
  */
 public final class SBrowserXChangelogDialog {
     public static final String CURRENT_VERSION = "1.3.7";
-    private static final String ACK_KEY_VERSION = "1.3.7-b18";
+    private static final String ACK_KEY_VERSION = "1.3.7-b20";
     private static volatile boolean sShowing = false;
 
     private SBrowserXChangelogDialog() {}

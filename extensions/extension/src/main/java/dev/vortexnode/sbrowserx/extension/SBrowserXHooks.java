@@ -4251,12 +4251,19 @@ public final class SBrowserXHooks {
     private static void bindSupportDialogClick(Object pref, Object fragment, Context ctx) {
         if (pref == null) return;
         try {
-            Class<?> listenerCls = Class.forName("androidx.preference.Preference$OnPreferenceClickListener");
-            Object proxy = Proxy.newProxyInstance(
-                    listenerCls.getClassLoader(),
-                    new Class<?>[] { listenerCls },
-                    (p, m, args) -> {
-                        if ("onPreferenceClick".equals(m.getName())) {
+            Method setClick = null;
+            for (Method m : pref.getClass().getMethods()) {
+                if ("setOnPreferenceClickListener".equals(m.getName()) && m.getParameterTypes().length == 1) {
+                    setClick = m;
+                    break;
+                }
+            }
+            if (setClick != null) {
+                Class<?> iface = setClick.getParameterTypes()[0];
+                Object proxy = Proxy.newProxyInstance(
+                        iface.getClassLoader(),
+                        new Class<?>[] { iface },
+                        (p, m, args) -> {
                             try {
                                 Object actObj = fragment.getClass().getMethod("getActivity").invoke(fragment);
                                 if (actObj instanceof Activity) {
@@ -4269,10 +4276,9 @@ public final class SBrowserXHooks {
                                 }
                             } catch (Throwable ignored) {}
                             return Boolean.TRUE;
-                        }
-                        return null;
-                    });
-            pref.getClass().getMethod("setOnPreferenceClickListener", listenerCls).invoke(pref, proxy);
+                        });
+                setClick.invoke(pref, proxy);
+            }
         } catch (Throwable ignored) {}
     }
 
