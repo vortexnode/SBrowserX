@@ -15,6 +15,8 @@ private const val SIX_DEFAULT_LOADER_CLASS =
     "Lcom/sec/android/app/sbrowser/extensions/SixDefaultExtLoader;"
 private const val EXTENSIONS_MENU_COORDINATOR_CLASS =
     "Lcom/sec/android/app/sbrowser/extensions/ExtensionsMenuCoordinator;"
+private const val EXTENSION_ACTION_POPUP_CONTENTS_CLASS =
+    "Lcom/sec/terrace/browser/extensions/ExtensionActionPopupContents;"
 
 @Suppress("unused")
 val unlockExtensionsPatch = bytecodePatch(
@@ -86,6 +88,23 @@ val unlockExtensionsPatch = bytecodePatch(
                 const/4 v0, 0x1
                 return v0
                 :sbrowserx_stock_ext_mgmt
+                nop
+            """.trimIndent(),
+        )
+
+        // Guard against stock Samsung Internet NPE when IME/soft-keyboard events pass a null KeyEvent into extension popups (e.g. Bitwarden)
+        findMethodOrThrow(
+            classType = EXTENSION_ACTION_POPUP_CONTENTS_CLASS,
+            methodName = "handleKeyboardEvent",
+            parameterTypes = listOf("Lorg/chromium/content_public/browser/WebContents;", "Landroid/view/KeyEvent;"),
+            returnType = "Z",
+        ).addInstructions(
+            0,
+            """
+                if-nez p2, :sbrowserx_nonnull_keyevent
+                const/4 p0, 0x0
+                return p0
+                :sbrowserx_nonnull_keyevent
                 nop
             """.trimIndent(),
         )

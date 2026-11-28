@@ -24,8 +24,8 @@ import java.lang.reflect.Method;
  * Shown once on first launch after updating SBrowserX.
  */
 public final class SBrowserXChangelogDialog {
-    public static final String CURRENT_VERSION = "1.3.9";
-    private static final String ACK_KEY_VERSION = "1.3.9-release";
+    public static final String CURRENT_VERSION = "1.4.0";
+    private static final String ACK_KEY_VERSION = "1.4.0-release";
     private static volatile boolean sShowing = false;
 
     private SBrowserXChangelogDialog() {}
@@ -34,6 +34,7 @@ public final class SBrowserXChangelogDialog {
         if (act == null || act.isFinishing() || act.isDestroyed() || sShowing) return;
         String seen = SBrowserXPrefs.getLastSeenChangelogVersion(act);
         if (ACK_KEY_VERSION.equals(seen)) return;
+        final boolean freshInstall = isFreshInstall(act, seen);
         sShowing = true;
         try {
             final boolean night = SBrowserXHooks.isBrowserNightMode(act);
@@ -52,7 +53,7 @@ public final class SBrowserXChangelogDialog {
 
             SBrowserXStrings.updateUiContext(act);
             String lang = SBrowserXStrings.getAppLang(act);
-            String[] L = SBrowserXChangelogLocales.get(lang);
+            String[] L = freshInstall ? SBrowserXChangelogLocales.getWelcome(lang) : SBrowserXChangelogLocales.get(lang);
             String title = L[0];
             String hPromo = L[1];
             String promoBody = L[2];
@@ -115,14 +116,22 @@ public final class SBrowserXChangelogDialog {
             final LinearLayout cards = new LinearLayout(act);
             cards.setOrientation(LinearLayout.VERTICAL);
 
-            cards.addView(buildSectionCard(act, d, promoBg, promoBorder,
-                    night ? 0xFF60A5FA : 0xFF0381FE, textPrimary, hPromo, promoBody, Math.max(2, dp(d, 1))));
-            cards.addView(buildSectionCard(act, d, cardBg, cardBorder,
-                    night ? 0xFF34D399 : 0xFF059669, textSecondary, hAdded, addedBody, 1));
-            cards.addView(buildSectionCard(act, d, cardBg, cardBorder,
-                    oneUiBlue, textSecondary, hImproved, improvedBody, 1));
-            cards.addView(buildSectionCard(act, d, cardBg, cardBorder,
-                    night ? 0xFFF87171 : 0xFFDC2626, textSecondary, hRemoved, removedBody, 1));
+            if (hPromo != null && !hPromo.isEmpty() && promoBody != null && !promoBody.isEmpty()) {
+                cards.addView(buildSectionCard(act, d, promoBg, promoBorder,
+                        night ? 0xFF60A5FA : 0xFF0381FE, textPrimary, hPromo, promoBody, Math.max(2, dp(d, 1))));
+            }
+            if (hAdded != null && !hAdded.isEmpty() && addedBody != null && !addedBody.isEmpty()) {
+                cards.addView(buildSectionCard(act, d, cardBg, cardBorder,
+                        night ? 0xFF34D399 : 0xFF059669, textSecondary, hAdded, addedBody, 1));
+            }
+            if (hImproved != null && !hImproved.isEmpty() && improvedBody != null && !improvedBody.isEmpty()) {
+                cards.addView(buildSectionCard(act, d, cardBg, cardBorder,
+                        oneUiBlue, textSecondary, hImproved, improvedBody, 1));
+            }
+            if (hRemoved != null && !hRemoved.isEmpty() && removedBody != null && !removedBody.isEmpty()) {
+                cards.addView(buildSectionCard(act, d, cardBg, cardBorder,
+                        night ? 0xFFF87171 : 0xFFDC2626, textSecondary, hRemoved, removedBody, 1));
+            }
 
             sv.addView(cards);
             int maxScrollH = Math.round(act.getResources().getDisplayMetrics().heightPixels * 0.54f);
@@ -233,6 +242,17 @@ public final class SBrowserXChangelogDialog {
         } catch (Throwable t) {
             sShowing = false;
         }
+    }
+
+    private static boolean isFreshInstall(Activity act, String seen) {
+        if (seen != null && !seen.isEmpty()) return false;
+        try {
+            android.content.pm.PackageInfo pi = act.getPackageManager().getPackageInfo(act.getPackageName(), 0);
+            if (pi != null && pi.firstInstallTime > 0 && pi.lastUpdateTime > pi.firstInstallTime + 5000L) {
+                return false;
+            }
+        } catch (Throwable ignored) {}
+        return true;
     }
 
     private static void applyOneUiWindowBlur(View view, int radius, int tintColor) {

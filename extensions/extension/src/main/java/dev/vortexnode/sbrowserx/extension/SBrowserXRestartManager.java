@@ -23,18 +23,22 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import java.lang.ref.WeakReference;
-import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
 /**
- * Persistent top-right circular Restart button for both Samsung Internet's native
+ * Persistent circular Restart button for both Samsung Internet's native
  * SettingsActivity (including all sub-screens like Dark Mode, Layout, Privacy) and
  * all SBrowserX settings screens.
  *
+ * - Automatically detects overlapping top-right toolbar controls (e.g. Done / Reset / Search)
+ *   using live view bounds: shifts left when toolbar space is available, or drops cleanly to
+ *   bottom-right when the top bar is full.
  * - Idle state: subtle neutral icon matching One UI theme.
  * - Dirty state (any stock or SBrowserX preference toggled while in Settings):
  *   lights up in One UI accent blue with a soft halo and subtle pulse animation.
@@ -43,6 +47,8 @@ import java.util.List;
 public final class SBrowserXRestartManager {
     private static final String TAG = "SBrowserXRestart";
     private static final String BTN_TAG = "sbrowserx_restart_btn";
+    private static final int TAG_WATCHER_ATTACHED = 0x53425801;
+    private static final int TAG_FLOATING_BOTTOM = 0x53425802;
 
     private static volatile boolean sInitialized = false;
     private static volatile boolean sPendingRestart = false;
@@ -195,7 +201,7 @@ public final class SBrowserXRestartManager {
         }, 80L);
     }
 
-    private static void attachToStockSettingsToolbar(Activity activity) {
+    private static void attachToStockSettingsToolbar(final Activity activity) {
         if (activity == null || activity.isFinishing() || activity.isDestroyed()) return;
         try {
             android.view.Window win = activity.getWindow();
@@ -205,17 +211,14 @@ public final class SBrowserXRestartManager {
             ViewGroup decor = (ViewGroup) decorObj;
 
             View existing = decor.findViewWithTag(BTN_TAG);
-            ImageView btn;
+            final ImageView btn;
             if (existing instanceof ImageView) {
                 btn = (ImageView) existing;
             } else {
                 btn = buildRestartImageView(activity);
                 float d = activity.getResources().getDisplayMetrics().density;
                 int size = Math.round(40 * d);
-                int statusH = 0;
-                int resId = activity.getResources().getIdentifier("status_bar_height", "dimen", "android");
-                if (resId > 0) statusH = activity.getResources().getDimensionPixelSize(resId);
-                if (statusH <= 0) statusH = Math.round(28 * d);
+                int statusH = getStatusBarHeight(activity, d);
 
                 android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(
                         size, size, Gravity.TOP | Gravity.END);
@@ -225,27 +228,228 @@ public final class SBrowserXRestartManager {
                 decor.addView(btn, lp);
                 registerButton(btn);
             }
+            btn.setVisibility(View.VISIBLE);
             btn.bringToFront();
+            updateButtonPosition(activity, btn);
             applyButtonVisualState(btn, activity, false);
+            registerLayoutCollisionWatcher(activity, btn);
         } catch (Throwable t) {
             Log.w(TAG, "attachToStockSettingsToolbar failed", t);
         }
     }
 
-    private static ViewGroup.LayoutParams createToolbarEndLayoutParams(ViewGroup toolbar, int size, int endMargin) {
+    private static int getStatusBarHeight(Activity activity, float d) {
+        int statusH = 0;
         try {
-            Class<?> lpCls = Class.forName("androidx.appcompat.widget.Toolbar$LayoutParams");
-            Object lpObj = lpCls.getConstructor(int.class, int.class, int.class)
-                    .newInstance(size, size, Gravity.END | Gravity.CENTER_VERTICAL);
-            if (lpObj instanceof ViewGroup.MarginLayoutParams) {
-                ((ViewGroup.MarginLayoutParams) lpObj).setMarginEnd(endMargin);
-            }
-            return (ViewGroup.LayoutParams) lpObj;
-        } catch (Throwable ignored) {
-            ViewGroup.MarginLayoutParams fallback = new ViewGroup.MarginLayoutParams(size, size);
-            fallback.setMarginEnd(endMargin);
-            return fallback;
+            int resId = activity.getResources().getIdentifier("status_bar_height", "dimen", "android");
+            if (resId > 0) statusH = activity.getResources().getDimensionPixelSize(resId);
+        } catch (Throwable ignored) {}
+        return statusH > 0 ? statusH : Math.round(28 * d);
+    }
+
+    private static int getNavBarHeight(Activity activity, float d) {
+        int navH = 0;
+        try {
+            int resId = activity.getResources().getIdentifier("navigation_bar_height", "dimen", "android");
+            if (resId > 0) navH = activity.getResources().getDimensionPixelSize(resId);
+        } catch (Throwable ignored) {}
+        return navH > 0 ? navH : Math.round(48 * d);
+    }
+
+    private static void collectToolbarObstacles(
+            View view, View ignoreBtn, int screenW, int bandTop, int bandBottom, int maxBtnH, List<Rect> out) {
+        if (view == null || view == ignoreBtn || view.getVisibility() != View.VISIBLE || view.getAlpha() < 0.05f) {
+            return;
         }
+        int w = view.getWidth();
+        int h = view.getHeight();
+        if (w <= 0 || h <= 0) return;
+
+        int[] loc = new int[2];
+        view.getLocationOnScreen(loc);
+        int left = loc[0];
+        int top = loc[1];
+        int right = left + w;
+        int bottom = top + h;
+
+        if (view instanceof ViewGroup) {
+            ViewGroup vg = (ViewGroup) view;
+            // Capture clickable pill containers (e.g. Done / Reset buttons) in the toolbar band
+            if (view.isClickable()
+                    && w <= (int) (screenW * 0.45f)
+                    && h <= maxBtnH
+                    && top < bandBottom
+                    && bottom > bandTop) {
+                out.add(new Rect(left, top, right, bottom));
+            }
+            for (int i = 0; i < vg.getChildCount(); i++) {
+                collectToolbarObstacles(vg.getChildAt(i), ignoreBtn, screenW, bandTop, bandBottom, maxBtnH, out);
+            }
+            return;
+        }
+
+        // Leaf view inside the top toolbar band
+        if (top >= bandBottom || bottom <= bandTop || w > (int) (screenW * 0.85f)) {
+            return;
+        }
+        boolean hasVisibleContent = false;
+        if (view instanceof TextView) {
+            TextView tv = (TextView) view;
+            CharSequence txt = tv.getText();
+            if (txt != null && txt.length() > 0) {
+                hasVisibleContent = true;
+            } else {
+                Drawable[] cds = tv.getCompoundDrawables();
+                for (Drawable cd : cds) {
+                    if (cd != null) {
+                        hasVisibleContent = true;
+                        break;
+                    }
+                }
+            }
+        } else if (view instanceof ImageView) {
+            hasVisibleContent = ((ImageView) view).getDrawable() != null;
+        } else if (view.isClickable()) {
+            hasVisibleContent = true;
+        }
+
+        if (hasVisibleContent) {
+            out.add(new Rect(left, top, right, bottom));
+        }
+    }
+
+    private static void updateButtonPosition(Activity activity, ImageView btn) {
+        if (activity == null || btn == null || activity.isFinishing() || activity.isDestroyed()) return;
+        try {
+            android.view.Window win = activity.getWindow();
+            if (win == null) return;
+            View decor = win.getDecorView();
+            int screenW = decor.getWidth();
+            int screenH = decor.getHeight();
+            if (screenW <= 0 || screenH <= 0) return;
+
+            float d = activity.getResources().getDisplayMetrics().density;
+            int size = Math.round(40 * d);
+            int statusH = getStatusBarHeight(activity, d);
+            int navH = getNavBarHeight(activity, d);
+            int defaultEnd = Math.round(14 * d);
+            int defaultTop = statusH + Math.round(8 * d);
+            int pad = Math.round(4 * d);
+            int gap = Math.round(8 * d);
+
+            int defLeft = screenW - defaultEnd - size;
+            int defRight = screenW - defaultEnd;
+            int defBottom = defaultTop + size;
+
+            List<Rect> obstacles = new ArrayList<>();
+            collectToolbarObstacles(
+                    decor,
+                    btn,
+                    screenW,
+                    statusH,
+                    statusH + Math.round(80 * d),
+                    Math.round(72 * d),
+                    obstacles);
+
+            Rect defPadded = new Rect(defLeft - pad, defaultTop - pad, defRight + pad, defBottom + pad);
+            boolean collidesDefault = false;
+            int minObsLeft = defLeft;
+            for (Rect obs : obstacles) {
+                if (Rect.intersects(defPadded, obs)) {
+                    collidesDefault = true;
+                    if (obs.left < minObsLeft) minObsLeft = obs.left;
+                }
+            }
+
+            int targetGravity = Gravity.TOP | Gravity.END;
+            int targetTop = defaultTop;
+            int targetBottom = 0;
+            int targetEnd = defaultEnd;
+            boolean targetFloatingBottom = false;
+
+            if (collidesDefault) {
+                // Expand past any adjacent right-side action buttons in the toolbar
+                boolean expanded = true;
+                while (expanded) {
+                    expanded = false;
+                    int candRight = minObsLeft - gap;
+                    int candLeft = candRight - size;
+                    Rect candPadded = new Rect(candLeft - pad, defaultTop - pad, candRight + pad, defBottom + pad);
+                    for (Rect obs : obstacles) {
+                        if (obs.centerX() > screenW * 0.55f && Rect.intersects(candPadded, obs) && obs.left < minObsLeft) {
+                            minObsLeft = obs.left;
+                            expanded = true;
+                        }
+                    }
+                }
+
+                int candRight = minObsLeft - gap;
+                int candLeft = candRight - size;
+                Rect candPadded = new Rect(candLeft - pad, defaultTop - pad, candRight + pad, defBottom + pad);
+                boolean shiftLeftClear = candLeft >= Math.round(16 * d);
+                if (shiftLeftClear) {
+                    for (Rect obs : obstacles) {
+                        if (Rect.intersects(candPadded, obs)) {
+                            shiftLeftClear = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (shiftLeftClear) {
+                    targetGravity = Gravity.TOP | Gravity.END;
+                    targetTop = defaultTop;
+                    targetBottom = 0;
+                    targetEnd = screenW - candRight;
+                    targetFloatingBottom = false;
+                } else {
+                    // Top bar is full (e.g. long title + Reset button): drop cleanly to bottom-right
+                    targetGravity = Gravity.BOTTOM | Gravity.END;
+                    targetTop = 0;
+                    targetBottom = navH + Math.round(20 * d);
+                    targetEnd = Math.round(16 * d);
+                    targetFloatingBottom = true;
+                }
+            }
+
+            ViewGroup.LayoutParams rawLp = btn.getLayoutParams();
+            if (rawLp instanceof android.widget.FrameLayout.LayoutParams) {
+                android.widget.FrameLayout.LayoutParams lp = (android.widget.FrameLayout.LayoutParams) rawLp;
+                boolean layoutChanged = lp.gravity != targetGravity
+                        || lp.topMargin != targetTop
+                        || lp.bottomMargin != targetBottom
+                        || lp.getMarginEnd() != targetEnd;
+                boolean prevFloating = Boolean.TRUE.equals(btn.getTag(TAG_FLOATING_BOTTOM));
+                if (layoutChanged) {
+                    lp.gravity = targetGravity;
+                    lp.topMargin = targetTop;
+                    lp.bottomMargin = targetBottom;
+                    lp.setMarginEnd(targetEnd);
+                    btn.setLayoutParams(lp);
+                }
+                if (prevFloating != targetFloatingBottom) {
+                    btn.setTag(TAG_FLOATING_BOTTOM, targetFloatingBottom);
+                    applyButtonVisualState(btn, activity, false);
+                }
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    private static void registerLayoutCollisionWatcher(final Activity activity, final ImageView btn) {
+        try {
+            if (Boolean.TRUE.equals(btn.getTag(TAG_WATCHER_ATTACHED))) return;
+            btn.setTag(TAG_WATCHER_ATTACHED, Boolean.TRUE);
+            final View decor = activity.getWindow() != null ? activity.getWindow().getDecorView() : null;
+            if (decor != null) {
+                decor.getViewTreeObserver().addOnGlobalLayoutListener(new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
+                    @Override
+                    public void onGlobalLayout() {
+                        if (activity.isFinishing() || activity.isDestroyed()) return;
+                        updateButtonPosition(activity, btn);
+                    }
+                });
+            }
+        } catch (Throwable ignored) {}
     }
 
     /** Attaches the same circular Restart button to the right end of any SBrowserX custom header row. */
@@ -322,13 +526,14 @@ public final class SBrowserXRestartManager {
         try {
             boolean night = SBrowserXHooks.isBrowserNightMode(ctx);
             boolean dirty = sPendingRestart;
+            boolean floatingBottom = Boolean.TRUE.equals(btn.getTag(TAG_FLOATING_BOTTOM));
             float d = ctx.getResources().getDisplayMetrics().density;
 
             int iconColor;
             if (dirty) {
                 iconColor = night ? 0xFF4C9BFF : 0xFF2563EB;
             } else {
-                iconColor = night ? 0x8AFFFFFF : 0x7A000000;
+                iconColor = night ? 0x99FFFFFF : 0x8A000000;
             }
 
             btn.setImageDrawable(new CircularRestartDrawable(d, iconColor, dirty));
@@ -336,7 +541,18 @@ public final class SBrowserXRestartManager {
             if (dirty) {
                 GradientDrawable pill = new GradientDrawable();
                 pill.setShape(GradientDrawable.OVAL);
-                pill.setColor(night ? 0x2B4C9BFF : 0x222563EB);
+                if (floatingBottom) {
+                    pill.setColor(night ? 0xEB1E293B : 0xF5EFF6FF);
+                    pill.setStroke(Math.round(1 * d), night ? 0x554C9BFF : 0x442563EB);
+                } else {
+                    pill.setColor(night ? 0x2B4C9BFF : 0x222563EB);
+                }
+                btn.setBackground(pill);
+            } else if (floatingBottom) {
+                GradientDrawable pill = new GradientDrawable();
+                pill.setShape(GradientDrawable.OVAL);
+                pill.setColor(night ? 0xE6222226 : 0xF2FFFFFF);
+                pill.setStroke(Math.round(1 * d), night ? 0x28FFFFFF : 0x1F000000);
                 btn.setBackground(pill);
             } else {
                 TypedValue ripple = new TypedValue();

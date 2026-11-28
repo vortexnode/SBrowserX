@@ -49,7 +49,7 @@ public final class SBrowserXSettingsActivity extends Activity {
     private LinearLayout urlBlurLevelRow;
     private TextView compactBlurLevelValueView;
     private LinearLayout compactBlurLevelRow;
-    private View extInstallDot, extPackDot, webrtcDot, fingerprintDot, hideAdsDot, gtransDot, extDlDot, amoledDot, forceDarkDot, blurDot, supportDot;
+    private View extInstallDot, extPackDot, webrtcDot, fingerprintDot, hideAdsDot, gtransDot, extDlDot, amoledDot, forceDarkDot, blurDot;
     private ScrollView mainScrollView;
 
     @Override
@@ -303,17 +303,6 @@ public final class SBrowserXSettingsActivity extends Activity {
                 });
         root.addView(highlightCard);
 
-        // --- Support the author ---
-        LinearLayout supportCard = card(cardColor);
-        LinearLayout.LayoutParams slp = (LinearLayout.LayoutParams) supportCard.getLayoutParams();
-        slp.topMargin = dp(16);
-        supportDot = createCoralDot();
-        addActionRow(supportCard, SBrowserXStrings.getSupportTitle(),
-                SBrowserXStrings.getSupportSubtitle(),
-                textPrimary, textSecondary, supportDot,
-                v -> dev.vortexnode.sbrowserx.extension.SBrowserXSupportDialog.show(this, this::refreshDynamicViews));
-        root.addView(supportCard);
-
         // --- Restart ---
         LinearLayout restartCard = card(cardColor);
         LinearLayout.LayoutParams rlp = (LinearLayout.LayoutParams) restartCard.getLayoutParams();
@@ -470,9 +459,6 @@ public final class SBrowserXSettingsActivity extends Activity {
         setDot(extDlDot, SBrowserXPrefs.FEATURE_EXT_DOWNLOADER);
         setDot(amoledDot, SBrowserXPrefs.FEATURE_AMOLED);
         setDot(blurDot, SBrowserXPrefs.FEATURE_BOTTOM_BLUR);
-        if (supportDot != null) {
-            supportDot.setVisibility(SBrowserXPrefs.isSupportBadgeVisible(this) ? View.VISIBLE : View.GONE);
-        }
         if (blurLevelValueView != null) {
             boolean blurOn = SBrowserXPrefs.isBottomBarBlurEnabled(this);
             int pct = SBrowserXPrefs.getBottomBarTransparency(this);

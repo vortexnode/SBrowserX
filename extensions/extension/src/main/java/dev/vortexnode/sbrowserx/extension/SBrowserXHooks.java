@@ -4132,70 +4132,92 @@ public final class SBrowserXHooks {
                 mainView.getClass().getMethod("clearFocusUrlBar").invoke(mainView);
             } catch (Throwable ignored) {}
 
+            // Ensure Start Page server is running & homepage URL is never null before opening Home
+            if (SBrowserXPrefs.isStartPageEnabled(ctx)) {
+                try {
+                    SBrowserXStartPageServer.ensureStarted(ctx);
+                    String spUrl = SBrowserXStartPageServer.getBaseUrl();
+                    if (spUrl != null && !spUrl.isEmpty()) {
+                        Class<?> hpsCls = Class.forName("com.sec.android.app.sbrowser.homepage.HomePageSettings");
+                        Object inst = hpsCls.getMethod("getInstance").invoke(null);
+                        if (inst != null) {
+                            hpsCls.getMethod("setHomePage", String.class).invoke(inst, spUrl);
+                        }
+                    }
+                } catch (Throwable ignored) {}
+            } else {
+                try {
+                    Class<?> hpsCls = Class.forName("com.sec.android.app.sbrowser.homepage.HomePageSettings");
+                    Object inst = hpsCls.getMethod("getInstance").invoke(null);
+                    if (inst != null) {
+                        Object curHp = hpsCls.getMethod("getHomePage").invoke(inst);
+                        if (!(curHp instanceof String) || ((String) curHp).trim().isEmpty() || "null".equalsIgnoreCase(((String) curHp).trim())) {
+                            hpsCls.getMethod("setHomePage", String.class).invoke(inst, "internet-native://newtab/");
+                        }
+                    }
+                } catch (Throwable ignored) {}
+            }
+
             int closedBgTabs = 0;
-            boolean wasAlreadyStartPage = false;
-            Object currentTab = null;
+            boolean isIncognito = false;
+            Object tabManager = null;
+            Object oldCurrentTab = null;
 
             try {
-                Object tabManager = mainView.getClass().getMethod("getTabManager").invoke(mainView);
+                tabManager = mainView.getClass().getMethod("getTabManager").invoke(mainView);
                 if (tabManager != null) {
-                    currentTab = tabManager.getClass().getMethod("getCurrentTab").invoke(tabManager);
-                    if (currentTab != null) {
-                        int tabId = ((Integer) currentTab.getClass().getMethod("getTabId").invoke(currentTab)).intValue();
-                        boolean isIncognito = ((Boolean) currentTab.getClass().getMethod("isIncognito").invoke(currentTab)).booleanValue();
-
+                    oldCurrentTab = tabManager.getClass().getMethod("getCurrentTab").invoke(tabManager);
+                    if (oldCurrentTab != null) {
+                        isIncognito = ((Boolean) oldCurrentTab.getClass().getMethod("isIncognito").invoke(oldCurrentTab)).booleanValue();
                         try {
                             Object listObj = tabManager.getClass().getMethod("getTabList", boolean.class).invoke(tabManager, isIncognito);
                             if (listObj instanceof java.util.List<?>) {
-                                int total = ((java.util.List<?>) listObj).size();
-                                if (total > 1) {
-                                    closedBgTabs = total - 1;
-                                }
+                                closedBgTabs = ((java.util.List<?>) listObj).size();
                             }
                         } catch (Throwable ignored) {}
-
-                        try {
-                            boolean isNative = ((Boolean) currentTab.getClass().getMethod("isNativePage").invoke(currentTab)).booleanValue();
-                            String curUrl = null;
-                            try {
-                                Object u = currentTab.getClass().getMethod("getUrl").invoke(currentTab);
-                                if (u instanceof String) curUrl = (String) u;
-                            } catch (Throwable ignored) {}
-                            wasAlreadyStartPage = isNative
-                                    || (curUrl != null && (curUrl.startsWith("http://127.0.0.1:")
-                                            || curUrl.startsWith("internet-native://")));
-                        } catch (Throwable ignored) {}
-
-                        if (closedBgTabs > 0) {
-                            tabManager.getClass()
-                                    .getMethod("closeOtherTabs", int.class, boolean.class)
-                                    .invoke(tabManager, tabId, isIncognito);
-                        }
                     }
                 }
             } catch (Throwable t) {
-                Log.w(TAG, "onToolbarButtonLongClick: closeOtherTabs error", t);
+                Log.w(TAG, "onToolbarButtonLongClick: inspect tabs error", t);
             }
 
-            // Open or reload Start Page regardless of whether user was on a webpage or already on Start Page
+            // Open a brand-new clean Home tab (zero Back history) and close ALL previous tabs (including the old active tab)
+            boolean openedCleanTab = false;
             try {
-                mainView.getClass().getMethod("loadHomePage").invoke(mainView);
+                mainView.getClass().getMethod("loadHomePageWithNewTab", boolean.class, int.class)
+                        .invoke(mainView, isIncognito, -1);
+                if (tabManager != null) {
+                    Object newTab = tabManager.getClass().getMethod("getCurrentTab").invoke(tabManager);
+                    if (newTab != null && newTab != oldCurrentTab) {
+                        int newTabId = ((Integer) newTab.getClass().getMethod("getTabId").invoke(newTab)).intValue();
+                        tabManager.getClass()
+                                .getMethod("closeOtherTabs", int.class, boolean.class)
+                                .invoke(tabManager, newTabId, isIncognito);
+                        openedCleanTab = true;
+                    }
+                }
             } catch (Throwable t) {
-                Log.w(TAG, "onToolbarButtonLongClick: loadHomePage error", t);
+                Log.w(TAG, "onToolbarButtonLongClick: loadHomePageWithNewTab fallback", t);
             }
 
-            if (wasAlreadyStartPage && currentTab != null) {
+            if (!openedCleanTab) {
+                // Safe fallback if new-tab API unavailable
                 try {
-                    boolean isNativeNow = ((Boolean) currentTab.getClass().getMethod("isNativePage").invoke(currentTab)).booleanValue();
-                    if (isNativeNow) {
-                        Object nativePage = currentTab.getClass().getMethod("getNativePage").invoke(currentTab);
-                        if (nativePage != null) {
-                            nativePage.getClass().getMethod("reload").invoke(nativePage);
+                    if (tabManager != null && oldCurrentTab != null) {
+                        int oldId = ((Integer) oldCurrentTab.getClass().getMethod("getTabId").invoke(oldCurrentTab)).intValue();
+                        if (closedBgTabs > 1) {
+                            tabManager.getClass()
+                                    .getMethod("closeOtherTabs", int.class, boolean.class)
+                                    .invoke(tabManager, oldId, isIncognito);
+                            closedBgTabs = closedBgTabs - 1;
+                        } else {
+                            closedBgTabs = 0;
                         }
-                    } else {
-                        currentTab.getClass().getMethod("reload").invoke(currentTab);
                     }
-                } catch (Throwable ignored) {}
+                    mainView.getClass().getMethod("loadHomePage").invoke(mainView);
+                } catch (Throwable t) {
+                    Log.w(TAG, "onToolbarButtonLongClick: fallback loadHomePage error", t);
+                }
             }
 
             try {
