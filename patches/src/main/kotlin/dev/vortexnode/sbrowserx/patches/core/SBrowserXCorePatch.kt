@@ -504,6 +504,21 @@ val sbrowserXCorePatch = bytecodePatch(
             """.trimIndent(),
         )
 
+        // Disable Knox SDP (Sensitive Data Protection) on re-signed APKs so Secret Mode uses DefaultDataProtector
+        // instead of SecureDataProtector -> SdpTrustedOperations.unlockViaTrusted() (which NPEs without Samsung platform signature)
+        findMethodOrThrow(
+            classType = "Lcom/sec/android/app/sbrowser/common/device/DeviceSettings;",
+            methodName = "isSdpSupported",
+            parameterTypes = emptyList(),
+            returnType = "Z",
+        ).addInstructions(
+            0,
+            """
+                const/4 v0, 0x0
+                return v0
+            """.trimIndent(),
+        )
+
         // Prevent regional google.com New Tab override from ignoring SBrowserX Start Page or Quick Access
         findMethodOrThrow(
             classType = "Lcom/sec/android/app/sbrowser/homepage/HomePageSettings;",
