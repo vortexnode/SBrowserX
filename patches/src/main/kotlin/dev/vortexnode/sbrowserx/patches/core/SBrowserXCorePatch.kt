@@ -474,6 +474,50 @@ val sbrowserXCorePatch = bytecodePatch(
             "invoke-static {p0}, Ldev/vortexnode/sbrowserx/extension/SBrowserXRestartManager;->onSettingsActivityConfigChanged(Landroid/app/Activity;)V",
         )
 
+        // Unlock Browsing Assist / AI Summary button on non-Samsung phones (OnePlus, Pixel, Xiaomi, etc.)
+        listOf("isBrowsingAssistSupported", "isBrowsingAssistEnabledMode").forEach { aiMethod ->
+            findMethodOrThrow(
+                classType = "Lcom/sec/android/app/sbrowser/common/artificial_intelligence/AIUtil;",
+                methodName = aiMethod,
+                parameterTypes = emptyList(),
+                returnType = "Z",
+            ).addInstructions(
+                0,
+                """
+                    const/4 v0, 0x1
+                    return v0
+                """.trimIndent(),
+            )
+        }
+
+        // Use standard Android BiometricPrompt for Secret Mode fingerprint login on all devices (works on re-signed Samsung & non-Samsung APKs)
+        findMethodOrThrow(
+            classType = "Lcom/sec/android/app/sbrowser/common/device/DeviceSettings;",
+            methodName = "supportBiometricsWithNonSamsungDevice",
+            parameterTypes = emptyList(),
+            returnType = "Z",
+        ).addInstructions(
+            0,
+            """
+                const/4 v0, 0x1
+                return v0
+            """.trimIndent(),
+        )
+
+        // Prevent regional google.com New Tab override from ignoring SBrowserX Start Page or Quick Access
+        findMethodOrThrow(
+            classType = "Lcom/sec/android/app/sbrowser/homepage/HomePageSettings;",
+            methodName = "supportGoogleNewTab",
+            parameterTypes = emptyList(),
+            returnType = "Z",
+        ).addInstructions(
+            0,
+            """
+                const/4 v0, 0x0
+                return v0
+            """.trimIndent(),
+        )
+
         // Intercept More Menu -> "Browsing assist" click to launch Gemini 2.5 Flash AI Page Summary
         findMethodOrThrow(
             classType = APP_MENU_HANDLER_CLASS,

@@ -797,29 +797,70 @@ public final class SBrowserXStrings {
         if (m != null) m.put(key, value);
     }
 
+    private static volatile java.lang.ref.WeakReference<android.content.Context> sUiContextRef =
+            new java.lang.ref.WeakReference<>(null);
+
+    public static void updateUiContext(android.content.Context ctx) {
+        if (ctx instanceof android.app.Activity) {
+            sUiContextRef = new java.lang.ref.WeakReference<>(ctx);
+        }
+    }
+
+    private static boolean isValidLocale(Locale l) {
+        if (l == null) return false;
+        String lang = l.getLanguage();
+        if (lang == null || lang.length() < 2 || lang.length() > 3) return false;
+        return !"und".equalsIgnoreCase(lang);
+    }
+
     public static Locale getAppLocale() {
+        return getAppLocale(null);
+    }
+
+    public static Locale getAppLocale(android.content.Context preferredCtx) {
         try {
-            android.content.Context ctx = SBrowserXPrefs.getAppContext();
-            if (ctx != null) {
-                if (android.os.Build.VERSION.SDK_INT >= 33) {
-                    android.app.LocaleManager lm = (android.app.LocaleManager) ctx.getSystemService(android.content.Context.LOCALE_SERVICE);
-                    if (lm != null) {
-                        android.os.LocaleList appLocs = lm.getApplicationLocales();
-                        if (appLocs != null && !appLocs.isEmpty()) {
-                            Locale l = appLocs.get(0);
-                            if (l != null && l.getLanguage() != null && !l.getLanguage().isEmpty()) return l;
-                        }
+            android.content.Context ctx = preferredCtx != null ? preferredCtx : sUiContextRef.get();
+            if (ctx == null) ctx = SBrowserXPrefs.getAppContext();
+            // 1. Explicit Android 13+ Per-App Language (only when non-empty)
+            if (ctx != null && android.os.Build.VERSION.SDK_INT >= 33) {
+                android.app.LocaleManager lm = (android.app.LocaleManager) ctx.getSystemService(android.content.Context.LOCALE_SERVICE);
+                if (lm != null) {
+                    android.os.LocaleList appLocs = lm.getApplicationLocales();
+                    if (appLocs != null && !appLocs.isEmpty()) {
+                        Locale l = appLocs.get(0);
+                        if (isValidLocale(l)) return l;
                     }
                 }
-                android.content.res.Configuration cfg = ctx.getResources().getConfiguration();
+            }
+            // 2. Active Activity Resources configuration (exact locale rendering Samsung Internet UI)
+            android.content.Context actCtx = (preferredCtx instanceof android.app.Activity)
+                    ? preferredCtx : sUiContextRef.get();
+            if (actCtx != null) {
+                android.content.res.Configuration cfg = actCtx.getResources().getConfiguration();
                 if (cfg != null) {
                     Locale l = (android.os.Build.VERSION.SDK_INT >= 24 && !cfg.getLocales().isEmpty())
                             ? cfg.getLocales().get(0) : cfg.locale;
-                    if (l != null && l.getLanguage() != null && !l.getLanguage().isEmpty()) return l;
+                    if (isValidLocale(l)) return l;
                 }
+            }
+            // 3. Android System Resources configuration (reliable even before Activity attaches)
+            android.content.res.Configuration sysCfg = android.content.res.Resources.getSystem().getConfiguration();
+            if (sysCfg != null) {
+                Locale l = (android.os.Build.VERSION.SDK_INT >= 24 && !sysCfg.getLocales().isEmpty())
+                        ? sysCfg.getLocales().get(0) : sysCfg.locale;
+                if (isValidLocale(l)) return l;
             }
         } catch (Throwable ignored) {}
         return Locale.getDefault();
+    }
+
+    public static String getAppLang(android.content.Context preferredCtx) {
+        String l = getAppLocale(preferredCtx).getLanguage();
+        if (l == null || l.isEmpty()) return "en";
+        l = l.toLowerCase(Locale.US);
+        if ("in".equals(l)) return "id";
+        if ("iw".equals(l)) return "he";
+        return l;
     }
 
     public static String getAppLang() {

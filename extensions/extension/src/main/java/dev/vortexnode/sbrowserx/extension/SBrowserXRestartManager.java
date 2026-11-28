@@ -225,11 +225,63 @@ public final class SBrowserXRestartManager {
                 decor.addView(btn, lp);
                 registerButton(btn);
             }
-            btn.bringToFront();
-            applyButtonVisualState(btn, activity, false);
+            boolean hideForCustomize = shouldHideRestartOnCurrentFragment(activity);
+            btn.setVisibility(hideForCustomize ? View.GONE : View.VISIBLE);
+            if (!hideForCustomize) {
+                btn.bringToFront();
+                applyButtonVisualState(btn, activity, false);
+            }
+            registerFragmentVisibilityWatcher(activity, btn);
         } catch (Throwable t) {
             Log.w(TAG, "attachToStockSettingsToolbar failed", t);
         }
+    }
+
+    private static boolean shouldHideRestartOnCurrentFragment(Activity activity) {
+        try {
+            // Check visible support fragments for Customize Toolbar / More Menu screens that have Reset/Done buttons in top-right
+            java.lang.reflect.Method getFm = activity.getClass().getMethod("getSupportFragmentManager");
+            Object fm = getFm.invoke(activity);
+            if (fm != null) {
+                Object listObj = fm.getClass().getMethod("getFragments").invoke(fm);
+                if (listObj instanceof java.util.List<?>) {
+                    for (Object frag : (java.util.List<?>) listObj) {
+                        if (frag == null) continue;
+                        boolean visible = false;
+                        try {
+                            visible = ((Boolean) frag.getClass().getMethod("isVisible").invoke(frag)).booleanValue();
+                        } catch (Throwable ignored) {}
+                        if (!visible) continue;
+                        String n = frag.getClass().getName().toLowerCase(java.util.Locale.ROOT);
+                        if (n.contains("customize") || n.contains("moremenu") || n.contains("toolbar")) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+        return false;
+    }
+
+    private static void registerFragmentVisibilityWatcher(final Activity activity, final ImageView btn) {
+        try {
+            if (Boolean.TRUE.equals(btn.getTag(0x53425801))) return;
+            btn.setTag(0x53425801, Boolean.TRUE);
+            android.view.View decor = activity.getWindow() != null ? activity.getWindow().getDecorView() : null;
+            if (decor != null) {
+                decor.getViewTreeObserver().addOnGlobalLayoutListener(new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
+                    @Override
+                    public void onGlobalLayout() {
+                        if (activity.isFinishing() || activity.isDestroyed()) return;
+                        boolean hide = shouldHideRestartOnCurrentFragment(activity);
+                        int target = hide ? View.GONE : View.VISIBLE;
+                        if (btn.getVisibility() != target) {
+                            btn.setVisibility(target);
+                        }
+                    }
+                });
+            }
+        } catch (Throwable ignored) {}
     }
 
     private static ViewGroup.LayoutParams createToolbarEndLayoutParams(ViewGroup toolbar, int size, int endMargin) {
