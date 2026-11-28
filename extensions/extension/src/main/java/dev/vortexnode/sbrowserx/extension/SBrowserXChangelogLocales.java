@@ -1,482 +1,666 @@
 package dev.vortexnode.sbrowserx.extension;
 
 /**
- * Full 20-language localization for the One UI frosted-glass "What's New" dialog.
- * Supported: en, ru, uk, es, pt, de, fr, it, pl, tr, ar, fa, hi, zh, ja, ko, id, vi, nl, sw.
+ * Localized strings for the SBrowserX "What's New" (v1.4.0) and first-launch "Welcome" sheets
+ * across all 20 supported languages.
+ * Array format (11 items):
+ * [0] title, [1] promoHeader, [2] promoBody,
+ * [3] addedHeader, [4] addedBody,
+ * [5] improvedHeader, [6] improvedBody,
+ * [7] removedHeader, [8] removedBody,
+ * [9] checkboxText, [10] scrollHint
  */
-final class SBrowserXChangelogLocales {
+public final class SBrowserXChangelogLocales {
     private SBrowserXChangelogLocales() {}
 
-    /**
-     * Returns 11 localized strings:
-     * [0] title, [1] hPromo, [2] promoBody,
-     * [3] hAdded, [4] addedBody,
-     * [5] hImproved, [6] improvedBody,
-     * [7] hRemoved, [8] removedBody,
-     * [9] cbText, [10] scrollHint
-     */
-    static String[] get(String lang) {
+    public static String[] get(String lang) {
         if (lang == null) lang = "en";
         switch (lang) {
             case "ru": return new String[] {
                 "Что нового в SBrowserX",
-                "★ Рекомендация: подключите Gemini API",
-                "Настоятельно рекомендуем открыть «Настройки → Ассистент по просмотру», создать бесплатный ключ Gemini API в Google AI Studio, вставить его в поле ключа и выбрать Gemini 3.5 Flash-Lite основным движком переводчика. Это даст самый быстрый и точный перевод с пониманием контекста и сразу включит ИИ-сводку страниц.",
-                "Что добавлено",
-                "• Новые движки перевода: Bing (по умолчанию), Яндекс, DeepL API и Gemini 3.5 Flash-Lite (AI).\n"
-                + "• Полная поддержка языка приложения (Per-App Language) и локализация на топ-20 мировых языков (включая окно «Что нового»).\n"
-                + "• Сетка ярлыков стартовой страницы (4 или 5 колонок) и заполнение плитки иконкой в стиле Quetta.\n"
-                + "• Mate Translate добавлен в набор рекомендуемых расширений (теперь их 7).\n"
-                + "• Одноразовая памятка переводчика в «Ассистенте по просмотру».",
-                "Что улучшено и исправлено",
-                "• Обновлён экран «Настройки SBrowserX»: единая верхняя карточка с синими подписями One UI, заголовок «Настройки SBrowserX» и нижняя карточка «О SBrowserX» / «Поддержать автора».\n"
-                + "• Умные бирюзовые точки (в стиле Morphe): синхронизированы в главном меню и хабе, исчезают автоматически после просмотра.\n"
-                + "• Стартовая страница: повышена стабильность запуска, обои и погода обновляются мгновенно без перезапуска.\n"
-                + "• Переводчик: улучшен перевод на таких сайтах, как Google News, Reuters, Le Monde и GSMArena, доработана плавающая панель перевода и исправлена иконка в тёмной теме.",
-                "Что удалено и защищено",
-                "• Полностью отключён навязчивый промо-баннер «Сделать домашней страницей Samsung» в настройках.\n"
-                + "• Скрыты лишние штатные пункты (блок конфиденциальности, «О Samsung Browser», Debug settings).\n"
-                + "• Заблокирована установка несовместимых расширений Manifest V2 (.crx/.zip) с понятным предупреждением и рекомендацией uBlock Origin Lite (MV3).\n"
-                + "• Удалён устаревший движок Microsoft Edge.",
+                "★ Главное в v1.4.0",
+                "Стабильная биометрия в Секретном режиме (Инкогнито), исправление вылетов расширений при вводе с клавиатуры и умная кнопка перезапуска без наложений.",
+                "Улучшения и возможности",
+                "• Секретный режим (Инкогнито): вход по отпечатку переведён на стандартный Android BiometricPrompt без зависимости от Knox SDP — работает стабильно на Samsung и не-Samsung устройствах.\n"
+                + "• ИИ-сводка на всех смартфонах: кнопка «Ассистент по просмотру» (Gemini AI) теперь доступна и на устройствах не от Samsung (Pixel, OnePlus, Xiaomi и др.).\n"
+                + "• Умная кнопка перезапуска: в настройках автоматически обходит кнопки тулбара («Готово», «Сбросить», поиск) — сдвигается левее или опускается вниз вправо.",
+                "Исправления и стабильность",
+                "• Попапы расширений (Bitwarden и др.): устранён вылет при вводе с клавиатуры во всплывающих окнах расширений.\n"
+                + "• Кнопка «Домой» и Стартовая страница: исправлен долгий тап по «Домой» (без пустого URL) и убран региональный редирект новой вкладки на google.com.",
+                "",
+                "",
                 "Спасибо, всё понятно",
                 "↓ Пролистайте список до конца"
             };
             case "uk": return new String[] {
                 "Що нового в SBrowserX",
-                "★ Рекомендація: підключіть Gemini API",
-                "Наполегливо рекомендуємо відкрити «Налаштування → Асистент перегляду», створити безкоштовний ключ Gemini API в Google AI Studio, вставити його в поле ключа та вибрати Gemini 3.5 Flash-Lite основним перекладачем. Це дасть найшвидший і найточніший переклад із розумінням контексту та одразу ввімкне ШІ-зведення сторінок.",
-                "Що додано",
-                "• Нові рушії перекладу: Bing (за замовчуванням), Яндекс, DeepL API та Gemini 3.5 Flash-Lite (AI).\n"
-                + "• Повна підтримка мови додатка (Per-App Language) та локалізація на 20 світових мов.\n"
-                + "• Сітка ярликів стартової сторінки (4 або 5 колонок) і заповнення плитки іконкою у стилі Quetta.\n"
-                + "• Mate Translate додано до рекомендованих розширень (тепер їх 7).\n"
-                + "• Одноразова пам'ятка перекладача в «Асистенті перегляду».",
-                "Що покращено та виправлено",
-                "• Оновлено екран «Налаштування SBrowserX»: єдина верхня картка з синіми підписами One UI, заголовок «Налаштування SBrowserX» і нижній блок «Про SBrowserX» / «Підтримати автора».\n"
-                + "• Розумні бірюзові крапки (у стилі Morphe): синхронізовані в головному меню та хабі, зникають автоматично після перегляду.\n"
-                + "• Стартова сторінка: підвищено стабільність запуску, шпалери й погода оновлюються миттєво без перезапуску.\n"
-                + "• Перекладач: покращено переклад на таких сайтах, як Google News, Reuters, Le Monde та GSMArena, доопрацьовано плаваючу панель і виправлено іконку в темній темі.",
-                "Що видалено та захищено",
-                "• Повністю вимкнено промо-банер «Зробити домашньою сторінкою Samsung» у налаштуваннях.\n"
-                + "• Приховано зайві штатні пункти (конфіденційність, «Про Samsung Browser», Debug settings).\n"
-                + "• Заблоковано встановлення несумісних розширень Manifest V2 (.crx/.zip) із зрозумілим попередженням та рекомендацією uBlock Origin Lite (MV3).\n"
-                + "• Видалено застарілий рушій Microsoft Edge.",
-                "Дякую, все зрозуміло",
+                "★ Головне у v1.4.0",
+                "Стабільна біометрія у Секретному режимі (Інкогніто), виправлення вильотів розширень під час введення з клавіатури та розумна кнопка перезапуску без накладень.",
+                "Покращення та можливості",
+                "• Секретний режим (Інкогніто): вхід за відбитком переведено на стандартний Android BiometricPrompt без залежності від Knox SDP — стабільно працює на Samsung і не-Samsung пристроях.\n"
+                + "• ШІ-зведення на всіх смартфонах: кнопка «Асистент перегляду» (Gemini AI) тепер доступна і на пристроях не від Samsung (Pixel, OnePlus, Xiaomi тощо).\n"
+                + "• Розумна кнопка перезапуску: у налаштуваннях автоматично оминає кнопки панелі («Готово», «Скинути», пошук) — зсувається ліворуч або опускається вниз праворуч.",
+                "Виправлення та стабільність",
+                "• Попапи розширень (Bitwarden тощо): усунено виліт під час введення з клавіатури у спливаючих вікнах розширень.\n"
+                + "• Кнопка «Додому» та Стартова сторінка: виправлено довге натискання «Додому» (без порожнього URL) і прибрано регіональний редирект нової вкладки на google.com.",
+                "",
+                "",
+                "Дякую, усе зрозуміло",
                 "↓ Прогорніть список до кінця"
             };
             case "es": return new String[] {
                 "Novedades en SBrowserX",
-                "★ Consejo: conecta la API gratuita de Gemini",
-                "Recomendamos abrir Ajustes → Asistente de navegación, crear una clave gratuita de Gemini API en Google AI Studio, pegarla en el campo correspondiente y elegir Gemini 3.5 Flash-Lite como traductor principal. Tendrás traducción rápida con contexto y resumen de páginas con IA.",
-                "Novedades",
-                "• Nuevos motores de traducción: Bing (predeterminado), Yandex, DeepL API y Gemini 3.5 Flash-Lite (IA).\n"
-                + "• Soporte completo de idioma por aplicación (Per-App Language) y traducción a 20 idiomas.\n"
-                + "• Cuadrícula de accesos directos en la página de inicio (4 o 5 columnas) y mosaicos de iconos completos estilo Quetta.\n"
-                + "• Mate Translate añadido al paquete de extensiones recomendadas (ahora son 7).\n"
-                + "• Guía rápida del traductor en el Asistente de navegación.",
-                "Mejoras y correcciones",
-                "• Ajustes de SBrowserX rediseñados con tarjeta superior unificada, acentos azules One UI y tarjeta de apoyo al autor.\n"
-                + "• Puntos turquesa inteligentes (estilo Morphe): se sincronizan entre Ajustes y el Hub y desaparecen automáticamente al verlos.\n"
-                + "• Página de inicio más estable, con actualización instantánea de fondos y clima sin reiniciar.\n"
-                + "• Traductor mejorado en sitios como Google News, Reuters, Le Monde y GSMArena, barra flotante refinada e icono corregido en modo oscuro.",
-                "Eliminado y protegido",
-                "• Eliminado el banner promocional de la página de inicio de Samsung en Ajustes.\n"
-                + "• Ocultados los menús innecesarios de fábrica (Privacidad, Acerca de Samsung Browser, Debug settings).\n"
-                + "• Bloqueada la instalación de extensiones Manifest V2 incompatibles (.crx/.zip) con un aviso claro recomendando uBlock Origin Lite (MV3).\n"
-                + "• Eliminado el antiguo motor de Microsoft Edge.",
-                "Entendido, gracias",
-                "↓ Desliza hasta el final para continuar"
+                "★ Destacado en v1.4.0",
+                "Biometría estable en Modo Secreto (Incógnito), corrección de cierres al escribir en extensiones y botón de reinicio inteligente sin solapamientos.",
+                "Mejoras y funciones",
+                "• Modo Secreto (Incógnito): inicio por huella migrado a Android BiometricPrompt estándar sin depender de Knox SDP — funciona sin fallos en dispositivos Samsung y no Samsung.\n"
+                + "• Resumen IA en todos los teléfonos: el botón «Asistente de navegación» (Gemini AI) ahora está disponible también en Pixel, OnePlus, Xiaomi y otros.\n"
+                + "• Botón de reinicio inteligente: detecta botones de la barra superior («Listo», «Restablecer», buscar) y se desplaza a la izquierda o abajo a la derecha.",
+                "Correcciones y estabilidad",
+                "• Ventanas de extensiones (Bitwarden, etc.): corregido el cierre inesperado al usar el teclado dentro de los popups de extensiones.\n"
+                + "• Botón Inicio y Página de inicio: corregida la pulsación larga en Inicio y eliminada la redirección regional de nueva pestaña a google.com.",
+                "",
+                "",
+                "Gracias, entendido",
+                "↓ Desplázate hasta el final"
             };
             case "pt": return new String[] {
                 "Novidades no SBrowserX",
-                "★ Dica: conecte a API gratuita do Gemini",
-                "Recomendamos abrir Configurações → Assistente de navegação, criar uma chave gratuita da API Gemini no Google AI Studio, colar no campo e selecionar Gemini 3.5 Flash-Lite como tradutor principal. Você terá tradução rápida com contexto e resumo de páginas por IA.",
-                "O que há de novo",
-                "• Novos mecanismos de tradução: Bing (padrão), Yandex, DeepL API e Gemini 3.5 Flash-Lite (IA).\n"
-                + "• Suporte completo ao idioma por aplicativo (Per-App Language) e interface em 20 idiomas.\n"
-                + "• Grade de atalhos na página inicial (4 ou 5 colunas) e ícones preenchidos de borda a borda estilo Quetta.\n"
-                + "• Mate Translate adicionado ao pacote de extensões recomendadas (agora 7).\n"
-                + "• Guia rápido do tradutor no Assistente de navegação.",
-                "Melhorias e correções",
-                "• Configurações do SBrowserX redesenhadas com cartão superior unificado, destaques em azul One UI e seção Apoiar o autor.\n"
-                + "• Pontos azul-turquesa inteligentes (estilo Morphe): sincronizados e limpos automaticamente após visualização.\n"
-                + "• Página inicial mais estável, com atualização ao vivo de papel de parede e clima sem reiniciar.\n"
-                + "• Tradução aprimorada em sites como Google News, Reuters, Le Monde e GSMArena, barra flutuante ajustada e ícone corrigido no modo escuro.",
-                "Removido e protegido",
-                "• Removido o banner promocional da página inicial da Samsung nas Configurações.\n"
-                + "• Ocultadas opções desnecessárias de fábrica (Privacidade, Sobre o Samsung Browser, Debug settings).\n"
-                + "• Bloqueada a instalação de arquivos Manifest V2 incompatíveis (.crx/.zip) com aviso claro recomendando uBlock Origin Lite (MV3).\n"
-                + "• Removido o antigo tradutor Microsoft Edge.",
+                "★ Destaques da v1.4.0",
+                "Biometria estável no Modo Secreto (Anônimo), correção de travamentos ao digitar em extensões e botão de reinício inteligente sem sobreposição.",
+                "Melhorias e recursos",
+                "• Modo Secreto (Anônimo): desbloqueio por digital migrado para o Android BiometricPrompt padrão sem depender do Knox SDP — estável em aparelhos Samsung e não Samsung.\n"
+                + "• Resumo IA em todos os celulares: o botão «Assistente de navegação» (Gemini AI) agora funciona também em Pixel, OnePlus, Xiaomi e outros.\n"
+                + "• Botão de reinício inteligente: evita automaticamente botões da barra superior («Concluir», «Redefinir», busca), movendo-se para a esquerda ou para o canto inferior direito.",
+                "Correções e estabilidade",
+                "• Popups de extensões (Bitwarden, etc.): corrigido o travamento ao digitar com o teclado nas janelas de extensões.\n"
+                + "• Botão Início e Página Inicial: corrigido o toque longo em Início e removido o redirecionamento regional da nova aba para google.com.",
+                "",
+                "",
                 "Obrigado, entendi",
-                "↓ Role até o final para continuar"
+                "↓ Role até o final"
             };
             case "de": return new String[] {
                 "Neu in SBrowserX",
-                "★ Tipp: Kostenlose Gemini-API verbinden",
-                "Öffne Einstellungen → Browsing-Assistent, erstelle einen kostenlosen Gemini-API-Schlüssel in Google AI Studio, füge ihn ein und wähle Gemini 3.5 Flash-Lite als Hauptübersetzer. So erhältst du schnelle, kontextbezogene Übersetzungen und KI-Seitenzusammenfassungen.",
-                "Neu hinzugefügt",
-                "• Neue Übersetzungs-Engines: Bing (Standard), Yandex, DeepL API und Gemini 3.5 Flash-Lite (KI).\n"
-                + "• Volle Unterstützung für App-Sprache (Per-App Language) und 20 Sprachen.\n"
-                + "• Startseiten-Raster (4 oder 5 Spalten) und randlose Symbol-Kacheln im Quetta-Stil.\n"
-                + "• Mate Translate zum Paket empfohlener Erweiterungen hinzugefügt (jetzt 7).\n"
-                + "• Kurzanleitung für den Übersetzer im Browsing-Assistenten.",
-                "Verbessert & behoben",
-                "• Überarbeitete SBrowserX-Einstellungen mit vereinter oberer Karte, One-UI-Blauakzenten und Autor-unterstützen-Bereich.\n"
-                + "• Intelligente türkise Punkte (Morphe-Stil): synchronisiert und automatisch entfernt, sobald gesehen.\n"
-                + "• Zuverlässigerer Start der Startseite sowie sofortige Live-Aktualisierung von Hintergrundbild und Wetter ohne Neustart.\n"
-                + "• Verbesserte Übersetzung auf Seiten wie Google News, Reuters, Le Monde und GSMArena, verfeinerte schwebende Leiste und korrigiertes Dunkelmodus-Symbol.",
-                "Entfernt & geschützt",
-                "• Samsung-Startseiten-Werbebanner aus den Einstellungen entfernt.\n"
-                + "• Unnötige Standardmenüs ausgeblendet (Datenschutzblock, Über Samsung Browser, Debug settings).\n"
-                + "• Inkompatible Manifest-V2-Erweiterungen (.crx/.zip) werden mit klarem Hinweis auf uBlock Origin Lite (MV3) blockiert.\n"
-                + "• Veralteten Microsoft-Edge-Übersetzer entfernt.",
-                "Alles klar, danke",
-                "↓ Zum Fortfahren nach unten scrollen"
+                "★ Highlights in v1.4.0",
+                "Stabile Biometrie im Geheimen Modus (Inkognito), Fix für Tastatur-Abstürze in Erweiterungen und smarter Neustart-Button ohne Überlappung.",
+                "Verbesserungen & Funktionen",
+                "• Geheimer Modus (Inkognito): Fingerabdruck-Login nutzt jetzt Android BiometricPrompt ohne Knox-SDP-Abhängigkeit — stabil auf Samsung- und Nicht-Samsung-Geräten.\n"
+                + "• KI-Zusammenfassung auf allen Geräten: «Browsing-Assistent» (Gemini AI) ist nun auch auf Pixel, OnePlus, Xiaomi usw. freigeschaltet.\n"
+                + "• Smarter Neustart-Button: erkennt automatisch Toolbar-Buttons («Fertig», «Zurücksetzen», Suche) und weicht nach links oder unten rechts aus.",
+                "Fehlerbehebungen & Stabilität",
+                "• Erweiterungs-Popups (Bitwarden usw.): Absturz bei Tastatureingaben in Erweiterungs-Popups behoben.\n"
+                + "• Home-Button & Startseite: Langes Drücken auf Home korrigiert und regionale Weiterleitung neuer Tabs auf google.com entfernt.",
+                "",
+                "",
+                "Danke, alles klar",
+                "↓ Bis zum Ende scrollen"
             };
             case "fr": return new String[] {
-                "Nouveautés dans SBrowserX",
-                "★ Conseil : connectez l'API gratuite Gemini",
-                "Ouvrez Paramètres → Assistant de navigation, créez une clé API Gemini gratuite dans Google AI Studio, collez-la et choisissez Gemini 3.5 Flash-Lite comme traducteur principal. Vous profiterez d'une traduction rapide avec contexte et du résumé IA des pages.",
-                "Nouveautés",
-                "• Nouveaux moteurs de traduction : Bing (par défaut), Yandex, DeepL API et Gemini 3.5 Flash-Lite (IA).\n"
-                + "• Prise en charge complète de la langue par application (Per-App Language) et 20 langues.\n"
-                + "• Grille de raccourcis sur la page d'accueil (4 ou 5 colonnes) et tuiles d'icônes bord à bord façon Quetta.\n"
-                + "• Mate Translate ajouté au pack d'extensions recommandées (7 au total).\n"
-                + "• Guide rapide du traducteur dans l'Assistant de navigation.",
-                "Améliorations et corrections",
-                "• Paramètres SBrowserX repensés avec carte supérieure unifiée, accents bleus One UI et section Soutenir l'auteur.\n"
-                + "• Points turquoise intelligents (style Morphe) : synchronisés et effacés automatiquement après consultation.\n"
-                + "• Page d'accueil plus fiable avec mise à jour instantanée du fond d'écran et de la météo sans redémarrer.\n"
-                + "• Traduction améliorée sur des sites comme Google News, Reuters, Le Monde et GSMArena, barre flottante affinée et icône corrigée en mode sombre.",
-                "Supprimé et protégé",
-                "• Suppression de la bannière promotionnelle de la page d'accueil Samsung dans les Paramètres.\n"
-                + "• Masquage des menus d'origine inutiles (Confidentialité, À propos de Samsung Browser, Debug settings).\n"
-                + "• Blocage des extensions Manifest V2 incompatibles (.crx/.zip) avec un dialogue clair recommandant uBlock Origin Lite (MV3).\n"
-                + "• Suppression de l'ancien traducteur Microsoft Edge.",
+                "Nouveautés de SBrowserX",
+                "★ Points forts de la v1.4.0",
+                "Biométrie fiable en Mode Secret (Navigation privée), correctif des crashs clavier dans les extensions et bouton de redémarrage intelligent sans chevauchement.",
+                "Améliorations et nouveautés",
+                "• Mode Secret : l'empreinte utilise désormais Android BiometricPrompt sans dépendre de Knox SDP — stable sur Samsung et autres appareils.\n"
+                + "• Résumé IA sur tous les téléphones : le bouton « Assistant de navigation » (Gemini AI) est désormais disponible sur Pixel, OnePlus, Xiaomi, etc.\n"
+                + "• Bouton de redémarrage intelligent : évite automatiquement les boutons de la barre d'outils (« Terminé », « Réinitialiser », recherche) en se décalant à gauche ou en bas à droite.",
+                "Correctifs et stabilité",
+                "• Popups d'extensions (Bitwarden, etc.) : correction du plantage lors de la saisie au clavier dans les fenêtres d'extensions.\n"
+                + "• Bouton Accueil et Page de démarrage : appui long sur Accueil corrigé et redirection régionale des nouveaux onglets vers google.com supprimée.",
+                "",
+                "",
                 "Merci, c'est compris",
-                "↓ Faites défiler jusqu'en bas pour continuer"
+                "↓ Faites défiler jusqu'en bas"
             };
             case "it": return new String[] {
                 "Novità in SBrowserX",
-                "★ Consiglio: collega l'API gratuita di Gemini",
-                "Ti consigliamo di aprire Impostazioni → Assistente di navigazione, creare una chiave API Gemini gratuita in Google AI Studio, incollarla e scegliere Gemini 3.5 Flash-Lite come traduttore principale. Avrai traduzioni rapide contestuali e riassunti IA delle pagine.",
-                "Novità",
-                "• Nuovi motori di traduzione: Bing (predefinito), Yandex, DeepL API e Gemini 3.5 Flash-Lite (IA).\n"
-                + "• Supporto completo per la lingua dell'app (Per-App Language) e interfaccia in 20 lingue.\n"
-                + "• Griglia di collegamenti nella pagina iniziale (4 o 5 colonne) e riquadri con icone a tutto schermo stile Quetta.\n"
-                + "• Aggiunto Mate Translate al pacchetto di estensioni consigliate (ora 7).\n"
-                + "• Guida rapida al traduttore in Assistente di navigazione.",
-                "Miglioramenti e correzioni",
-                "• Impostazioni SBrowserX ridisegnate con scheda superiore unificata, accenti blu One UI e sezione Supporta l'autore.\n"
-                + "• Indicatori turchesi intelligenti (stile Morphe): sincronizzati e rimossi automaticamente dopo la visualizzazione.\n"
-                + "• Pagina iniziale più affidabile con aggiornamento live di sfondo e meteo senza riavviare.\n"
-                + "• Traduzione migliorata su siti come Google News, Reuters, Le Monde e GSMArena, barra flottante rifinita e icona corretta in modalità scura.",
-                "Rimosso e protetto",
-                "• Rimosso il banner promozionale della pagina iniziale Samsung dalle Impostazioni.\n"
-                + "• Nascoste voci di sistema inutilizzate (Privacy, Info su Samsung Browser, Debug settings).\n"
-                + "• Bloccata l'installazione di estensioni Manifest V2 incompatibili (.crx/.zip) con un avviso chiaro che consiglia uBlock Origin Lite (MV3).\n"
-                + "• Rimosso il vecchio traduttore Microsoft Edge.",
-                "Grazie, capito",
-                "↓ Scorri fino in fondo per continuare"
+                "★ In evidenza nella v1.4.0",
+                "Biometria stabile in Modalità Segreta (Incognito), fix dei crash della tastiera nelle estensioni e pulsante di riavvio intelligente senza sovrapposizioni.",
+                "Miglioramenti e funzioni",
+                "• Modalità Segreta: accesso con impronta migrato ad Android BiometricPrompt senza dipendere da Knox SDP — stabile su Samsung e altri dispositivi.\n"
+                + "• Riepilogo IA su tutti i telefoni: il pulsante «Assistente navigazione» (Gemini AI) è ora disponibile anche su Pixel, OnePlus, Xiaomi, ecc.\n"
+                + "• Pulsante riavvio intelligente: evita automaticamente i pulsanti della barra superiore («Fine», «Ripristina», cerca) spostandosi a sinistra o in basso a destra.",
+                "Correzioni e stabilità",
+                "• Popup delle estensioni (Bitwarden, ecc.): risolto il crash durante l'uso della tastiera nei popup delle estensioni.\n"
+                + "• Pulsante Home e Pagina iniziale: corretta la pressione prolungata su Home e rimosso il reindirizzamento regionale delle nuove schede su google.com.",
+                "",
+                "",
+                "Grazie, tutto chiaro",
+                "↓ Scorri fino in fondo"
             };
             case "pl": return new String[] {
-                "Nowości w SBrowserX",
-                "★ Wskazówka: podłącz darmowe API Gemini",
-                "Polecamy otworzyć Ustawienia → Asystent przeglądania, utworzyć darmowy klucz Gemini API w Google AI Studio, wkleić go i wybrać Gemini 3.5 Flash-Lite jako główny tłumacz. Zyskasz szybkie tłumaczenie z kontekstem oraz podsumowania stron AI.",
-                "Co nowego",
-                "• Nowe silniki tłumaczenia: Bing (domyślny), Yandex, DeepL API oraz Gemini 3.5 Flash-Lite (AI).\n"
-                + "• Pełne wsparcie języka aplikacji (Per-App Language) i interfejs w 20 językach.\n"
-                + "• Siatka skrótów strony startowej (4 lub 5 kolumn) oraz kafelki wypełnione ikoną w stylu Quetta.\n"
-                + "• Dodano Mate Translate do pakietu polecanych rozszerzeń (teraz 7).\n"
-                + "• Krótki przewodnik tłumacza w Asystencie przeglądania.",
-                "Ulepszenia i poprawki",
-                "• Odświeżone Ustawienia SBrowserX ze wspólną górną kartą, niebieskimi akcentami One UI i sekcją Wesprzyj autora.\n"
-                + "• Inteligentne turkusowe kropki (w stylu Morphe): zsynchronizowane i znikające automatycznie po obejrzeniu.\n"
-                + "• Stabilniejsze uruchamianie strony startowej oraz natychmiastowe odświeżanie tapety i pogody bez restartu.\n"
-                + "• Lepsze tłumaczenie na stronach takich jak Google News, Reuters, Le Monde i GSMArena, dopracowany pasek tłumaczenia i naprawiona ikona w trybie ciemnym.",
-                "Usunięto i zabezpieczono",
-                "• Usunięto baner promocyjny strony głównej Samsung z Ustawień.\n"
-                + "• Ukryto zbędne opcje fabryczne (Prywatność, O Samsung Browser, Debug settings).\n"
-                + "• Zablokowano instalację niekompatybilnych plików Manifest V2 (.crx/.zip) z czytelnym komunikatem zalecającym uBlock Origin Lite (MV3).\n"
-                + "• Usunięto przestarzały tłumacz Microsoft Edge.",
-                "Dzięki, rozumiem",
-                "↓ Przewiń do końca, aby kontynuować"
+                "Co nowego w SBrowserX",
+                "★ Najważniejsze w v1.4.0",
+                "Stabilna biometria w Trybie Tajnym (Incognito), poprawka awarii klawiatury w rozszerzeniach oraz inteligentny przycisk restartu bez nakładania się.",
+                "Ulepszenia i funkcje",
+                "• Tryb Tajny (Incognito): logowanie odciskiem palca korzysta ze standardowego Android BiometricPrompt bez Knox SDP — stabilnie na Samsungach i innych telefonach.\n"
+                + "• Podsumowanie AI na wszystkich telefonach: przycisk «Asystent przeglądania» (Gemini AI) działa teraz także na Pixel, OnePlus, Xiaomi itd.\n"
+                + "• Inteligentny przycisk restartu: automatycznie omija przyciski paska («Gotowe», «Resetuj», szukaj), przesuwając się w lewo lub w prawy dolny róg.",
+                "Poprawki i stabilność",
+                "• Okienka rozszerzeń (Bitwarden itp.): naprawiono zamykanie przeglądarki przy wpisywaniu z klawiatury w popupach rozszerzeń.\n"
+                + "• Przycisk Strona główna i Start Page: naprawiono długie przytrzymanie Home i usunięto regionalne przekierowanie nowej karty na google.com.",
+                "",
+                "",
+                "Dzięki, wszystko jasne",
+                "↓ Przewiń do końca"
             };
             case "tr": return new String[] {
                 "SBrowserX Yenilikleri",
-                "★ İpucu: Ücretsiz Gemini API bağlayın",
-                "Ayarlar → Göz Atma Asistanı'nı açıp Google AI Studio'dan ücretsiz bir Gemini API anahtarı oluşturmanızı, alana yapıştırmanızı ve ana çevirmen olarak Gemini 3.5 Flash-Lite'ı seçmenizi öneririz. Bağlam duyarlı hızlı çeviri ve yapay zeka sayfa özeti hemen açılır.",
-                "Yenilikler",
-                "• Yeni çeviri motorları: Bing (varsayılan), Yandex, DeepL API ve Gemini 3.5 Flash-Lite (AI).\n"
-                + "• Tam Uygulama Dili (Per-App Language) desteği ve 20 dilde arayüz.\n"
-                + "• Başlangıç sayfası kısayol ızgarası (4 veya 5 sütun) ve Quetta tarzı tam dolu simge kutucukları.\n"
-                + "• Önerilen uzantılar paketine Mate Translate eklendi (artık 7 uzantı).\n"
-                + "• Göz Atma Asistanı'nda tek seferlik çevirmen rehberi.",
-                "İyileştirmeler ve düzeltmeler",
-                "• Tek üst kart, One UI mavi vurgular ve Yazarı Destekle kartıyla yenilenmiş SBrowserX ayarları.\n"
-                + "• Akıllı turkuaz noktalar (Morphe tarzı): senkronize çalışır ve görüntülendikten sonra otomatik kaybolur.\n"
-                + "• Daha kararlı Başlangıç Sayfası; duvar kağıdı ve hava durumu yeniden başlatmadan anında güncellenir.\n"
-                + "• Google News, Reuters, Le Monde ve GSMArena gibi sitelerde gelişmiş çeviri, yenilenen çeviri çubuğu ve karanlık mod simge düzeltmesi.",
-                "Kaldırılanlar ve koruma",
-                "• Ayarlardaki Samsung ana sayfa tanıtım afişi kaldırıldı.\n"
-                + "• Kullanılmayan stok menüler gizlendi (Gizlilik bloğu, Samsung Browser Hakkında, Debug settings).\n"
-                + "• Uyumsuz Manifest V2 (.crx/.zip) uzantıları uBlock Origin Lite (MV3) öneren net bir uyarıyla engellendi.\n"
-                + "• Kullanımdan kalkan Microsoft Edge çevirmeni kaldırıldı.",
+                "★ v1.4.0 Öne Çıkanlar",
+                "Gizli Modda (Incognito) kararlı biyometri, eklentilerde klavye çökmesi düzeltmesi ve üst üste binmeyen akıllı yeniden başlatma düğmesi.",
+                "İyileştirmeler ve Özellikler",
+                "• Gizli Mod: parmak izi girişi Knox SDP olmadan standart Android BiometricPrompt kullanır — Samsung ve diğer cihazlarda sorunsuz çalışır.\n"
+                + "• Tüm telefonlarda Yapay Zeka Özeti: «Tarama asistanı» (Gemini AI) düğmesi artık Pixel, OnePlus, Xiaomi gibi cihazlarda da açık.\n"
+                + "• Akıllı yeniden başlatma düğmesi: üst çubuktaki düğmeleri («Bitti», «Sıfırla», ara) algılar ve sola ya da sağ alta kayar.",
+                "Düzeltmeler ve Kararlılık",
+                "• Eklenti pencereleri (Bitwarden vb.): eklenti açılır pencerelerinde klavye yazarken oluşan çökme giderildi.\n"
+                + "• Ana Sayfa düğmesi ve Başlangıç Sayfası: uzun basma düzeltildi ve yeni sekmenin bölgesel google.com yönlendirmesi kaldırıldı.",
+                "",
+                "",
                 "Teşekkürler, anladım",
-                "↓ Devam etmek için en alta kaydırın"
+                "↓ Listenin sonuna kaydırın"
             };
             case "ar": return new String[] {
-                "الجديد في SBrowserX",
-                "★ نصيحة: اربط مفتاح Gemini API المجاني",
-                "ننصح بشدة بفتح الإعدادات ← مساعد التصفح، وإنشاء مفتاح Gemini API مجاني من Google AI Studio ولصقه، ثم اختيار Gemini 3.5 Flash-Lite كمترجم أساسي للحصول على ترجمة سريعة ودقيقة مع تلخيص الصفحات بالذكاء الاصطناعي.",
-                "الميزات الجديدة",
-                "• محركات ترجمة جديدة: Bing (افتراضي)، وYandex، وDeepL API، وGemini 3.5 Flash-Lite (AI).\n"
-                + "• دعم كامل للغة التطبيق (Per-App Language) وترجمة الواجهة إلى 20 لغة عالمية.\n"
-                + "• شبكة اختصارات الصفحة الرئيسية (4 أو 5 أعمدة) وأيقونات تملأ البطاقة بأسلوب Quetta.\n"
-                + "• إضافة Mate Translate إلى حزمة الإضافات الموصى بها (أصبحت 7 إضافات).\n"
-                + "• دليل سريع للمترجم داخل مساعد التصفح.",
-                "التحسينات والإصلاحات",
-                "• إعادة تصميم إعدادات SBrowserX ببطاقة علوية موحدة ولمسات One UI الزرقاء وبطاقة دعم المطور.\n"
-                + "• نقاط فيروزية ذكية (بأسلوب Morphe): متزامنة وتختفي تلقائياً بعد المشاهدة.\n"
-                + "• تشغيل أكثر استقراراً للصفحة الرئيسية مع تحديث فوري للخلفية والطقس دون إعادة تشغيل.\n"
-                + "• تحسين الترجمة في مواقع مثل Google News وReuters وLe Monde وGSMArena مع تحسين شريط الترجمة وإصلاح الأيقونة في الوضع الداكن.",
-                "ما تم إزالته وحمايته",
-                "• إزالة إعلان تعيين صفحة Samsung الرئيسية من الإعدادات.\n"
-                + "• إخفاء القوائم الأصلية غير المستخدمة (الخصوصية، حول Samsung Browser، إعدادات التصحيح).\n"
-                + "• منع تثبيت إضافات Manifest V2 غير المتوافقة (.crx/.zip) مع رسالة واضحة توصي بـ uBlock Origin Lite (MV3).\n"
-                + "• إزالة محرك ترجمة Microsoft Edge المتوقف.",
+                "ما الجديد في SBrowserX",
+                "★ أبرز ما في v1.4.0",
+                "بصمة مستقرة في الوضع السري (التصفح المتخفي)، إصلاح تعطل الإضافات عند الكتابة، وزر إعادة تشغيل ذكي دون تداخل.",
+                "التحسينات والميزات",
+                "• الوضع السري: تم نقل الدخول بالبصمة إلى Android BiometricPrompt القياسي دون الاعتماد على Knox SDP — يعمل بثبات على أجهزة Samsung وغيرها.\n"
+                + "• ملخص الذكاء الاصطناعي لكل الهواتف: زر «مساعد التصفح» (Gemini AI) أصبح متاحاً أيضاً على Pixel وOnePlus وXiaomi وغيرها.\n"
+                + "• زر إعادة التشغيل الذكي: يتجنب تلقائياً أزرار الشريط العلوي (تم، إعادة تعيين، بحث) بالتحرك يساراً أو للأسفل.",
+                "الإصلاحات والاستقرار",
+                "• نوافذ الإضافات (مثل Bitwarden): إصلاح الإغلاق المفاجئ عند استخدام لوحة المفاتيح داخل نوافذ الإضافات.\n"
+                + "• زر الرئيسية وصفحة البداية: إصلاح الضغط المطول على الرئيسية وإزالة إعادة التوجيه الإقليمي للتبويب الجديد إلى google.com.",
+                "",
+                "",
                 "شكراً، فهمت",
-                "↓ مرر للأسفل للمتابعة"
+                "↓ مرر إلى الأسفل للمتابعة"
             };
             case "fa": return new String[] {
                 "تازه‌های SBrowserX",
-                "★ پیشنهاد: اتصال کلید رایگان Gemini API",
-                "پیشنهاد می‌کنیم به تنظیمات ← دستیار مرور بروید، یک کلید رایگان Gemini API از Google AI Studio بسازید، وارد کنید و Gemini 3.5 Flash-Lite را به‌عنوان مترجم اصلی انتخاب کنید تا هم ترجمه سریع و دقیق و هم خلاصه‌سازی هوشمند صفحات فعال شود.",
-                "ویژگی‌های جدید",
-                "• موتورهای ترجمه جدید: Bing (پیش‌فرض)، Yandex، DeepL API و Gemini 3.5 Flash-Lite (هوش مصنوعی).\n"
-                + "• پشتیبانی کامل از زبان اختصاصی برنامه (Per-App Language) و ترجمه به ۲۰ زبان دنیا.\n"
-                + "• چیدمان شبکه میانبرهای صفحه شروع (۴ یا ۵ ستون) و پر شدن کامل کاشی با آیکون به سبک Quetta.\n"
-                + "• افزودن Mate Translate به بسته افزونه‌های پیشنهادی (اکنون ۷ افزونه).\n"
-                + "• راهنمای سریع مترجم در بخش دستیار مرور.",
-                "بهبودها و رفع اشکال‌ها",
-                "• بازطراحی تنظیمات SBrowserX با کارت بالایی یکپارچه، رنگ‌آمیزی آبی One UI و کارت حمایت از سازنده.\n"
-                + "• نقطه‌های فیروزه‌ای هوشمند (سبک Morphe): همگام‌سازی‌شده و پاک‌شدن خودکار پس از مشاهده.\n"
-                + "• پایداری بیشتر صفحه شروع و به‌روزرسانی زنده تصویر زمینه و آب‌وهوا بدون نیاز به راه‌اندازی مجدد.\n"
-                + "• بهبود ترجمه در سایت‌هایی مانند Google News، Reuters، Le Monde و GSMArena، بهبود نوار شناور ترجمه و اصلاح آیکون در حالت تیره.",
-                "حذف‌شده و محافظت‌شده",
-                "• حذف بنر تبلیغاتی صفحه اصلی سامسونگ از تنظیمات.\n"
-                + "• مخفی‌سازی گزینه‌های اضافی پیش‌فرض (بخش حریم خصوصی، درباره Samsung Browser، Debug settings).\n"
-                + "• مسدودسازی نصب فایل‌های ناسازگار Manifest V2 (.crx/.zip) با پیام واضح و پیشنهاد uBlock Origin Lite (MV3).\n"
-                + "• حذف مترجم ازکارافتاده Microsoft Edge.",
+                "★ مهم‌ترین تغییرات v1.4.0",
+                "بیومتریک پایدار در حالت محرمانه (Incognito)، رفع کرش افزونه‌ها هنگام تایپ و دکمه راه‌اندازی مجدد هوشمند بدون هم‌پوشانی.",
+                "بهبودها و قابلیت‌ها",
+                "• حالت محرمانه: ورود با اثر انگشت به Android BiometricPrompt استاندارد بدون وابستگی به Knox SDP منتقل شد — پایدار در دستگاه‌های سامسونگ و غیرسامسونگ.\n"
+                + "• خلاصه هوش مصنوعی در همه گوشی‌ها: دکمه «دستیار مرور» (Gemini AI) اکنون در Pixel، OnePlus، Xiaomi و غیره نیز فعال است.\n"
+                + "• دکمه راه‌اندازی مجدد هوشمند: به‌طور خودکار از دکمه‌های نوار بالا فاصله می‌گیرد و به چپ یا پایین راست منتقل می‌شود.",
+                "رفع خطاها و پایداری",
+                "• پنجره افزونه‌ها (Bitwarden و غیره): رفع کرش هنگام استفاده از کیبورد در پنجره بازشوی افزونه‌ها.\n"
+                + "• دکمه خانه و صفحه شروع: اصلاح لمس طولانی خانه و حذف هدایت منطقه‌ای تب جدید به google.com.",
+                "",
+                "",
                 "ممنون، متوجه شدم",
-                "↓ برای ادامه تا انتها پیمایش کنید"
+                "↓ تا انتها اسکرول کنید"
             };
             case "hi": return new String[] {
                 "SBrowserX में नया क्या है",
-                "★ सुझाव: मुफ़्त Gemini API जोड़ें",
-                "सेटिंग्स → ब्राउज़िंग असिस्ट खोलें, Google AI Studio में मुफ़्त Gemini API कुंजी बनाएं, उसे पेस्ट करें और मुख्य अनुवादक के रूप में Gemini 3.5 Flash-Lite चुनें। इससे तेज़, सटीक अनुवाद और AI पेज सारांश तुरंत शुरू हो जाएगा।",
-                "नया क्या है",
-                "• नए अनुवाद इंजन: Bing (डिफ़ॉल्ट), Yandex, DeepL API और Gemini 3.5 Flash-Lite (AI)।\n"
-                + "• Android Per-App Language का पूरा समर्थन और 20 विश्व भाषाओं में इंटरफ़ेस।\n"
-                + "• स्टार्ट पेज शॉर्टकट ग्रिड (4 या 5 कॉलम) और Quetta-स्टाइल फुल-आइकन टाइल्स।\n"
-                + "• अनुशंसित एक्सटेंशन पैक में Mate Translate जोड़ा गया (अब 7 एक्सटेंशन)।\n"
-                + "• ब्राउज़िंग असिस्ट में अनुवादक के लिए त्वरित गाइड।",
-                "सुधार और फ़िक्स",
-                "• One UI नीले एक्सेंट, एकीकृत शीर्ष कार्ड और 'लेखक का समर्थन करें' कार्ड के साथ नया SBrowserX सेटिंग्स डिज़ाइन।\n"
-                + "• स्मार्ट फ़िरोज़ी डॉट्स (Morphe शैली): सिंक किए गए और देखने के बाद अपने आप हट जाते हैं।\n"
-                + "• स्टार्ट पेज अधिक स्थिर; वॉलपेपर और मौसम बिना रीस्टार्ट के तुरंत अपडेट होते हैं।\n"
-                + "• Google News, Reuters, Le Monde और GSMArena जैसी साइटों पर बेहतर अनुवाद, परिष्कृत फ्लोटिंग बार और डार्क मोड आइकन फ़िक्स।",
-                "हटाया गया और सुरक्षित",
-                "• सेटिंग्स से Samsung होमपेज प्रमोशन बैनर हटाया गया।\n"
-                + "• अनावश्यक स्टॉक मेनू छिपाए गए (गोपनीयता ब्लॉक, Samsung Browser के बारे में, Debug settings)।\n"
-                + "• असंगत Manifest V2 (.crx/.zip) फ़ाइलों को uBlock Origin Lite (MV3) के सुझाव के साथ सुरक्षित रूप से रोका गया।\n"
-                + "• बंद हो चुका Microsoft Edge अनुवादक हटाया गया।",
+                "★ v1.4.0 की मुख्य बातें",
+                "सीक्रेट मोड (इनकॉग्निटो) में स्थिर बायोमेट्रिक लॉगिन, एक्सटेंशन में कीबोर्ड क्रैश फिक्स और ओवरलैप न करने वाला स्मार्ट रीस्टार्ट बटन।",
+                "सुधार और सुविधाएँ",
+                "• सीक्रेट मोड (इनकॉग्निटो): Knox SDP के बिना स्टैंडर्ड Android BiometricPrompt पर शिफ्ट — Samsung और अन्य सभी फ़ोनों पर बिना क्रैश के काम करता है।\n"
+                + "• सभी फ़ोनों पर AI सारांश: «ब्राउज़िंग असिस्ट» (Gemini AI) बटन अब Pixel, OnePlus, Xiaomi आदि पर भी उपलब्ध है।\n"
+                + "• स्मार्ट रीस्टार्ट बटन: टूलबार के बटन (Done, Reset, Search) से टकराव होने पर अपने-आप बाईं या नीचे दाईं ओर शिफ्ट हो जाता है।",
+                "फिक्स और स्थिरता",
+                "• एक्सटेंशन पॉपअप (Bitwarden आदि): एक्सटेंशन पॉपअप में कीबोर्ड टाइपिंग के दौरान होने वाला क्रैश ठीक किया गया।\n"
+                + "• होम बटन और स्टार्ट पेज: होम पर लॉन्ग-प्रेस फिक्स किया गया और नए टैब का क्षेत्रीय google.com रीडायरेक्ट हटाया गया।",
+                "",
+                "",
                 "धन्यवाद, समझ गया",
-                "↓ जारी रखने के लिए नीचे स्क्रॉल करें"
+                "↓ नीचे तक स्क्रॉल करें"
             };
             case "zh": return new String[] {
-                "SBrowserX 更新内容",
-                "★ 推荐：接入免费 Gemini API",
-                "强烈建议打开「设置 → 浏览助手」，在 Google AI Studio 创建免费的 Gemini API 密钥并填入，将 Gemini 3.5 Flash-Lite 设为默认翻译引擎，即可获得快速准确的上下文翻译与 AI 网页摘要。",
-                "新增功能",
-                "• 新增翻译引擎：Bing（默认）、Yandex、DeepL API 与 Gemini 3.5 Flash-Lite（AI）。\n"
-                + "• 完整支持应用独立语言（Per-App Language）及 20 种全球语言。\n"
-                + "• 启动页快捷方式网格（4 列或 5 列）与 Quetta 风格铺满图标磁贴。\n"
-                + "• 推荐扩展包新增 Mate Translate（现共 7 款扩展）。\n"
-                + "• 在浏览助手中新增一次性翻译使用提示。",
-                "优化与修复",
-                "• 全新 SBrowserX 设置页：整合顶部卡片、One UI 蓝色摘要与支持作者卡片。\n"
-                + "• 智能青色新功能提示点（Morphe 风格）：主设置与中心同步，查看后自动消除。\n"
-                + "• 启动页更稳定，壁纸与天气更改即时生效，无需重启。\n"
-                + "• 改进了 Google News、Reuters、Le Monde 和 GSMArena 等网站的翻译效果，优化浮动翻译栏并修复深色模式图标。",
-                "移除与保护",
-                "• 移除设置中的 Samsung 主页推广横幅。\n"
-                + "• 隐藏多余的原厂菜单项（隐私区块、关于 Samsung Browser、Debug settings）。\n"
-                + "• 拦截不兼容的 Manifest V2（.crx/.zip）扩展安装，并弹出清晰提示推荐使用 uBlock Origin Lite（MV3）。\n"
-                + "• 移除已停用的 Microsoft Edge 翻译引擎。",
-                "好的，知道了",
-                "↓ 请滚动到底部以继续"
+                "SBrowserX 更新日志",
+                "★ v1.4.0 重点更新",
+                "保密模式（无痕）指纹稳定可用、修复扩展弹窗输入崩溃，以及不遮挡按钮的智能重启按钮。",
+                "改进与新特性",
+                "• 保密模式（无痕）：指纹解锁改用标准 Android BiometricPrompt 并禁用 Knox SDP 依赖，三星与非三星机型均稳定无闪退。\n"
+                + "• 全机型解锁 AI 摘要：「浏览助手」（Gemini AI）按钮现已支持 Pixel、OnePlus、小米等非三星设备。\n"
+                + "• 智能重启按钮：自动检测顶部工具栏按钮（完成、重置、搜索等），避免遮挡并自动左移或移至右下角。",
+                "修复与稳定性",
+                "• 扩展弹窗（Bitwarden 等）：修复在扩展弹窗中使用输入法/键盘时的闪退问题。\n"
+                + "• 主页键与起始页：修复长按主页键行为，并移除新标签页的区域性 google.com 跳转。",
+                "",
+                "",
+                "谢谢，我明白了",
+                "↓ 请滚动到底部"
             };
             case "ja": return new String[] {
                 "SBrowserX の新機能",
-                "★ ヒント：無料の Gemini API を連携",
-                "「設定 → ブラウジングアシスト」を開き、Google AI Studio で無料の Gemini API キーを作成して貼り付け、メイン翻訳に Gemini 3.5 Flash-Lite を選択するのがおすすめです。高速で自然な文脈翻訳と AI ページ要約が使えます。",
-                "新機能",
-                "• 新しい翻訳エンジン：Bing（デフォルト）、Yandex、DeepL API、Gemini 3.5 Flash-Lite（AI）。\n"
-                + "• アプリごとの言語設定（Per-App Language）と 20 言語のローカライズに完全対応。\n"
-                + "• スタートページのショートカットグリッド（4 列 / 5 列）と Quetta 風フルアイコンタイル。\n"
-                + "• おすすめ拡張機能パックに Mate Translate を追加（全 7 種類）。\n"
-                + "• ブラウジングアシストに翻訳ガイドを追加。",
-                "改善と修正",
-                "• SBrowserX 設定を刷新：統合トップカード、One UI ブルーアクセント、作者を支援カードを追加。\n"
-                + "• スマートなティール色の新機能ドット（Morphe 風）：表示後に自動で消去。\n"
-                + "• スタートページの安定性を向上し、壁紙と天気が再起動なしで即時反映。\n"
-                + "• Google News、Reuters、Le Monde、GSMArena などの翻訳品質を向上し、フローティングバーとダークモードのアイコンを改善。",
-                "削除と保護",
-                "• 設定内の Samsung ホームページ宣伝バナーを削除。\n"
-                + "• 不要な標準メニュー項目（プライバシー欄、Samsung Browser について、Debug settings）を非表示化。\n"
-                + "• 非対応の Manifest V2（.crx/.zip）拡張機能をブロックし、uBlock Origin Lite（MV3）を案内。\n"
-                + "• 廃止された Microsoft Edge 翻訳エンジンを削除。",
+                "★ v1.4.0 のハイライト",
+                "シークレットモードの生体認証を安定化、拡張機能ポップアップの入力クラッシュを修正、重ならないスマート再起動ボタンを搭載。",
+                "改善と機能",
+                "• シークレットモード：Knox SDP 依存を外し標準の Android BiometricPrompt に移行 — Samsung および他社製端末でも安定動作。\n"
+                + "• 全端末で AI 要約対応：「ブラウジングアシスト」（Gemini AI）ボタンが Pixel・OnePlus・Xiaomi 等でも利用可能に。\n"
+                + "• スマート再起動ボタン：ツールバーのボタン（完了・リセット・検索）を自動回避し、左または右下へ移動します。",
+                "修正と安定性",
+                "• 拡張機能ポップアップ（Bitwarden 等）：キーボード入力時に発生するクラッシュを修正。\n"
+                + "• ホームボタンとスタートページ：ホーム長押しを修正し、新しいタブの地域別 google.com リダイレクトを無効化。",
+                "",
+                "",
                 "了解しました",
-                "↓ 最後までスクロールして続行"
+                "↓ 最後までスクロールしてください"
             };
             case "ko": return new String[] {
-                "SBrowserX 새로운 기능",
-                "★ 팁: 무료 Gemini API 연결하기",
-                "설정 → 브라우징 어시스트에서 Google AI Studio의 무료 Gemini API 키를 발급받아 입력하고 기본 번역기로 Gemini 3.5 Flash-Lite를 선택해 보세요. 빠르고 자연스러운 문맥 번역과 AI 페이지 요약이 바로 활성화됩니다.",
-                "새로운 기능",
-                "• 새 번역 엔진 추가: Bing(기본), Yandex, DeepL API, Gemini 3.5 Flash-Lite(AI).\n"
-                + "• 앱별 언어 설정(Per-App Language) 완벽 지원 및 20개 언어 현지화.\n"
-                + "• 시작 페이지 바로가기 그리드(4열 또는 5열) 및 Quetta 스타일 아이콘 채우기 타일.\n"
-                + "• 추천 확장 프로그램 팩에 Mate Translate 추가(총 7개).\n"
-                + "• 브라우징 어시스트에 1회성 번역기 안내 추가.",
-                "개선 및 수정",
-                "• 통합 상단 카드, One UI 블루 강조, 개발자 후원 카드로 SBrowserX 설정 개편.\n"
-                + "• 스마트 청록색 새 기능 점(Morphe 스타일): 확인하면 자동으로 사라짐.\n"
-                + "• 시작 페이지 안정성 개선 및 재시작 없이 배경화면·날씨 실시간 반영.\n"
-                + "• Google News, Reuters, Le Monde, GSMArena 등의 번역 품질 개선, 플로팅 번역 바 다듬기 및 다크 모드 아이콘 수정.",
-                "제거 및 보호",
-                "• 설정의 삼성 홈페이지 프로모션 배너 제거.\n"
-                + "• 불필요한 기본 설정 항목 숨김(개인정보 블록, Samsung Browser 정보, Debug settings).\n"
-                + "• 호환되지 않는 Manifest V2(.crx/.zip) 확장 설치를 차단하고 uBlock Origin Lite(MV3)를 안내.\n"
-                + "• 지원 중단된 Microsoft Edge 번역기 제거.",
-                "확인했어요",
-                "↓ 계속하려면 끝까지 스크롤하세요"
+                "SBrowserX 새 기능",
+                "★ v1.4.0 주요 변경 사항",
+                "비밀 모드(시크릿) 생체 인증 안정화, 확장 프로그램 키보드 입력 충돌 수정, 겹침 없는 스마트 재시작 버튼 적용.",
+                "개선 및 기능",
+                "• 비밀 모드(시크릿): Knox SDP 의존성을 제거하고 표준 Android BiometricPrompt를 사용해 삼성 및 타사 기기에서 충돌 없이 작동합니다.\n"
+                + "• 모든 기기에서 AI 요약 지원: Pixel, OnePlus, Xiaomi 등 비삼성 기기에서도 «브라우징 어시스트»(Gemini AI) 버튼이 표시됩니다.\n"
+                + "• 스마트 재시작 버튼: 상단 툴바 버튼(완료, 초기화, 검색)과 겹치지 않도록 자동으로 왼쪽이나 우측 하단으로 이동합니다.",
+                "수정 및 안정성",
+                "• 확장 프로그램 팝업(Bitwarden 등): 팝업 내 키보드 입력 시 발생하던 강제 종료를 수정했습니다.\n"
+                + "• 홈 버튼 및 시작 페이지: 홈 길게 누르기 동작을 개선하고 새 탭의 지역별 google.com 리디렉션을 제거했습니다.",
+                "",
+                "",
+                "확인했습니다",
+                "↓ 끝까지 스크롤하세요"
             };
             case "id": return new String[] {
                 "Yang Baru di SBrowserX",
-                "★ Tips: Hubungkan Gemini API Gratis",
-                "Buka Setelan → Asisten Penjelajahan, buat kunci Gemini API gratis di Google AI Studio, tempelkan, lalu pilih Gemini 3.5 Flash-Lite sebagai penerjemah utama. Anda akan mendapatkan terjemahan cepat sesuai konteks dan ringkasan halaman AI.",
-                "Fitur Baru",
-                "• Mesin terjemahan baru: Bing (default), Yandex, DeepL API, dan Gemini 3.5 Flash-Lite (AI).\n"
-                + "• Dukungan penuh Bahasa per Aplikasi (Per-App Language) dan lokalisasi 20 bahasa.\n"
-                + "• Kisi pintasan Halaman Awal (4 atau 5 kolom) dan ubin ikon penuh gaya Quetta.\n"
-                + "• Mate Translate ditambahkan ke Paket Ekstensi Rekomendasi (kini 7 ekstensi).\n"
-                + "• Panduan singkat penerjemah di Asisten Penjelajahan.",
-                "Peningkatan & Perbaikan",
-                "• Desain ulang Setelan SBrowserX dengan kartu atas terpadu, aksen biru One UI, dan kartu Dukung Penulis.\n"
-                + "• Titik pirus pintar (gaya Morphe): tersinkronisasi dan hilang otomatis setelah dilihat.\n"
-                + "• Halaman Awal lebih stabil dengan pembaruan wallpaper dan cuaca secara langsung tanpa restart.\n"
-                + "• Terjemahan lebih baik di situs seperti Google News, Reuters, Le Monde, dan GSMArena, bilah mengambang diperhalus, dan ikon Mode Gelap diperbaiki.",
-                "Dihapus & Dilindungi",
-                "• Banner promosi beranda Samsung dihapus dari Setelan.\n"
-                + "• Menu bawaan yang tidak terpakai disembunyikan (Privasi, Tentang Samsung Browser, Debug settings).\n"
-                + "• Memblokir pemasangan file Manifest V2 (.crx/.zip) yang tidak kompatibel dengan rekomendasi uBlock Origin Lite (MV3).\n"
-                + "• Penerjemah Microsoft Edge yang sudah dihentikan telah dihapus.",
-                "Terima kasih, mengerti",
-                "↓ Gulir ke bawah untuk melanjutkan"
+                "★ Sorotan v1.4.0",
+                "Biometrik Mode Rahasia (Incognito) stabil, perbaikan crash keyboard di ekstensi, dan tombol restart pintar tanpa tumpang tindih.",
+                "Peningkatan & Fitur",
+                "• Mode Rahasia: login sidik jari menggunakan Android BiometricPrompt standar tanpa Knox SDP — stabil di perangkat Samsung maupun non-Samsung.\n"
+                + "• Ringkasan AI di semua ponsel: tombol «Asisten Penjelajahan» (Gemini AI) kini tersedia juga di Pixel, OnePlus, Xiaomi, dll.\n"
+                + "• Tombol restart pintar: otomatis menghindari tombol toolbar (Selesai, Reset, Cari) dengan bergeser ke kiri atau kanan bawah.",
+                "Perbaikan & Stabilitas",
+                "• Popup ekstensi (Bitwarden, dll.): memperbaiki crash saat mengetik dengan keyboard di dalam popup ekstensi.\n"
+                + "• Tombol Beranda & Halaman Awal: memperbaiki tekan lama Beranda dan menghapus pengalihan regional tab baru ke google.com.",
+                "",
+                "",
+                "Terima kasih, paham",
+                "↓ Gulir ke bagian bawah"
             };
             case "vi": return new String[] {
-                "Tính năng mới trên SBrowserX",
-                "★ Mẹo: Kết nối Gemini API miễn phí",
-                "Hãy mở Cài đặt → Trợ lý duyệt web, tạo khóa Gemini API miễn phí trên Google AI Studio, dán vào và chọn Gemini 3.5 Flash-Lite làm trình dịch chính để có bản dịch ngữ cảnh nhanh và tóm tắt trang bằng AI.",
-                "Có gì mới",
-                "• Công cụ dịch mới: Bing (mặc định), Yandex, DeepL API và Gemini 3.5 Flash-Lite (AI).\n"
-                + "• Hỗ trợ đầy đủ ngôn ngữ riêng cho ứng dụng (Per-App Language) và 20 ngôn ngữ.\n"
-                + "• Lưới lối tắt Trang bắt đầu (4 hoặc 5 cột) và ô biểu tượng tràn viền kiểu Quetta.\n"
-                + "• Thêm Mate Translate vào Gói tiện ích đề xuất (tổng cộng 7 tiện ích).\n"
-                + "• Hướng dẫn nhanh trình dịch trong Trợ lý duyệt web.",
-                "Cải thiện & Sửa lỗi",
-                "• Thiết kế lại Cài đặt SBrowserX với thẻ trên hợp nhất, điểm nhấn xanh One UI và mục Ủng hộ tác giả.\n"
-                + "• Chấm xanh ngọc thông minh (kiểu Morphe): đồng bộ và tự động ẩn sau khi bạn đã xem.\n"
-                + "• Trang bắt đầu ổn định hơn, cập nhật hình nền và thời tiết tức thì không cần khởi động lại.\n"
-                + "• Cải thiện dịch trên các trang như Google News, Reuters, Le Monde và GSMArena, tinh chỉnh thanh dịch nổi và sửa biểu tượng chế độ tối.",
-                "Đã gỡ bỏ & Bảo vệ",
-                "• Xóa biểu ngữ quảng cáo trang chủ Samsung trong Cài đặt.\n"
-                + "• Ẩn các mục gốc không cần thiết (Quyền riêng tư, Giới thiệu Samsung Browser, Debug settings).\n"
-                + "• Chặn cài đặt tiện ích Manifest V2 (.crx/.zip) không tương thích kèm gợi ý uBlock Origin Lite (MV3).\n"
-                + "• Gỡ bỏ trình dịch Microsoft Edge đã ngừng hoạt động.",
-                "Cảm ơn, đã hiểu",
-                "↓ Cuộn xuống cuối để tiếp tục"
+                "Có gì mới trong SBrowserX",
+                "★ Nổi bật trong v1.4.0",
+                "Sinh trắc học Chế độ Bí mật (Ẩn danh) ổn định, sửa lỗi văng khi gõ trong tiện ích mở rộng và nút khởi động lại thông minh không bị đè.",
+                "Cải tiến & Tính năng",
+                "• Chế độ Bí mật: dùng Android BiometricPrompt chuẩn không phụ thuộc Knox SDP — hoạt động ổn định trên cả máy Samsung lẫn máy khác.\n"
+                + "• Tóm tắt AI trên mọi điện thoại: nút «Trợ lý duyệt web» (Gemini AI) nay đã khả dụng trên Pixel, OnePlus, Xiaomi, v.v.\n"
+                + "• Nút khởi động lại thông minh: tự động tránh các nút trên thanh công cụ (Xong, Đặt lại, Tìm kiếm) bằng cách dịch sang trái hoặc xuống góc phải.",
+                "Sửa lỗi & Ổn định",
+                "• Cửa sổ tiện ích (Bitwarden, v.v.): sửa lỗi thoát ứng dụng khi dùng bàn phím trong popup tiện ích.\n"
+                + "• Nút Trang chủ & Trang bắt đầu: sửa nhấn giữ nút Trang chủ và bỏ chuyển hướng vùng tab mới sang google.com.",
+                "",
+                "",
+                "Cảm ơn, tôi đã hiểu",
+                "↓ Cuộn xuống cuối danh sách"
             };
             case "nl": return new String[] {
                 "Nieuw in SBrowserX",
-                "★ Tip: Koppel de gratis Gemini API",
-                "Open Instellingen → Browsing-assistent, maak een gratis Gemini API-sleutel aan in Google AI Studio, plak deze en kies Gemini 3.5 Flash-Lite als hoofdvertaler. Je krijgt snelle, contextbewuste vertalingen én AI-paginasamenvattingen.",
-                "Nieuw",
-                "• Nieuwe vertaalengines: Bing (standaard), Yandex, DeepL API en Gemini 3.5 Flash-Lite (AI).\n"
-                + "• Volledige ondersteuning voor app-taal (Per-App Language) en 20 wereldtalen.\n"
-                + "• Snelkoppelingsraster op de startpagina (4 of 5 kolommen) en beeldvullende tegels in Quetta-stijl.\n"
-                + "• Mate Translate toegevoegd aan de aanbevolen extensies (nu 7 extensies).\n"
-                + "• Korte vertaalhandleiding in Browsing-assistent.",
-                "Verbeterd & opgelost",
-                "• Vernieuwde SBrowserX-instellingen met één bovenkaart, One UI blauwe accenten en Steun de auteur-kaart.\n"
-                + "• Slimme turquoise stippen (Morphe-stijl): gesynchroniseerd en automatisch gewist zodra bekeken.\n"
-                + "• Stabielere startpagina met directe live-updates voor achtergrond en weer zonder herstart.\n"
-                + "• Verbeterde vertaling op sites zoals Google News, Reuters, Le Monde en GSMArena, verfijnde zwevende balk en gefixt donkere-modus-icoon.",
-                "Verwijderd & beschermd",
-                "• Promotiebanner voor de Samsung-startpagina verwijderd uit Instellingen.\n"
-                + "• Overbodige standaardmenu's verborgen (Privacyblok, Over Samsung Browser, Debug settings).\n"
-                + "• Incompatibele Manifest V2-bestanden (.crx/.zip) geblokkeerd met duidelijke aanbeveling voor uBlock Origin Lite (MV3).\n"
-                + "• Verouderde Microsoft Edge-vertaler verwijderd.",
+                "★ Hoogtepunten van v1.4.0",
+                "Stabiele biometrie in Geheime modus (Incognito), fix voor toetsenbord-crashes in extensies en slimme herstartknop zonder overlap.",
+                "Verbeteringen & functies",
+                "• Geheime modus: vingerafdruk werkt nu via standaard Android BiometricPrompt zonder Knox SDP — stabiel op Samsung en andere toestellen.\n"
+                + "• AI-samenvatting op alle telefoons: de knop «Browse-assistent» (Gemini AI) is nu ook beschikbaar op Pixel, OnePlus, Xiaomi, enz.\n"
+                + "• Slimme herstartknop: ontwijkt automatisch knoppen in de bovenbalk (Gereed, Resetten, Zoeken) door naar links of rechtsonder te schuiven.",
+                "Oplossingen & stabiliteit",
+                "• Extensie-popups (Bitwarden, enz.): crash bij toetsenbord-invoer in extensie-popups verholpen.\n"
+                + "• Home-knop & Startpagina: lang indrukken op Home hersteld en regionale omleiding van nieuwe tabbladen naar google.com verwijderd.",
+                "",
+                "",
                 "Bedankt, begrepen",
-                "↓ Scroll naar beneden om door te gaan"
+                "↓ Scroll naar beneden"
             };
             case "sw": return new String[] {
                 "Mapya katika SBrowserX",
-                "★ Kidokezo: Unganisha Gemini API ya Bure",
-                "Fungua Mipangilio → Msaidizi wa Kuvinjari, tengeneza ufunguo wa bure wa Gemini API kwenye Google AI Studio, ubandike, kisha uchague Gemini 3.5 Flash-Lite kama mtafsiri mkuu ili kupata tafsiri ya haraka na muhtasari wa AI wa kurasa.",
-                "Mapya",
-                "• Injini mpya za tafsiri: Bing (chaguo-msingi), Yandex, DeepL API na Gemini 3.5 Flash-Lite (AI).\n"
-                + "• Usaidizi kamili wa lugha ya programu (Per-App Language) na tafsiri za lugha 20 duniani.\n"
-                + "• Gridi ya njia za mkato kwenye Ukurasa wa Mwanzo (safu 4 au 5) na vigae vya aikoni kamili mtindo wa Quetta.\n"
-                + "• Mate Translate imeongezwa kwenye kifurushi cha viendelezi vinavyopendekezwa (sasa ni 7).\n"
-                + "• Mwongozo mfupi wa mtafsiri katika Msaidizi wa Kuvinjari.",
-                "Maboresho na marekebisho",
-                "• Mipangilio ya SBrowserX imeboreshwa kwa kadi moja ya juu, rangi ya buluu ya One UI na sehemu ya Msaada kwa Mwandishi.\n"
-                + "• Nukta janja za kijani-buluu (mtindo wa Morphe): husawazishwa na kufutika kiotomatiki baada ya kuonekana.\n"
-                + "• Ukurasa wa Mwanzo thabiti zaidi na masasisho ya papo hapo ya mandhari na hali ya hewa bila kuanzisha upya.\n"
-                + "• Tafsiri imeboreshwa kwenye tovuti kama Google News, Reuters, Le Monde na GSMArena, upau wa tafsiri umeboreshwa na aikoni ya Hali ya Giza imerekebishwa.",
-                "Vilivyoondolewa na kulindwa",
-                "• Bango la tangazo la ukurasa wa mwanzo wa Samsung limeondolewa kwenye Mipangilio.\n"
-                + "• Menyu zisizohitajika zimefichwa (Faragha, Kuhusu Samsung Browser, Debug settings).\n"
-                + "• Usakinishaji wa faili za Manifest V2 (.crx/.zip) zisizooana umezuiwa kwa ujumbe unaopendekeza uBlock Origin Lite (MV3).\n"
-                + "• Mtafsiri wa zamani wa Microsoft Edge umeondolewa.",
+                "★ Muhimu katika v1.4.0",
+                "Alama ya vidole imara katika Hali ya Siri (Incognito), marekebisho ya kufunga ghafla kwenye viendelezi na kitufe cha kuanzisha upya kisichofunika vifungo.",
+                "Maboresho na Vipengele",
+                "• Hali ya Siri: kuingia kwa kidole sasa kunatumia Android BiometricPrompt bila Knox SDP — imara kwenye Samsung na simu nyingine.\n"
+                + "• Muhtasari wa AI kwenye simu zote: kitufe cha «Msaidizi wa kuvinjari» (Gemini AI) sasa kinapatikana pia kwenye Pixel, OnePlus, Xiaomi n.k.\n"
+                + "• Kitufe mahiri cha kuanzisha upya: kinaepuka vitufe vya juu kiotomatiki kwa kusogea kushoto au chini kulia.",
+                "Marekebisho na Uthabiti",
+                "• Madirisha ya viendelezi (Bitwarden n.k.): hitilafu ya kufunga programu wakati wa kuandika kwa kibodi imerekebishwa.\n"
+                + "• Kitufe cha Nyumbani na Ukurasa wa Mwanzo: kubonyeza kwa muda mrefu kumerekebishwa na uelekezaji wa google.com umeondolewa.",
+                "",
+                "",
                 "Asante, nimeelewa",
-                "↓ Sogeza chini kabisa ili kuendelea"
+                "↓ Sogeza hadi chini"
             };
             default: return new String[] {
                 "What's New in SBrowserX",
-                "★ Tip: Connect Free Gemini API",
-                "We strongly recommend opening Settings → Browsing Assist, creating a free Gemini API key in Google AI Studio, pasting it into the API key field, and selecting Gemini 3.5 Flash-Lite as your primary translator. You'll get fast, context-aware translation plus AI Page Summary.",
-                "What's new",
-                "• New translation engines: Bing (default), Yandex, DeepL API, and Gemini 3.5 Flash-Lite (AI).\n"
-                + "• Full Per-App Language support and natural translations across the top 20 world languages (including this 'What's New' window).\n"
-                + "• Start Page shortcut grid (4 or 5 columns) and edge-to-edge Quetta-style icon tiles.\n"
-                + "• Added Mate Translate to the Recommended Extensions Pack (now 7 extensions).\n"
-                + "• One-time translator guide in Browsing Assist.",
-                "Improved & fixed",
-                "• Redesigned SBrowserX settings with a unified top card, One UI accent summaries, SBrowserX Settings header, and Support the Author card.\n"
-                + "• Visibility-based teal dots (Morphe-style): synced across Main Settings and Hub, clearing automatically once seen.\n"
-                + "• Start Page: improved startup reliability and instant live wallpaper & weather updates without restart.\n"
-                + "• Translator: improved translation on sites such as Google News, Reuters, Le Monde, and GSMArena, refined the floating translation bar, and fixed the Dark Mode toolbar icon.",
-                "Removed & protected",
-                "• Removed the Samsung homepage promotion banner from Settings.\n"
-                + "• Hid unused stock Settings entries (Privacy block, About Samsung Browser, Debug settings).\n"
-                + "• Blocked incompatible Manifest V2 (.crx/.zip) installs with a clear One UI dialog recommending uBlock Origin Lite (MV3).\n"
-                + "• Removed the discontinued Microsoft Edge translator.",
+                "★ Highlights in v1.4.0",
+                "Rock-solid Secret Mode (Incognito) biometrics, fixed keyboard crashes inside extension popups, and a smart collision-free Restart button.",
+                "Improvements & Features",
+                "• Secret Mode (Incognito): fingerprint unlock now uses standard Android BiometricPrompt with Knox SDP bypassed — works smoothly on both Samsung and non-Samsung devices.\n"
+                + "• AI Summary on all phones: the Browsing Assist (Gemini AI) button is now unlocked on Pixel, OnePlus, Xiaomi, and other non-Samsung devices.\n"
+                + "• Smart Restart button: automatically detects overlapping toolbar actions (Done, Reset, Search) and shifts left or drops to bottom-right.",
+                "Fixes & Stability",
+                "• Extension popups (Bitwarden, etc.): fixed a crash triggered by keyboard/IME input inside extension action popups.\n"
+                + "• Home button & Start Page: fixed long-press Home reliability and removed the regional google.com New Tab redirect.",
+                "",
+                "",
                 "Thanks, got it",
-                "↓ Scroll to the bottom to continue"
+                "↓ Scroll to the bottom"
+            };
+        }
+    }
+
+    public static String[] getWelcome(String lang) {
+        if (lang == null) lang = "en";
+        switch (lang) {
+            case "ru": return new String[] {
+                "Добро пожаловать в SBrowserX",
+                "★ С чего начать",
+                "Всё управление модом собрано в «Настройки → SBrowserX». Загляните туда, чтобы в пару кликов поставить расширения, настроить стартовую страницу, оформление, приватность и резервное копирование.",
+                "Что уже доступно",
+                "• Расширения Chrome: установка из Chrome Web Store, файлов .crx/.zip или из готового набора (uBlock Origin Lite, Bitwarden, SponsorBlock и др.).\n"
+                + "• Переводчик и ИИ-сводка: 5 движков перевода (Bing, Google, Яндекс, DeepL, Gemini AI) и быстрая сводка страниц в «Ассистенте по просмотру».\n"
+                + "• Внешний вид и стартовая страница: настраиваемые ярлыки, обои, погода, AMOLED-тема и «живой» блюр панелей One UI.\n"
+                + "• Приватность и свобода: защита от утечек WebRTC/Fingerprint, Секретный режим с биометрией и поддержка сторонних менеджеров паролей.",
+                "Совет: подключите Gemini API",
+                "Откройте «Настройки → Ассистент по просмотру», создайте бесплатный ключ Gemini API в Google AI Studio и вставьте его в поле ключа — это сразу включит ИИ-сводку страниц и самый точный контекстный перевод.",
+                "",
+                "",
+                "Понятно, поехали!",
+                "↓ Пролистайте список до конца"
+            };
+            case "uk": return new String[] {
+                "Ласкаво просимо до SBrowserX",
+                "★ З чого почати",
+                "Усе керування модом зібрано в «Налаштування → SBrowserX». Зазирніть туди, щоб у кілька кліків встановити розширення, налаштувати стартову сторінку, вигляд, приватність і резервне копіювання.",
+                "Що вже доступно",
+                "• Розширення Chrome: встановлення з Chrome Web Store, файлів .crx/.zip або готового набору (uBlock Origin Lite, Bitwarden, SponsorBlock тощо).\n"
+                + "• Перекладач і ШІ-зведення: 5 рушіїв перекладу (Bing, Google, Яндекс, DeepL, Gemini AI) та швидке зведення сторінок в «Асистенті перегляду».\n"
+                + "• Вигляд і стартова сторінка: ярлики, шпалери, погода, AMOLED-тема та «живий» блюр панелей One UI.\n"
+                + "• Приватність і свобода: захист від витоків WebRTC/Fingerprint, Секретний режим із біометрією та підтримка сторонніх менеджерів паролів.",
+                "Порада: підключіть Gemini API",
+                "Відкрийте «Налаштування → Асистент перегляду», створіть безкоштовний ключ Gemini API в Google AI Studio та вставте його — це одразу ввімкне ШІ-зведення сторінок і найточніший контекстний переклад.",
+                "",
+                "",
+                "Зрозуміло, поїхали!",
+                "↓ Прогорніть список до кінця"
+            };
+            case "es": return new String[] {
+                "Bienvenido a SBrowserX",
+                "★ Por dónde empezar",
+                "Todos los ajustes del mod están en «Ajustes → SBrowserX». Ábrelo para instalar extensiones, personalizar la página de inicio, la apariencia, la privacidad y las copias de seguridad.",
+                "Qué incluye",
+                "• Extensiones de Chrome: instala desde Chrome Web Store, archivos .crx/.zip o el paquete recomendado (uBlock Origin Lite, Bitwarden, SponsorBlock, etc.).\n"
+                + "• Traductor y Resumen IA: 5 motores de traducción (Bing, Google, Yandex, DeepL, Gemini AI) y resumen instantáneo en «Asistente de navegación».\n"
+                + "• Diseño y Página de inicio: accesos directos, fondos, clima, tema AMOLED y desenfoque vivo de One UI.\n"
+                + "• Privacidad y libertad: protección WebRTC/Fingerprint, Modo Secreto con biometría y gestores de contraseñas de terceros.",
+                "Consejo: conecta Gemini API",
+                "Abre «Ajustes → Asistente de navegación» y pega una clave gratuita de Gemini API de Google AI Studio para activar el resumen IA y la traducción más precisa.",
+                "",
+                "",
+                "¡Entendido, vamos!",
+                "↓ Desplázate hasta el final"
+            };
+            case "pt": return new String[] {
+                "Bem-vindo ao SBrowserX",
+                "★ Por onde começar",
+                "Todos os controles do mod ficam em «Configurações → SBrowserX». Abra lá para instalar extensões, personalizar a página inicial, visual, privacidade e backup.",
+                "O que já está disponível",
+                "• Extensões do Chrome: instale pela Chrome Web Store, arquivos .crx/.zip ou pelo pacote recomendado (uBlock Origin Lite, Bitwarden, SponsorBlock, etc.).\n"
+                + "• Tradutor e Resumo IA: 5 motores (Bing, Google, Yandex, DeepL, Gemini AI) e resumo rápido no «Assistente de navegação».\n"
+                + "• Visual e Página Inicial: atalhos, papéis de parede, clima, tema AMOLED e desfoque ao vivo da One UI.\n"
+                + "• Privacidade e liberdade: proteção WebRTC/Fingerprint, Modo Secreto com biometria e gerenciadores de senhas de terceiros.",
+                "Dica: conecte a Gemini API",
+                "Abra «Configurações → Assistente de navegação» e cole uma chave gratuita da Gemini API do Google AI Studio para ativar resumos com IA e tradução contextual.",
+                "",
+                "",
+                "Entendi, vamos lá!",
+                "↓ Role até o final"
+            };
+            case "de": return new String[] {
+                "Willkommen bei SBrowserX",
+                "★ Erste Schritte",
+                "Alle Mod-Optionen findest du unter «Einstellungen → SBrowserX». Dort kannst du Erweiterungen installieren sowie Startseite, Design, Datenschutz und Backups einrichten.",
+                "Das ist bereits dabei",
+                "• Chrome-Erweiterungen: Installation aus dem Chrome Web Store, aus .crx/.zip-Dateien oder dem empfohlenen Paket (uBlock Origin Lite, Bitwarden, SponsorBlock usw.).\n"
+                + "• Übersetzer & KI-Zusammenfassung: 5 Engines (Bing, Google, Yandex, DeepL, Gemini AI) plus Seitenzusammenfassung im «Browsing-Assistent».\n"
+                + "• Design & Startseite: anpassbare Verknüpfungen, Hintergrundbilder, Wetter, AMOLED-Theme und Live-Blur im One-UI-Stil.\n"
+                + "• Datenschutz & Freiheit: WebRTC-/Fingerprint-Schutz, Geheimer Modus mit Biometrie und Drittanbieter-Passwortmanager.",
+                "Tipp: Gemini API verbinden",
+                "Öffne «Einstellungen → Browsing-Assistent» und füge einen kostenlosen Gemini-API-Key aus Google AI Studio ein — für KI-Zusammenfassungen und präzise Übersetzungen.",
+                "",
+                "",
+                "Verstanden, los geht's!",
+                "↓ Bis zum Ende scrollen"
+            };
+            case "fr": return new String[] {
+                "Bienvenue dans SBrowserX",
+                "★ Pour bien démarrer",
+                "Tous les réglages du mod sont regroupés dans « Paramètres → SBrowserX » : extensions, page de démarrage, apparence, confidentialité et sauvegarde.",
+                "Ce qui est déjà inclus",
+                "• Extensions Chrome : installez depuis le Chrome Web Store, des fichiers .crx/.zip ou le pack recommandé (uBlock Origin Lite, Bitwarden, SponsorBlock, etc.).\n"
+                + "• Traducteur et Résumé IA : 5 moteurs (Bing, Google, Yandex, DeepL, Gemini AI) et résumé instantané dans « Assistant de navigation ».\n"
+                + "• Design et Page de démarrage : raccourcis, fonds d'écran, météo, thème AMOLED et flou dynamique One UI.\n"
+                + "• Confidentialité et liberté : protection WebRTC/Fingerprint, Mode Secret biométrique et gestionnaires de mots de passe tiers.",
+                "Astuce : connectez Gemini API",
+                "Ouvrez « Paramètres → Assistant de navigation » et collez une clé gratuite Gemini API (Google AI Studio) pour activer les résumés IA et la traduction contextuelle.",
+                "",
+                "",
+                "Compris, c'est parti !",
+                "↓ Faites défiler jusqu'en bas"
+            };
+            case "it": return new String[] {
+                "Benvenuto in SBrowserX",
+                "★ Da dove iniziare",
+                "Tutte le opzioni della mod sono in «Impostazioni → SBrowserX»: installa estensioni e personalizza pagina iniziale, aspetto, privacy e backup.",
+                "Cosa è già disponibile",
+                "• Estensioni Chrome: dal Chrome Web Store, da file .crx/.zip o dal pacchetto consigliato (uBlock Origin Lite, Bitwarden, SponsorBlock, ecc.).\n"
+                + "• Traduttore e Riepilogo IA: 5 motori (Bing, Google, Yandex, DeepL, Gemini AI) e riepilogo rapido nell'«Assistente navigazione».\n"
+                + "• Aspetto e Pagina iniziale: scorciatoie, sfondi, meteo, tema AMOLED e sfocatura live One UI.\n"
+                + "• Privacy e libertà: protezione WebRTC/Fingerprint, Modalità Segreta con biometria e gestori di password di terze parti.",
+                "Consiglio: collega Gemini API",
+                "Apri «Impostazioni → Assistente navigazione» e inserisci una chiave gratuita Gemini API di Google AI Studio per attivare i riepiloghi IA e la traduzione contestuale.",
+                "",
+                "",
+                "Capito, iniziamo!",
+                "↓ Scorri fino in fondo"
+            };
+            case "pl": return new String[] {
+                "Witaj w SBrowserX",
+                "★ Od czego zacząć",
+                "Wszystkie ustawienia moda znajdziesz w «Ustawienia → SBrowserX» — zainstalujesz tam rozszerzenia, ustawisz stronę startową, wygląd, prywatność i kopie zapasowe.",
+                "Co jest już dostępne",
+                "• Rozszerzenia Chrome: z Chrome Web Store, plików .crx/.zip lub gotowego pakietu (uBlock Origin Lite, Bitwarden, SponsorBlock itp.).\n"
+                + "• Tłumacz i Podsumowanie AI: 5 silników (Bing, Google, Yandex, DeepL, Gemini AI) oraz szybkie podsumowania w «Asystencie przeglądania».\n"
+                + "• Wygląd i Strona startowa: skróty, tapety, pogoda, motyw AMOLED i żywy blur pasków One UI.\n"
+                + "• Prywatność i swoboda: ochrona WebRTC/Fingerprint, Tryb Tajny z biometrią oraz zewnętrzne menedżery haseł.",
+                "Wskazówka: podłącz Gemini API",
+                "Otwórz «Ustawienia → Asystent przeglądania» i wklej darmowy klucz Gemini API z Google AI Studio — włączy to podsumowania AI i najdokładniejsze tłumaczenie.",
+                "",
+                "",
+                "Jasne, zaczynajmy!",
+                "↓ Przewiń do końca"
+            };
+            case "tr": return new String[] {
+                "SBrowserX'e Hoş Geldiniz",
+                "★ Nereden Başlamalı",
+                "Tüm mod ayarları «Ayarlar → SBrowserX» altındadır. Eklentileri kurmak, başlangıç sayfasını, görünümü, gizliliği ve yedeklemeyi ayarlamak için oraya göz atın.",
+                "Neler Sunuyor",
+                "• Chrome Eklentileri: Chrome Web Mağazası'ndan, .crx/.zip dosyalarından veya önerilen paketten kurulum (uBlock Origin Lite, Bitwarden, SponsorBlock vb.).\n"
+                + "• Çevirmen ve Yapay Zeka Özeti: 5 çeviri motoru (Bing, Google, Yandex, DeepL, Gemini AI) ve «Tarama asistanı» ile hızlı sayfa özeti.\n"
+                + "• Görünüm ve Başlangıç Sayfası: kısayollar, duvar kağıtları, hava durumu, AMOLED tema ve canlı One UI bulanıklığı.\n"
+                + "• Gizlilik ve Özgürlük: WebRTC/Fingerprint koruması, biyometrik Gizli Mod ve üçüncü taraf şifre yöneticileri.",
+                "İpucu: Gemini API Bağlayın",
+                "«Ayarlar → Tarama asistanı» bölümüne Google AI Studio'dan ücretsiz Gemini API anahtarı ekleyerek yapay zeka özetlerini ve en doğru çeviriyi açın.",
+                "",
+                "",
+                "Anladım, başlayalım!",
+                "↓ Listenin sonuna kaydırın"
+            };
+            case "ar": return new String[] {
+                "مرحباً بك في SBrowserX",
+                "★ من أين تبدأ",
+                "تجد جميع إعدادات التعديل في «الإعدادات ← SBrowserX» لتثبيت الإضافات وتخصيص صفحة البداية والمظهر والخصوصية والنسخ الاحتياطي.",
+                "ما المتوفر حالياً",
+                "• إضافات Chrome: التثبيت من سوق Chrome أو ملفات .crx/.zip أو الحزمة المقترحة (uBlock Origin Lite وBitwarden وSponsorBlock وغيرها).\n"
+                + "• المترجم وملخص الذكاء الاصطناعي: 5 محركات ترجمة (Bing وGoogle وYandex وDeepL وGemini AI) وملخص فوري في «مساعد التصفح».\n"
+                + "• المظهر وصفحة البداية: اختصارات وخلفيات وطقس ووضع AMOLED وتضبيب One UI الحي.\n"
+                + "• الخصوصية والحرية: حماية WebRTC/Fingerprint والوضع السري بالبصمة ودعم مديري كلمات المرور الخارجيين.",
+                "نصيحة: اربط Gemini API",
+                "افتح «الإعدادات ← مساعد التصفح» وأضف مفتاح Gemini API مجانياً من Google AI Studio لتفعيل ملخصات الذكاء الاصطناعي وأدق ترجمة سياقية.",
+                "",
+                "",
+                "فهمت، لنبدأ!",
+                "↓ مرر إلى الأسفل للمتابعة"
+            };
+            case "fa": return new String[] {
+                "به SBrowserX خوش آمدید",
+                "★ از کجا شروع کنیم",
+                "همه تنظیمات مود در «تنظیمات ← SBrowserX» قرار دارد؛ از آنجا می‌توانید افزونه نصب کنید و صفحه شروع، ظاهر، حریم خصوصی و پشتیبان‌گیری را تنظیم کنید.",
+                "امکانات آماده استفاده",
+                "• افزونه‌های کروم: نصب از Chrome Web Store، فایل‌های .crx/.zip یا بسته پیشنهادی (uBlock Origin Lite، Bitwarden، SponsorBlock و غیره).\n"
+                + "• مترجم و خلاصه هوش مصنوعی: ۵ موتور ترجمه (Bing، Google، Yandex، DeepL، Gemini AI) و خلاصه‌سازی صفحات در «دستیار مرور».\n"
+                + "• ظاهر و صفحه شروع: میانبرها، پس‌زمینه، آب‌وهوا، تم AMOLED و محوشدگی زنده One UI.\n"
+                + "• حریم خصوصی و آزادی: محافظت WebRTC/Fingerprint، حالت محرمانه با بیومتریک و پشتیبانی از مدیران رمز عبور.",
+                "نکته: اتصال Gemini API",
+                "در «تنظیمات ← دستیار مرور» یک کلید رایگان Gemini API از Google AI Studio وارد کنید تا خلاصه هوش مصنوعی و دقیق‌ترین ترجمه فعال شود.",
+                "",
+                "",
+                "متوجه شدم، بزن بریم!",
+                "↓ تا انتها اسکرول کنید"
+            };
+            case "hi": return new String[] {
+                "SBrowserX में आपका स्वागत है",
+                "★ शुरुआत कहाँ से करें",
+                "मॉड की सभी सेटिंग्स «सेटिंग्स → SBrowserX» में हैं — वहाँ से एक्सटेंशन इंस्टॉल करें और स्टार्ट पेज, थीम, प्राइवेसी व बैकअप सेट करें।",
+                "पहले से क्या उपलब्ध है",
+                "• Chrome एक्सटेंशन: Chrome Web Store, .crx/.zip फ़ाइलों या सुझाए गए पैक से इंस्टॉल करें (uBlock Origin Lite, Bitwarden, SponsorBlock आदि)।\n"
+                + "• ट्रांसलेटर और AI सारांश: 5 अनुवाद इंजन (Bing, Google, Yandex, DeepL, Gemini AI) और «ब्राउज़िंग असिस्ट» में तेज़ पेज सारांश।\n"
+                + "• लुक और स्टार्ट पेज: कस्टम शॉर्टकट, वॉलपेपर, मौसम, AMOLED थीम और लाइव One UI ब्लर।\n"
+                + "• प्राइवेसी और आज़ादी: WebRTC/Fingerprint सुरक्षा, बायोमेट्रिक सीक्रेट मोड और थर्ड-पार्टी पासवर्ड मैनेजर सपोर्ट।",
+                "सुझाव: Gemini API जोड़ें",
+                "«सेटिंग्स → ब्राउज़िंग असिस्ट» में Google AI Studio से मुफ़्त Gemini API कुंजी जोड़ें — इससे AI सारांश और सबसे सटीक अनुवाद चालू हो जाएगा।",
+                "",
+                "",
+                "समझ गया, शुरू करें!",
+                "↓ नीचे तक स्क्रॉल करें"
+            };
+            case "zh": return new String[] {
+                "欢迎使用 SBrowserX",
+                "★ 快速上手",
+                "所有增强设置均集中在「设置 → SBrowserX」中，可一键安装扩展、定制起始页、外观、隐私保护及备份恢复。",
+                "核心功能一览",
+                "• Chrome 扩展：支持从 Chrome 网上应用店、.crx/.zip 文件或推荐套装安装（uBlock Origin Lite、Bitwarden、SponsorBlock 等）。\n"
+                + "• 智能翻译与 AI 摘要：内置 5 大翻译引擎（Bing、Google、Yandex、DeepL、Gemini AI）及「浏览助手」网页摘要。\n"
+                + "• 外观与起始页：自定义快捷方式、壁纸、天气、AMOLED 纯黑主题与 One UI 实时毛玻璃模糊。\n"
+                + "• 隐私与自由：WebRTC/指纹防护、保密模式指纹解锁与第三方密码管理器自动填充。",
+                "小贴士：配置 Gemini API",
+                "前往「设置 → 浏览助手」填入 Google AI Studio 免费获取的 Gemini API 密钥，即可开启 AI 网页摘要与高质量上下文翻译。",
+                "",
+                "",
+                "明白了，开始体验！",
+                "↓ 请滚动到底部"
+            };
+            case "ja": return new String[] {
+                "SBrowserX へようこそ",
+                "★ はじめに",
+                "すべてのカスタム設定は「設定 → SBrowserX」にまとまっています。拡張機能の導入、スタートページ、外観、プライバシー、バックアップをすぐに調整できます。",
+                "利用できる主な機能",
+                "• Chrome 拡張機能：Chrome ウェブストア、.crx/.zip、おすすめパック（uBlock Origin Lite、Bitwarden、SponsorBlock 等）から導入可能。\n"
+                + "• 翻訳と AI 要約：5 つの翻訳エンジン（Bing・Google・Yandex・DeepL・Gemini AI）と「ブラウジングアシスト」の AI 要約。\n"
+                + "• 外観とスタートページ：ショートカット、壁紙、天気、AMOLED テーマ、One UI のライブブラー。\n"
+                + "• プライバシーと自由度：WebRTC/フィンガープリント保護、生体認証シークレットモード、外部パスワードマネージャー対応。",
+                "ヒント：Gemini API を設定",
+                "「設定 → ブラウジングアシスト」に Google AI Studio の無料 Gemini API キーを設定すると、AI 要約と高精度な文脈翻訳が使えます。",
+                "",
+                "",
+                "OK、始めましょう！",
+                "↓ 最後までスクロールしてください"
+            };
+            case "ko": return new String[] {
+                "SBrowserX에 오신 것을 환영합니다",
+                "★ 시작하기",
+                "모든 모드 설정은 «설정 → SBrowserX»에 모여 있습니다. 확장 프로그램 설치, 시작 페이지, 디자인, 개인정보 보호, 백업을 간편하게 설정해 보세요.",
+                "주요 기능",
+                "• Chrome 확장 프로그램: Chrome 웹 스토어, .crx/.zip 파일 또는 추천 팩(uBlock Origin Lite, Bitwarden, SponsorBlock 등)으로 설치.\n"
+                + "• 번역기 및 AI 요약: 5개 번역 엔진(Bing, Google, Yandex, DeepL, Gemini AI)과 «브라우징 어시스트» AI 페이지 요약.\n"
+                + "• 디자인 및 시작 페이지: 바로가기, 배경화면, 날씨, AMOLED 테마, One UI 실시간 블러.\n"
+                + "• 개인정보 및 자유도: WebRTC/지문 추적 방지, 생체 인증 비밀 모드, 타사 비밀번호 관리자 지원.",
+                "팁: Gemini API 연결",
+                "«설정 → 브라우징 어시스트»에 Google AI Studio의 무료 Gemini API 키를 입력하면 AI 요약과 가장 정확한 문맥 번역이 활성화됩니다.",
+                "",
+                "",
+                "알겠어요, 시작할게요!",
+                "↓ 끝까지 스크롤하세요"
+            };
+            case "id": return new String[] {
+                "Selamat Datang di SBrowserX",
+                "★ Mulai dari Sini",
+                "Semua pengaturan mod ada di «Pengaturan → SBrowserX». Buka di sana untuk memasang ekstensi, mengatur halaman awal, tampilan, privasi, dan cadangan.",
+                "Yang Sudah Tersedia",
+                "• Ekstensi Chrome: pasang dari Chrome Web Store, file .crx/.zip, atau paket rekomendasi (uBlock Origin Lite, Bitwarden, SponsorBlock, dll.).\n"
+                + "• Penerjemah & Ringkasan AI: 5 mesin terjemahan (Bing, Google, Yandex, DeepL, Gemini AI) dan ringkasan cepat di «Asisten Penjelajahan».\n"
+                + "• Tampilan & Halaman Awal: pintasan, wallpaper, cuaca, tema AMOLED, dan blur langsung One UI.\n"
+                + "• Privasi & Kebebasan: perlindungan WebRTC/Fingerprint, Mode Rahasia biometrik, dan pengelola sandi pihak ketiga.",
+                "Tips: Hubungkan Gemini API",
+                "Buka «Pengaturan → Asisten Penjelajahan» dan tempel kunci Gemini API gratis dari Google AI Studio untuk mengaktifkan ringkasan AI dan terjemahan paling akurat.",
+                "",
+                "",
+                "Paham, ayo mulai!",
+                "↓ Gulir ke bagian bawah"
+            };
+            case "vi": return new String[] {
+                "Chào mừng đến với SBrowserX",
+                "★ Bắt đầu nhanh",
+                "Mọi tùy chỉnh mod đều nằm tại «Cài đặt → SBrowserX». Mở mục này để cài tiện ích mở rộng, tùy biến trang bắt đầu, giao diện, quyền riêng tư và sao lưu.",
+                "Tính năng nổi bật",
+                "• Tiện ích Chrome: cài từ Chrome Web Store, tệp .crx/.zip hoặc bộ đề xuất (uBlock Origin Lite, Bitwarden, SponsorBlock, v.v.).\n"
+                + "• Dịch thuật & Tóm tắt AI: 5 công cụ dịch (Bing, Google, Yandex, DeepL, Gemini AI) và tóm tắt nhanh trong «Trợ lý duyệt web».\n"
+                + "• Giao diện & Trang bắt đầu: lối tắt, hình nền, thời tiết, giao diện AMOLED và làm mờ động One UI.\n"
+                + "• Riêng tư & Tự do: chống rò rỉ WebRTC/Fingerprint, Chế độ Bí mật sinh trắc học và hỗ trợ trình quản lý mật khẩu bên thứ ba.",
+                "Mẹo: Kết nối Gemini API",
+                "Vào «Cài đặt → Trợ lý duyệt web» và dán khóa Gemini API miễn phí từ Google AI Studio để bật tóm tắt AI và bản dịch theo ngữ cảnh chính xác nhất.",
+                "",
+                "",
+                "Hiểu rồi, bắt đầu thôi!",
+                "↓ Cuộn xuống cuối danh sách"
+            };
+            case "nl": return new String[] {
+                "Welkom bij SBrowserX",
+                "★ Zo begin je",
+                "Alle mod-instellingen staan in «Instellingen → SBrowserX». Daar installeer je extensies en pas je startpagina, uiterlijk, privacy en back-ups aan.",
+                "Wat er al klaarstaat",
+                "• Chrome-extensies: installeer via de Chrome Web Store, .crx/.zip-bestanden of het aanbevolen pakket (uBlock Origin Lite, Bitwarden, SponsorBlock, enz.).\n"
+                + "• Vertaler & AI-samenvatting: 5 vertaalengines (Bing, Google, Yandex, DeepL, Gemini AI) plus paginasamenvatting in «Browse-assistent».\n"
+                + "• Uiterlijk & Startpagina: snelkoppelingen, achtergronden, weer, AMOLED-thema en live One UI-blur.\n"
+                + "• Privacy & vrijheid: WebRTC-/Fingerprint-bescherming, Geheime modus met biometrie en externe wachtwoordmanagers.",
+                "Tip: koppel Gemini API",
+                "Open «Instellingen → Browse-assistent» en plak een gratis Gemini API-sleutel uit Google AI Studio voor AI-samenvattingen en nauwkeurige vertalingen.",
+                "",
+                "",
+                "Begrepen, aan de slag!",
+                "↓ Scroll naar beneden"
+            };
+            case "sw": return new String[] {
+                "Karibu kwenye SBrowserX",
+                "★ Mahali pa Kuanza",
+                "Mipangilio yote ya mod iko kwenye «Mipangilio → SBrowserX». Fungua hapo ili kuweka viendelezi, kurekebisha ukurasa wa mwanzo, muonekano, faragha na nakala rudufu.",
+                "Vilivyopo Tayari",
+                "• Viendelezi vya Chrome: sakinisha kutoka Chrome Web Store, faili za .crx/.zip au kifurushi kilichopendekezwa (uBlock Origin Lite, Bitwarden, SponsorBlock n.k.).\n"
+                + "• Mtafsiri na Muhtasari wa AI: injini 5 za tafsiri (Bing, Google, Yandex, DeepL, Gemini AI) na muhtasari wa haraka kwenye «Msaidizi wa kuvinjari».\n"
+                + "• Muonekano na Ukurasa wa Mwanzo: njia za mkato, picha za usuli, hali ya hewa, mandhari ya AMOLED na ukungu wa moja kwa moja wa One UI.\n"
+                + "• Faragha na Uhuru: ulinzi wa WebRTC/Fingerprint, Hali ya Siri kwa alama ya vidole na meneja wa nywila wa nje.",
+                "Kidokezo: Unganisha Gemini API",
+                "Fungua «Mipangilio → Msaidizi wa kuvinjari» na uweke ufunguo wa bure wa Gemini API kutoka Google AI Studio ili kuwasha muhtasari wa AI na tafsiri sahihi.",
+                "",
+                "",
+                "Nimeelewa, tuanze!",
+                "↓ Sogeza hadi chini"
+            };
+            default: return new String[] {
+                "Welcome to SBrowserX",
+                "★ Where to Start",
+                "All mod controls live in Settings → SBrowserX. Open it to install extensions, customize your Start Page, appearance, privacy, and backups in a few taps.",
+                "What's Already Built In",
+                "• Chrome Extensions: install from the Chrome Web Store, .crx/.zip files, or the curated starter pack (uBlock Origin Lite, Bitwarden, SponsorBlock, etc.).\n"
+                + "• Translator & AI Summary: 5 translation engines (Bing, Google, Yandex, DeepL, Gemini AI) plus instant page summaries in Browsing Assist.\n"
+                + "• Look & Start Page: custom shortcuts, wallpapers, weather, AMOLED theme, and live One UI frosted blur.\n"
+                + "• Privacy & Freedom: WebRTC/Fingerprint protection, biometric Secret Mode, and third-party password manager autofill.",
+                "Tip: Connect Gemini API",
+                "Open Settings → Browsing Assist and paste a free Gemini API key from Google AI Studio to unlock AI page summaries and the most accurate context-aware translations.",
+                "",
+                "",
+                "Got it, let's go!",
+                "↓ Scroll to the bottom"
             };
         }
     }
