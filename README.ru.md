@@ -9,29 +9,33 @@
 [English](README.md) · **Русский**
 
 <p>
-  <a href="https://morphe.software/add-source?github=vortexnode/SBrowserX">
-    <img src="https://img.shields.io/badge/%D0%94%D0%BE%D0%B1%D0%B0%D0%B2%D0%B8%D1%82%D1%8C%20%D0%B2%20Morphe-%D0%B2%201%20%D1%82%D0%B0%D0%BF-1a73e8?style=for-the-badge&logo=android&logoColor=white" alt="Добавить в Morphe в 1 тап" />
-  </a>
-  &nbsp;
-  <a href="https://boosty.to/vortexnode/donate">
-    <img src="https://img.shields.io/badge/%D0%A3%D0%B3%D0%BE%D1%81%D1%82%D0%B8%D1%82%D1%8C%20%D0%BA%D0%BE%D1%84%D0%B5-Boosty-F15F2C?style=for-the-badge&logo=buymeacoffee&logoColor=white" alt="Поддержать автора на Boosty" />
-  </a>
+  <a href="https://morphe.software/add-source?github=vortexnode/SBrowserX"><img src="https://img.shields.io/badge/%D0%94%D0%BE%D0%B1%D0%B0%D0%B2%D0%B8%D1%82%D1%8C%20%D0%B2%20Morphe-%D0%B2%201%20%D1%82%D0%B0%D0%BF-1a73e8?style=for-the-badge&logo=android&logoColor=white" alt="Добавить в Morphe в 1 тап" /></a>
+  <a href="#-поддержать-автора"><img src="https://img.shields.io/badge/%D0%A3%D0%B3%D0%BE%D1%81%D1%82%D0%B8%D1%82%D1%8C%20%D0%BA%D0%BE%D1%84%D0%B5-Boosty%20%E2%80%A2%20USDT%20%E2%80%A2%20BTC-F15F2C?style=for-the-badge&logo=buymeacoffee&logoColor=white" alt="Поддержать автора — Boosty, USDT, BTC" /></a>
 </p>
 
+<details>
+<summary>☕ <b>Поддержать автора</b> — Boosty · USDT (TRC20 / TON) · Bitcoin (BTC)</summary>
+<br />
+
+| Способ | Адрес / Ссылка |
+| :--- | :--- |
+| **Boosty (Карты РФ / СБП / PayPal)** | [boosty.to/vortexnode/donate](https://boosty.to/vortexnode/donate) |
+| **USDT (TRC20)** | `TL1dvN9DLJMgo1zoKQ682BoUNr2wVYB6rW` |
+| **USDT (TON)** | `UQBy-hdr5yjVBPV8W4cz-stesuYvvHRghALfqltCEyagM-8N` |
+| **Bitcoin (BTC)** | `17tzAY6JXuy6KzfZcDmb22DiHsxDKiNpx1` |
+
+</details>
+
+<br />
+
 <p>
-  <a href="https://github.com/vortexnode/SBrowserX/releases/latest">
-    <img src="https://img.shields.io/github/v/release/vortexnode/SBrowserX?style=flat-square&label=release&color=00ACC1" alt="Последний релиз" />
-  </a>
-  <a href="https://github.com/vortexnode/SBrowserX/releases">
-    <img src="https://img.shields.io/github/downloads/vortexnode/SBrowserX/total?style=flat-square&label=downloads&color=brightgreen" alt="Всего скачиваний" />
-  </a>
+  <a href="https://github.com/vortexnode/SBrowserX/releases/latest"><img src="https://img.shields.io/github/v/release/vortexnode/SBrowserX?style=flat-square&label=release&color=00ACC1" alt="Последний релиз" /></a>
+  <a href="https://github.com/vortexnode/SBrowserX/releases"><img src="https://img.shields.io/github/downloads/vortexnode/SBrowserX/total?style=flat-square&label=downloads&color=brightgreen" alt="Всего скачиваний" /></a>
   <img src="https://img.shields.io/badge/patches-16-blue?style=flat-square" alt="16 патчей" />
   <img src="https://img.shields.io/badge/Samsung%20Internet-31.0.2.41-1428A0?style=flat-square" alt="Базовая версия Samsung Internet 31.0.2.41" />
   <img src="https://img.shields.io/badge/Android%2011%2B-Любой%20смартфон%20%E2%80%A2%20Без%20Root-2EA043?style=flat-square" alt="Android 11+ Любой смартфон Без Root" />
   <img src="https://img.shields.io/badge/languages-20-6f42c1?style=flat-square" alt="20 языков" />
-  <a href="LICENSE">
-    <img src="https://img.shields.io/github/license/vortexnode/SBrowserX?style=flat-square&color=green" alt="Лицензия GPL-3.0" />
-  </a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/vortexnode/SBrowserX?style=flat-square&color=green" alt="Лицензия GPL-3.0" /></a>
 </p>
 
 <p>
