@@ -4136,7 +4136,7 @@ public final class SBrowserXHooks {
             if (SBrowserXPrefs.isStartPageEnabled(ctx)) {
                 try {
                     SBrowserXStartPageServer.ensureStarted(ctx);
-                    String spUrl = SBrowserXStartPageServer.getStartPageUrl();
+                    String spUrl = SBrowserXStartPageServer.getBaseUrl();
                     if (spUrl != null && !spUrl.isEmpty()) {
                         Class<?> hpsCls = Class.forName("com.sec.android.app.sbrowser.homepage.HomePageSettings");
                         Object inst = hpsCls.getMethod("getInstance").invoke(null);
