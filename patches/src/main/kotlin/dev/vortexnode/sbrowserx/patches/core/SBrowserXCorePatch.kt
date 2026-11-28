@@ -130,67 +130,86 @@ internal val sbrowserXCoreResourcePatch = resourcePatch(
 
         val targetPkg = SBrowserPackageRenameTarget.packageName ?: manifestPkg
 
-        // 1. Main Settings: Standalone SBrowserX card -> Sync & Backup + Browsing Assist card -> Extensions inside Privacy card
+        // 1. Main Settings: Unified SBrowserX top card (Hub, Extensions, Assist, Backup, Bookmarks)
+        //    + clean bottom About card (About Samsung Browser + SBrowserX v1.3.7 + Morphe source)
         document("res/xml/settings_fragment.xml").use { xml ->
             val screen = xml.documentElement ?: error("Missing PreferenceScreen in settings_fragment.xml")
 
             val hubPref = createIntentPref(
-                xml, "sbrowserx_settings_hub", "SBrowserX  \u25CF",
-                "Extensions, WebRTC, Translate, Downloads & AMOLED",
+                xml, "sbrowserx_settings_hub", "SBrowserX",
+                "Extensions • Privacy • Interface",
                 targetPkg, SETTINGS_ACTIVITY_CLASS,
             )
-            val cardDivider = createCategory(xml, "sbrowserx_top_card_divider", "")
+            val extPref = createIntentPref(
+                xml, "sbrowserx_settings_extensions", "@string/extensions_title",
+                "Chrome Web Store",
+                targetPkg, EXT_BRIDGE_ACTIVITY_CLASS,
+            )
+            val assistPref = createIntentPref(
+                xml, "sbrowserx_browsing_assist", "Browsing assist",
+                "Gemini • Translator",
+                targetPkg, BROWSING_ASSIST_ACTIVITY_CLASS,
+            )
             val syncBackupPref = createIntentPref(
                 xml, "sbrowserx_sync_backup", "Sync & Backup",
-                "Local scheduled backup & Google Drive",
+                "Local backup • Google Drive",
                 targetPkg, BACKUP_ACTIVITY_CLASS,
             )
             syncBackupPref.setAttributeNS(ANDROID_NS, "android:singleLineTitle", "false")
-            val assistPref = createIntentPref(
-                xml, "sbrowserx_browsing_assist", "Browsing assist",
-                "AI Summary (Gemini API) & Built-in Translator",
-                targetPkg, BROWSING_ASSIST_ACTIVITY_CLASS,
-            )
             val bookmarksPref = createIntentPref(
                 xml, "sbrowserx_settings_bookmarks", "Bookmarks",
-                "Quick access to bookmarks & folders",
+                "Quick access",
                 targetPkg, BOOKMARKS_BRIDGE_ACTIVITY_CLASS,
             )
+            val cardDivider = createCategory(xml, "sbrowserx_top_card_divider", "")
 
             val firstChild = screen.firstChild
             if (firstChild != null) {
                 screen.insertBefore(hubPref, firstChild)
-                screen.insertBefore(cardDivider, firstChild)
-                screen.insertBefore(syncBackupPref, firstChild)
+                screen.insertBefore(extPref, firstChild)
                 screen.insertBefore(assistPref, firstChild)
+                screen.insertBefore(syncBackupPref, firstChild)
                 screen.insertBefore(bookmarksPref, firstChild)
+                screen.insertBefore(cardDivider, firstChild)
             } else {
                 screen.appendChild(hubPref)
-                screen.appendChild(cardDivider)
-                screen.appendChild(syncBackupPref)
+                screen.appendChild(extPref)
                 screen.appendChild(assistPref)
+                screen.appendChild(syncBackupPref)
                 screen.appendChild(bookmarksPref)
+                screen.appendChild(cardDivider)
             }
 
-            // Place "Extensions" down inside the Privacy & Security card (right above "privacy")
-            val extPref = createIntentPref(
-                xml, "sbrowserx_settings_extensions", "@string/extensions_title",
-                "Manage extensions & Chrome Web Store",
-                targetPkg, EXT_BRIDGE_ACTIVITY_CLASS,
-            )
-            val children = screen.childNodes
-            var extInserted = false
-            for (i in 0 until children.length) {
-                val node = children.item(i) as? Element ?: continue
-                if (node.getAttributeNS(ANDROID_NS, "key") == "privacy") {
-                    screen.insertBefore(extPref, node)
-                    extInserted = true
-                    break
+            // Tag the stock bottom "Privacy" category so SBrowserXHooks can safely hide it via setVisible(false)
+            val allNodes = screen.childNodes
+            for (i in 0 until allNodes.length) {
+                val node = allNodes.item(i) as? Element ?: continue
+                if (node.tagName == "androidx.preference.PreferenceCategory" &&
+                    node.getAttributeNS(ANDROID_NS, "title") == "@string/pref_category_privacy"
+                ) {
+                    node.setAttributeNS(ANDROID_NS, "android:key", "sbrowserx_stock_privacy_cat")
                 }
             }
-            if (!extInserted) {
-                screen.appendChild(extPref)
-            }
+
+            // Append "SBrowserX" & "Morphe patch source" directly in the bottom About card
+            // (Click handlers attached cleanly at runtime in SBrowserXHooks so Uri is never null)
+            val aboutVerPref = xml.createElement("com.sec.android.app.sbrowser.common.settings.PreferenceCustom")
+            aboutVerPref.setAttributeNS(ANDROID_NS, "android:key", "sbrowserx_about_version")
+            aboutVerPref.setAttributeNS(ANDROID_NS, "android:title", "SBrowserX")
+            aboutVerPref.setAttributeNS(ANDROID_NS, "android:summary", " ")
+            screen.appendChild(aboutVerPref)
+
+            val aboutMorphePref = xml.createElement("com.sec.android.app.sbrowser.common.settings.PreferenceCustom")
+            aboutMorphePref.setAttributeNS(ANDROID_NS, "android:key", "sbrowserx_about_morphe")
+            aboutMorphePref.setAttributeNS(ANDROID_NS, "android:title", "Morphe patch source")
+            aboutMorphePref.setAttributeNS(ANDROID_NS, "android:summary", " ")
+            screen.appendChild(aboutMorphePref)
+
+            val aboutSupportPref = xml.createElement("com.sec.android.app.sbrowser.common.settings.PreferenceCustom")
+            aboutSupportPref.setAttributeNS(ANDROID_NS, "android:key", "sbrowserx_about_support")
+            aboutSupportPref.setAttributeNS(ANDROID_NS, "android:title", "Support the author")
+            aboutSupportPref.setAttributeNS(ANDROID_NS, "android:summary", " ")
+            screen.appendChild(aboutSupportPref)
         }
 
         // 2. Privacy & Security: WebRTC in-place dialog + native in-place switches
@@ -701,5 +720,23 @@ val sbrowserXCorePatch = bytecodePatch(
                 nop
             """.trimIndent(),
         )
+
+        // Inject Permissions, Privacy Notice History & Debug Settings buttons cleanly into AboutFragment
+        // AboutFragment.onViewCreated(Landroid/view/View;Landroid/os/Bundle;)V (.locals 9)
+        val aboutOnViewCreated = findMethodOrThrow(
+            classType = "Lcom/sec/android/app/sbrowser/settings/about/AboutFragment;",
+            methodName = "onViewCreated",
+            parameterTypes = listOf("Landroid/view/View;", "Landroid/os/Bundle;"),
+            returnType = "V",
+        )
+        val aboutRetIndices = aboutOnViewCreated.implementation!!.instructions
+            .mapIndexedNotNull { idx, insn -> if (insn.opcode == Opcode.RETURN_VOID) idx else null }
+            .reversed()
+        for (retIdx in aboutRetIndices) {
+            aboutOnViewCreated.addInstruction(
+                retIdx,
+                "invoke-static {p0, p1}, Ldev/vortexnode/sbrowserx/extension/SBrowserXHooks;->onAboutFragmentViewCreated(Ljava/lang/Object;Landroid/view/View;)V",
+            )
+        }
     }
 }

@@ -256,5 +256,19 @@ val removeTelemetryAndPromotionsPatch = bytecodePatch(
             parameterTypes = emptyList(),
             returnType = "V",
         ).returnVoidEarly()
+
+        // 18. Disable Samsung "Set Quick Access as homepage" promo card in Settings app bar
+        findMethodOrThrow(
+            classType = "Lcom/sec/android/app/sbrowser/common/suggestion_appbar/QuickAccessPromotionInfo;",
+            methodName = "shouldShowQuickAccessPromotion",
+            parameterTypes = listOf("Landroid/content/Context;"),
+            returnType = "Z",
+        ).addInstructions(
+            0,
+            """
+                const/4 p0, 0x0
+                return p0
+            """.trimIndent(),
+        )
     }
 }

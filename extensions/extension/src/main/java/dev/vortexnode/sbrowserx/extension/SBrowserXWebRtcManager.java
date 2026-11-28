@@ -89,6 +89,9 @@ public final class SBrowserXWebRtcManager {
     public static void restartBrowser(Context context) {
         if (context == null) return;
         try {
+            SBrowserXStartPageServer.stop();
+        } catch (Throwable ignored) {}
+        try {
             Intent launch = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
             if (launch != null) {
                 launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);

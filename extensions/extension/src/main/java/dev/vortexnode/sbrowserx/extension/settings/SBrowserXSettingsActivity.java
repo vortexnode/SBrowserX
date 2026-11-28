@@ -49,7 +49,8 @@ public final class SBrowserXSettingsActivity extends Activity {
     private LinearLayout urlBlurLevelRow;
     private TextView compactBlurLevelValueView;
     private LinearLayout compactBlurLevelRow;
-    private View extInstallDot, extPackDot, webrtcDot, fingerprintDot, hideAdsDot, gtransDot, extDlDot, amoledDot, forceDarkDot, blurDot;
+    private View extInstallDot, extPackDot, webrtcDot, fingerprintDot, hideAdsDot, gtransDot, extDlDot, amoledDot, forceDarkDot, blurDot, supportDot;
+    private ScrollView mainScrollView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,6 +75,7 @@ public final class SBrowserXSettingsActivity extends Activity {
         }
 
         ScrollView scroll = new ScrollView(this);
+        this.mainScrollView = scroll;
         scroll.setBackgroundColor(bgColor);
 
         LinearLayout root = new LinearLayout(this);
@@ -81,7 +83,21 @@ public final class SBrowserXSettingsActivity extends Activity {
         applyOneUiEdgeToEdgePadding(root, dp(16), dp(14), dp(16), dp(36));
 
         // One UI 8 Top Bar with circular '<' back button
-        root.addView(buildOneUiHeader(this, SBrowserXStrings.get(SBrowserXStrings.TITLE_HUB), night, textPrimary, v -> finish()));
+        LinearLayout hubHeader = buildOneUiHeader(this, SBrowserXStrings.get(SBrowserXStrings.TITLE_HUB), night, textPrimary, v -> finish());
+        TextView heartBtn = new TextView(this);
+        heartBtn.setText("\u2665");
+        heartBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 19f);
+        heartBtn.setTextColor(night ? 0xFFFF6B6B : 0xFFE11D48);
+        heartBtn.setGravity(Gravity.CENTER);
+        TypedValue hRipple = new TypedValue();
+        getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, hRipple, true);
+        if (hRipple.resourceId != 0) heartBtn.setBackgroundResource(hRipple.resourceId);
+        LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(dp(38), dp(38));
+        hlp.rightMargin = dp(4);
+        heartBtn.setOnClickListener(v -> dev.vortexnode.sbrowserx.extension.SBrowserXSupportDialog.show(this, this::refreshDynamicViews));
+        int insertIdx = Math.max(0, hubHeader.getChildCount() - 1);
+        hubHeader.addView(heartBtn, insertIdx, hlp);
+        root.addView(hubHeader);
 
         // --- Extensions (user-requested order: 1. Pack, 2. Manage, 3. CWS, 4. Install from file) ---
         root.addView(sectionHeader(SBrowserXStrings.get(SBrowserXStrings.CAT_EXTENSIONS), textSecondary));
@@ -287,6 +303,17 @@ public final class SBrowserXSettingsActivity extends Activity {
                 });
         root.addView(highlightCard);
 
+        // --- Support the author ---
+        LinearLayout supportCard = card(cardColor);
+        LinearLayout.LayoutParams slp = (LinearLayout.LayoutParams) supportCard.getLayoutParams();
+        slp.topMargin = dp(16);
+        supportDot = createCoralDot();
+        addActionRow(supportCard, SBrowserXStrings.getSupportTitle(),
+                SBrowserXStrings.getSupportSubtitle(),
+                textPrimary, textSecondary, supportDot,
+                v -> dev.vortexnode.sbrowserx.extension.SBrowserXSupportDialog.show(this, this::refreshDynamicViews));
+        root.addView(supportCard);
+
         // --- Restart ---
         LinearLayout restartCard = card(cardColor);
         LinearLayout.LayoutParams rlp = (LinearLayout.LayoutParams) restartCard.getLayoutParams();
@@ -296,44 +323,26 @@ public final class SBrowserXSettingsActivity extends Activity {
                 textPrimary, textSecondary, null, v -> SBrowserXWebRtcManager.restartBrowser(this));
         root.addView(restartCard);
 
-        // --- About SBrowserX ---
-        boolean isRu = "ru".equals(java.util.Locale.getDefault().getLanguage());
-        boolean isUk = "uk".equals(java.util.Locale.getDefault().getLanguage());
-        String aboutHeader = isRu ? "О SBrowserX" : (isUk ? "Про SBrowserX" : "About SBrowserX");
-        String verSummary = isRu ? "Официальная сборка • github.com/vortexnode/SBrowserX"
-                : (isUk ? "Офіційна збірка • github.com/vortexnode/SBrowserX"
-                : "Official build • github.com/vortexnode/SBrowserX");
-        String morpheTitle = isRu ? "Источник патчей для Morphe"
-                : (isUk ? "Джерело патчів для Morphe" : "Morphe patch source");
-        String morpheSummary = isRu ? "Добавить официальный репозиторий в Morphe в один тап"
-                : (isUk ? "Додати офіційний репозиторій у Morphe в один тап"
-                : "Add the official repository to Morphe in one tap");
-
-        root.addView(sectionHeader(aboutHeader, textSecondary));
-        LinearLayout aboutCard = card(cardColor);
-        addActionRow(aboutCard, "SBrowserX v1.3.6", verSummary, textPrimary, textSecondary, null, v -> {
-            try {
-                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/vortexnode/SBrowserX")));
-            } catch (Throwable ignored) {}
-        });
-        aboutCard.addView(divider(night));
-        addActionRow(aboutCard, morpheTitle, morpheSummary, textPrimary, textSecondary, null, v -> {
-            try {
-                startActivity(new Intent(Intent.ACTION_VIEW,
-                        Uri.parse("https://morphe.software/add-source?github=vortexnode/SBrowserX")));
-            } catch (Throwable ignored) {}
-        });
-        root.addView(aboutCard);
-
         scroll.addView(root);
         setContentView(scroll);
         refreshDynamicViews();
+        scroll.getViewTreeObserver().addOnScrollChangedListener(this::markVisibleHubFeaturesViewed);
+        scroll.postDelayed(this::markVisibleHubFeaturesViewed, 350L);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         refreshDynamicViews();
+        if (mainScrollView != null) {
+            mainScrollView.postDelayed(this::markVisibleHubFeaturesViewed, 250L);
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        markVisibleHubFeaturesViewed();
+        super.onPause();
     }
 
     private String buildTranslateSummary() {
@@ -362,6 +371,17 @@ public final class SBrowserXSettingsActivity extends Activity {
         if (requestCode == REQ_PICK_EXTENSION && resultCode == RESULT_OK && data != null && data.getData() != null) {
             Toast.makeText(this, SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALLING), Toast.LENGTH_SHORT).show();
             SBrowserXCrxInstaller.installFromUri(this, data.getData(), (ok, msg) -> {
+                if (!ok && "MV2_UNSUPPORTED".equals(msg)) {
+                    boolean night = SBrowserXHooks.isBrowserNightMode(this);
+                    int dlgTheme = night ? android.R.style.Theme_DeviceDefault_Dialog_Alert
+                            : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert;
+                    new AlertDialog.Builder(this, dlgTheme)
+                            .setTitle(SBrowserXStrings.get(SBrowserXStrings.EXT_MV2_BLOCKED_TITLE))
+                            .setMessage(SBrowserXStrings.get(SBrowserXStrings.EXT_MV2_BLOCKED_MSG))
+                            .setPositiveButton(android.R.string.ok, null)
+                            .show();
+                    return;
+                }
                 String toast = ok
                         ? SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALL_OK) + " (" + msg + ")"
                         : SBrowserXStrings.get(SBrowserXStrings.EXT_INSTALL_FAIL) + msg;
@@ -450,6 +470,9 @@ public final class SBrowserXSettingsActivity extends Activity {
         setDot(extDlDot, SBrowserXPrefs.FEATURE_EXT_DOWNLOADER);
         setDot(amoledDot, SBrowserXPrefs.FEATURE_AMOLED);
         setDot(blurDot, SBrowserXPrefs.FEATURE_BOTTOM_BLUR);
+        if (supportDot != null) {
+            supportDot.setVisibility(SBrowserXPrefs.isSupportBadgeVisible(this) ? View.VISIBLE : View.GONE);
+        }
         if (blurLevelValueView != null) {
             boolean blurOn = SBrowserXPrefs.isBottomBarBlurEnabled(this);
             int pct = SBrowserXPrefs.getBottomBarTransparency(this);
@@ -482,10 +505,49 @@ public final class SBrowserXSettingsActivity extends Activity {
         }
     }
 
+    private void markVisibleHubFeaturesViewed() {
+        if (mainScrollView == null) return;
+        android.graphics.Rect scrollRect = new android.graphics.Rect();
+        if (!mainScrollView.getGlobalVisibleRect(scrollRect)) return;
+        markIfVisible(scrollRect, extPackDot, SBrowserXPrefs.FEATURE_EXT_PACK);
+        markIfVisible(scrollRect, extInstallDot, SBrowserXPrefs.FEATURE_EXT_INSTALLER);
+        markIfVisible(scrollRect, webrtcDot, SBrowserXPrefs.FEATURE_WEBRTC);
+        markIfVisible(scrollRect, fingerprintDot, SBrowserXPrefs.FEATURE_FINGERPRINT);
+        markIfVisible(scrollRect, hideAdsDot, SBrowserXPrefs.FEATURE_HIDE_ADBLOCKERS);
+        markIfVisible(scrollRect, gtransDot, SBrowserXPrefs.FEATURE_GOOGLE_TRANSLATE);
+        markIfVisible(scrollRect, extDlDot, SBrowserXPrefs.FEATURE_EXT_DOWNLOADER);
+        markIfVisible(scrollRect, amoledDot, SBrowserXPrefs.FEATURE_AMOLED);
+        markIfVisible(scrollRect, blurDot, SBrowserXPrefs.FEATURE_BOTTOM_BLUR);
+    }
+
+    private void markIfVisible(android.graphics.Rect scrollRect, View dot, String feat) {
+        if (dot == null || !SBrowserXPrefs.isFeatureNew(this, feat)) return;
+        View target = (dot.getParent() instanceof View) ? (View) dot.getParent() : dot;
+        android.graphics.Rect r = new android.graphics.Rect();
+        if (target.getGlobalVisibleRect(r)) {
+            if (r.bottom > scrollRect.top + 8 && r.top < scrollRect.bottom - 8) {
+                SBrowserXPrefs.markFeatureViewed(this, feat);
+            }
+        }
+    }
+
     private void setDot(View dot, String feat) {
         if (dot != null) {
             dot.setVisibility(SBrowserXPrefs.isFeatureNew(this, feat) ? View.VISIBLE : View.GONE);
         }
+    }
+
+    private View createCoralDot() {
+        View dot = new View(this);
+        GradientDrawable gd = new GradientDrawable();
+        gd.setShape(GradientDrawable.OVAL);
+        gd.setColor(0xFFFF5252);
+        dot.setBackground(gd);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(8), dp(8));
+        lp.leftMargin = dp(8);
+        lp.gravity = Gravity.CENTER_VERTICAL;
+        dot.setLayoutParams(lp);
+        return dot;
     }
 
     private View createTealDot() {
