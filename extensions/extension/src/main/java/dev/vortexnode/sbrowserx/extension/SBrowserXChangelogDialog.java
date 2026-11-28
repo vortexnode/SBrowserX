@@ -24,8 +24,8 @@ import java.lang.reflect.Method;
  * Shown once on first launch after updating SBrowserX.
  */
 public final class SBrowserXChangelogDialog {
-    public static final String CURRENT_VERSION = "1.3.7";
-    private static final String ACK_KEY_VERSION = "1.3.7-release";
+    public static final String CURRENT_VERSION = "1.3.8";
+    private static final String ACK_KEY_VERSION = "1.3.8-release";
     private static volatile boolean sShowing = false;
 
     private SBrowserXChangelogDialog() {}
@@ -50,7 +50,8 @@ public final class SBrowserXChangelogDialog {
             final int textPrimary = night ? 0xFFF8FAFC : 0xFF111827;
             final int textSecondary = night ? 0xFFD8DEE9 : 0xFF374151;
 
-            String lang = SBrowserXStrings.getAppLang();
+            SBrowserXStrings.updateUiContext(act);
+            String lang = SBrowserXStrings.getAppLang(act);
             boolean ru = "ru".equals(lang);
             boolean uk = "uk".equals(lang);
 

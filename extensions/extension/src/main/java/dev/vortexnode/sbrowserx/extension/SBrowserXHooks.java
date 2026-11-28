@@ -140,6 +140,7 @@ public final class SBrowserXHooks {
     public static void onMainActivityResume(Activity activity) {
         if (activity != null) {
             sMainActivityRef = new WeakReference<>(activity);
+            SBrowserXStrings.updateUiContext(activity);
             applyCompactSystemBarPolish(activity);
         consumePendingHomepageNavigation(activity);
             ensureTerraceAutofillEnabled(activity);
@@ -3026,7 +3027,7 @@ public final class SBrowserXHooks {
             Object aboutVer = findPref.invoke(fragment, "sbrowserx_about_version");
             if (aboutVer != null) {
                 aboutVer.getClass().getMethod("setTitle", CharSequence.class).invoke(aboutVer, "SBrowserX");
-                setAccentSummary(aboutVer, ctx, "v1.3.7 • GitHub");
+                setAccentSummary(aboutVer, ctx, "v1.3.8 • GitHub");
                 bindUrlClick(aboutVer, ctx, "https://github.com/vortexnode/SBrowserX");
             }
             Object aboutMorphe = findPref.invoke(fragment, "sbrowserx_about_morphe");
@@ -3202,6 +3203,7 @@ public final class SBrowserXHooks {
     private static void applySBrowserXSettingsTitle(Object fragment) {
         try {
             Object actObj = fragment.getClass().getMethod("getActivity").invoke(fragment);
+            if (actObj instanceof Activity) SBrowserXStrings.updateUiContext((Activity) actObj);
             if (!(actObj instanceof Activity)) return;
             final Activity act = (Activity) actObj;
             final String title = SBrowserXStrings.getSettingsScreenTitle();
