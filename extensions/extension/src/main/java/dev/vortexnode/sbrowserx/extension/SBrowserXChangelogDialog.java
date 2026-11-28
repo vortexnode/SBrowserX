@@ -24,8 +24,8 @@ import java.lang.reflect.Method;
  * Shown once on first launch after updating SBrowserX.
  */
 public final class SBrowserXChangelogDialog {
-    public static final String CURRENT_VERSION = "1.3.8";
-    private static final String ACK_KEY_VERSION = "1.3.8-release";
+    public static final String CURRENT_VERSION = "1.3.9";
+    private static final String ACK_KEY_VERSION = "1.3.9-release";
     private static volatile boolean sShowing = false;
 
     private SBrowserXChangelogDialog() {}
@@ -52,76 +52,18 @@ public final class SBrowserXChangelogDialog {
 
             SBrowserXStrings.updateUiContext(act);
             String lang = SBrowserXStrings.getAppLang(act);
-            boolean ru = "ru".equals(lang);
-            boolean uk = "uk".equals(lang);
-
-            String title = ru ? "Что нового в SBrowserX"
-                    : (uk ? "Що нового в SBrowserX"
-                    : "What's New in SBrowserX");
-            String hPromo = ru ? "★ Рекомендация: подключите Gemini API"
-                    : (uk ? "★ Рекомендація: підключіть Gemini API"
-                    : "★ Tip: Connect Free Gemini API");
-            String promoBody = ru
-                    ? "Настоятельно рекомендуем открыть «Настройки → Ассистент по просмотру», создать бесплатный ключ Gemini API в Google AI Studio, вставить его в поле ключа и выбрать Gemini 3.5 Flash-Lite основным движком переводчика. Это даст самый быстрый и точный перевод с пониманием контекста и сразу включит ИИ-сводку страниц."
-                    : (uk
-                    ? "Наполегливо рекомендуємо відкрити «Налаштування → Асистент перегляду», створити безкоштовний ключ Gemini API в Google AI Studio, вставити його в поле ключа та вибрати Gemini 3.5 Flash-Lite основним перекладачем. Це дасть найшвидший і найточніший переклад із розумінням контексту та одразу ввімкне ШІ-зведення сторінок."
-                    : "We strongly recommend opening Settings → Browsing Assist, creating a free Gemini API key in Google AI Studio, pasting it into the API key field, and selecting Gemini 3.5 Flash-Lite as your primary translator. You'll get fast, context-aware translation plus AI Page Summary.");
-
-            String hAdded = ru ? "Что добавлено" : (uk ? "Що додано" : "What's new");
-            String hImproved = ru ? "Что улучшено и исправлено" : (uk ? "Що покращено та виправлено" : "Improved & fixed");
-            String hRemoved = ru ? "Что удалено и защищено" : (uk ? "Що видалено та захищено" : "Removed & protected");
-            String cbText = ru ? "Спасибо, всё понятно" : (uk ? "Дякую, все зрозуміло" : "Thanks, got it");
-            String scrollHint = ru ? "↓ Пролистайте список до конца"
-                    : (uk ? "↓ Прогорніть список до кінця"
-                    : "↓ Scroll to the bottom to continue");
-
-            String addedBody = ru
-                    ? "• Новые движки перевода: Bing (по умолчанию, с фоновым прогревом), Яндекс, DeepL API и Gemini 3.5 Flash-Lite (AI).\n"
-                    + "• Полная поддержка языка приложения (Per-App Language) и переводы на 20 мировых языков (включая персидский, индонезийский, вьетнамский, нидерландский и суахили).\n"
-                    + "• Настройки сетки ярлыков стартовой страницы (4 или 5 колонок) и режим заполнения плитки иконкой в стиле Quetta.\n"
-                    + "• Mate Translate добавлен в набор рекомендуемых расширений (теперь их 7).\n"
-                    + "• Одноразовая памятка переводчика в «Ассистенте по просмотру»."
-                    : (uk
-                    ? "• Нові рушії перекладу: Bing (за замовчуванням, із фоновим прогрівом), Яндекс, DeepL API та Gemini 3.5 Flash-Lite (AI).\n"
-                    + "• Підтримка мови додатка (Per-App Language) та локалізація на 20 світових мов.\n"
-                    + "• Сітка ярликів стартової сторінки (4 або 5 колонок) і режим заповнення плитки іконкою у стилі Quetta.\n"
-                    + "• Mate Translate додано до рекомендованих розширень (тепер їх 7).\n"
-                    + "• Одноразова пам'ятка перекладача в «Асистенті перегляду»."
-                    : "• New translation engines: Bing (default, with background warm-up), Yandex, DeepL API, and Gemini 3.5 Flash-Lite (AI).\n"
-                    + "• Full Per-App Language support and natural translations across 20 major world languages.\n"
-                    + "• Start Page shortcut grid (4 or 5 columns) and edge-to-edge Quetta-style icon tiles.\n"
-                    + "• Added Mate Translate to the Recommended Extensions Pack (now 7 extensions).\n"
-                    + "• One-time translator guide in Browsing Assist.");
-
-            String improvedBody = ru
-                    ? "• Перекомпонован экран «Настройки SBrowserX»: единая верхняя карточка с синими подписями One UI, заголовок «Настройки SBrowserX», нижняя карточка «О SBrowserX», «Источник патчей для Morphe» и «Поддержать автора».\n"
-                    + "• Бирюзовые точки (логика Morphe): отображаются в главном меню и хабе, синхронизированы и автоматически пропадают после просмотра.\n"
-                    + "• Стартовая страница: повышена стабильность запуска, а обои и погода обновляются мгновенно без перезапуска.\n"
-                    + "• Переводчик: улучшен перевод на таких сайтах, как Google News, Reuters, Le Monde и GSMArena, доработана плавающая панель перевода и исправлена иконка в тёмной теме."
-                    : (uk
-                    ? "• Оновлено екран «Налаштування SBrowserX»: єдина верхня картка з синіми підписами One UI, заголовок «Налаштування SBrowserX», нижній блок «Про SBrowserX» та «Підтримати автора».\n"
-                    + "• Бірюзові крапки (логіка Morphe): відображаються в головному меню і хабі та зникають автоматично після перегляду.\n"
-                    + "• Стартова сторінка: підвищено стабільність запуску, а шпалери й погода оновлюються миттєво без перезапуску.\n"
-                    + "• Перекладач: покращено переклад на таких сайтах, як Google News, Reuters, Le Monde та GSMArena, доопрацьовано плаваючу панель і виправлено іконку в темній темі."
-                    : "• Redesigned SBrowserX settings with a unified top card, One UI accent summaries, SBrowserX Settings header, and Support the Author card.\n"
-                    + "• Visibility-based teal dots (Morphe-style): synced across Main Settings and Hub, clearing automatically once seen.\n"
-                    + "• Start Page: improved startup reliability and instant live wallpaper & weather updates without restart.\n"
-                    + "• Translator: improved translation on sites such as Google News, Reuters, Le Monde, and GSMArena, refined the floating translation bar, and fixed the Dark Mode toolbar icon.");
-
-            String removedBody = ru
-                    ? "• Полностью отключён навязчивый промо-баннер «Сделать домашней страницей Samsung» в настройках.\n"
-                    + "• Скрыты лишние штатные пункты (блок конфиденциальности, «О Samsung Browser», Debug settings).\n"
-                    + "• Заблокирована установка несовместимых расширений Manifest V2 (.crx/.zip) с понятным предупреждением и рекомендацией uBlock Origin Lite (MV3).\n"
-                    + "• Удалён устаревший движок Microsoft Edge."
-                    : (uk
-                    ? "• Повністю вимкнено промо-банер «Зробити домашньою сторінкою Samsung» у налаштуваннях.\n"
-                    + "• Приховано зайві штатні пункти (конфіденційність, «Про Samsung Browser», Debug settings).\n"
-                    + "• Заблоковано встановлення несумісних розширень Manifest V2 (.crx/.zip) із зрозумілим попередженням та рекомендацією uBlock Origin Lite (MV3).\n"
-                    + "• Видалено застарілий рушій Microsoft Edge."
-                    : "• Removed the Samsung homepage promotion banner from Settings.\n"
-                    + "• Hid unused stock Settings entries (Privacy block, About Samsung Browser, Debug settings).\n"
-                    + "• Blocked incompatible Manifest V2 (.crx/.zip) installs with a clear One UI dialog recommending uBlock Origin Lite (MV3).\n"
-                    + "• Removed the discontinued Microsoft Edge translator.");
+            String[] L = SBrowserXChangelogLocales.get(lang);
+            String title = L[0];
+            String hPromo = L[1];
+            String promoBody = L[2];
+            String hAdded = L[3];
+            String addedBody = L[4];
+            String hImproved = L[5];
+            String improvedBody = L[6];
+            String hRemoved = L[7];
+            String removedBody = L[8];
+            String cbText = L[9];
+            String scrollHint = L[10];
 
             // Full-screen blurred backdrop (One UI Quick Settings shade look)
             FrameLayout backdrop = new FrameLayout(act);

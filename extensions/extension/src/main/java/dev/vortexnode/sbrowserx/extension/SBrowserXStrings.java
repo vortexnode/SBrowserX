@@ -806,6 +806,13 @@ public final class SBrowserXStrings {
         }
     }
 
+    private static boolean isValidLocale(Locale l) {
+        if (l == null) return false;
+        String lang = l.getLanguage();
+        if (lang == null || lang.length() < 2 || lang.length() > 3) return false;
+        return !"und".equalsIgnoreCase(lang);
+    }
+
     public static Locale getAppLocale() {
         return getAppLocale(null);
     }
@@ -821,7 +828,7 @@ public final class SBrowserXStrings {
                     android.os.LocaleList appLocs = lm.getApplicationLocales();
                     if (appLocs != null && !appLocs.isEmpty()) {
                         Locale l = appLocs.get(0);
-                        if (l != null && l.getLanguage() != null && !l.getLanguage().isEmpty()) return l;
+                        if (isValidLocale(l)) return l;
                     }
                 }
             }
@@ -833,7 +840,7 @@ public final class SBrowserXStrings {
                 if (cfg != null) {
                     Locale l = (android.os.Build.VERSION.SDK_INT >= 24 && !cfg.getLocales().isEmpty())
                             ? cfg.getLocales().get(0) : cfg.locale;
-                    if (l != null && l.getLanguage() != null && !l.getLanguage().isEmpty()) return l;
+                    if (isValidLocale(l)) return l;
                 }
             }
             // 3. Android System Resources configuration (reliable even before Activity attaches)
@@ -841,7 +848,7 @@ public final class SBrowserXStrings {
             if (sysCfg != null) {
                 Locale l = (android.os.Build.VERSION.SDK_INT >= 24 && !sysCfg.getLocales().isEmpty())
                         ? sysCfg.getLocales().get(0) : sysCfg.locale;
-                if (l != null && l.getLanguage() != null && !l.getLanguage().isEmpty()) return l;
+                if (isValidLocale(l)) return l;
             }
         } catch (Throwable ignored) {}
         return Locale.getDefault();

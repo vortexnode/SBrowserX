@@ -3027,7 +3027,7 @@ public final class SBrowserXHooks {
             Object aboutVer = findPref.invoke(fragment, "sbrowserx_about_version");
             if (aboutVer != null) {
                 aboutVer.getClass().getMethod("setTitle", CharSequence.class).invoke(aboutVer, "SBrowserX");
-                setAccentSummary(aboutVer, ctx, "v1.3.8 • GitHub");
+                setAccentSummary(aboutVer, ctx, "v1.3.9 • GitHub");
                 bindUrlClick(aboutVer, ctx, "https://github.com/vortexnode/SBrowserX");
             }
             Object aboutMorphe = findPref.invoke(fragment, "sbrowserx_about_morphe");
